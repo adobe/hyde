@@ -1,8 +1,13 @@
-# What is hyde
+# What is `hyde`
 
-The primary goal of hyde for the photoshop team was a way to generate documentation from our current C++ source code, in such a way that can be consumed by jekyll to create static standalone documentation site. The project was born out of what we felt was a limitation or difference of opinion in the approach existing documention tooling. That often requires you to litter your source with inline comments that detracts from readability. These comments also tend to become out of date over time unless you are hyper-vigilant. Hyde can detect this and be used to prevent merging code that doesn't update the documentation.
+`hyde` is a utility that facilitates documenting C++. The tool is unique from existing documentation utilities in the following ways:
 
-Whilst the project was built around this use case, care has been taken to create a tool that is adaptable. You can build more tooling on top of the json format that we turn the clang ast into, or you can simply write your own emitter to massage the output into something that will suit your needs.
+- **Clang based**: In order to properly document your C++, `hyde` compiles it using Clang's excellent [libTooling](https://clang.llvm.org/docs/LibTooling.html) library. Therefore, as the C++ language evolves, so too will `hyde`.
+- **Out-of-line**: Many tools rely on documentation placed inline within source as long-form comments. While these seem appealing at first blush, they suffer from two big drawbacks. First, there is nothing keeping the comments from falling out of sync from the elements they document. Secondly (and ironically), experienced users of these libraries eventually find inline documentation to be more of a distraction than a help, cluttering code with comments they no longer read.
+- **Jekyll compatible**: `hyde` does not produce pretty-printed output. Rather, it produces well structured Markdown files that contain YAML front-matter. These files can then be consumed by other tools (like Jekyll) to customize the structure and layout of the final documentation.
+- **Schema enforcement**: Because of the highly structured nature of the output, `hyde` is able to compare pre-existing documentation files against the current state of your C++ sources. Library developers can use `hyde`'s _update_ mode to facilitate updating documentation against the state of sources. Build engineers can use `hyde`'s _validate_ mode to make sure changes to a code base are accurately reflected in the latest documentation. In the end, the documentation stays true to the code with minimal effort.
+- **Adaptable**: While `hyde`'s primary purpose at this point is to output and enforce documentation, the tool can also be used to output AST-based information about your code as a JSON-based IR. This makes room for additional tools to be build atop what `hyde` is able to produce, or additional emitters can be added natively to the tool.
+
 
 
 # Requirements
