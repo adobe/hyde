@@ -1,0 +1,10 @@
+# According to https://stackoverflow.com/a/33831598/153535, this should improve
+# the way code is seen on GitHub (PRs, etc.) by making it respect tabs as being
+# four spaces.
+
+root = true
+
+# Matches multiple files with brace expansion notation
+[*.{c,cc,cpp,cxx,h,hh,hpp,hxx,mm}]
+indent_style = space
+indent_size = 4
