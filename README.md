@@ -50,10 +50,10 @@ While compiling the source file, the non-function macro `ADOBE_TOOL_HYDE` is def
 # Examples:
 
 To output JSON:
-```./hyde ../test_files/apollo.hpp --```
+```./hyde ../test_files/classes.cpp --```
 
 To validate pre-existing YAML:
-```./hyde ../test_files/apollo.json -hyde-yaml-dir=/path/to/output -hyde-validate```
+```./hyde ../test_files/classes.cpp -hyde-yaml-dir=/path/to/output -hyde-validate```
 
 To output updated YAML:
-```./hyde ../test_files/apollo.json -hyde-yaml-dir=/path/to/output -hyde-update```
+```./hyde ../test_files/classes.cpp -hyde-yaml-dir=/path/to/output -hyde-update```
