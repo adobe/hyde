@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // stdc++
@@ -85,7 +85,8 @@ std::vector<std::string> make_absolute(std::vector<std::string> paths) {
         https://llvm.org/docs/CommandLine.html
 */
 enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate };
-static llvm::cl::OptionCategory MyToolCategory("Hyde is a tool to scan library headers to ensure documentation is kept up to\n"
+static llvm::cl::OptionCategory MyToolCategory(
+    "Hyde is a tool to scan library headers to ensure documentation is kept up to\n"
     "date");
 static cl::opt<ToolMode> ToolMode(
     cl::desc("There are several modes under which the tool can run:"),
@@ -95,12 +96,13 @@ static cl::opt<ToolMode> ToolMode(
         clEnumValN(ToolModeYAMLUpdate,
                    "hyde-update",
                    "Write updated YAML documentation for missing elements")),
-                   cl::cat(MyToolCategory));
-static cl::opt<std::string> YamlDstDir(
-    "hyde-yaml-dir", cl::desc("Root directory for YAML validation / update"),
-     cl::cat(MyToolCategory));
+    cl::cat(MyToolCategory));
+static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
+                                       cl::desc("Root directory for YAML validation / update"),
+                                       cl::cat(MyToolCategory));
 static cl::opt<std::string> YamlSrcDir(
-    "hyde-src-root", cl::desc("The root path to the header file(s) being analyzed"),
+    "hyde-src-root",
+    cl::desc("The root path to the header file(s) being analyzed"),
     cl::cat(MyToolCategory));
 
 static cl::extrahelp HydeHelp(
@@ -117,6 +119,19 @@ static cl::extrahelp HydeHelp(
     "defined to the value `1`. This can be useful to explicitly omit code from\n"
     "the documentation.\n"
     "\n");
+
+/**************************************************************************************************/
+
+const char* clang_path() {
+#define ADOBE_HYDE_XSTR(X) ADOBE_HYDE_STR(X)
+#define ADOBE_HYDE_STR(X) #X
+    return "/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/" \
+            ADOBE_HYDE_XSTR(__clang_major__) "." \
+            ADOBE_HYDE_XSTR(__clang_minor__) "." \
+            ADOBE_HYDE_XSTR(__clang_patchlevel__) "/include";
+#undef ADOBE_HYDE_XSTR
+#undef ADOBE_HYDE_STR
+}
 
 /**************************************************************************************************/
 
@@ -146,14 +161,19 @@ int main(int argc, const char** argv) try {
 
     // Get the current Xcode toolchain and add its include directories to the tool.
     std::string xcode_path = exec("xcode-select -p");
-    std::string c_includes = xcode_path + "/usr/lib/llvm-gcc/4.2.1/include";
-    std::string cpp_includes =
-        xcode_path + "/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1";
-    std::string clang_includes =
-        xcode_path + "/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/9.1.0/include";
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + c_includes).c_str()));
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + cpp_includes).c_str()));
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + clang_includes).c_str()));
+
+    // Order matters here. The first include path will be looked up first, so should
+    // be the highest priority path.
+    std::string include_directories[] = {
+        xcode_path + clang_path(),
+        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+        xcode_path + "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
+    };
+
+    for (const auto& include : include_directories) {
+        Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include).c_str()));
+    }
+
     Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-DADOBE_TOOL_HYDE=1"));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
