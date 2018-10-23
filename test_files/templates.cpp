@@ -73,7 +73,7 @@ template <class Seq, template<std::size_t> class F, std::size_t Index>
 struct index_sequence_transform<Seq, F, Index, 1> {
     using type = typename F<index_sequence_to_array<Seq>::value[Index]>::type;
 };
-#else
+
 /**************************************************************************************************/
 
 template <bool, class T>
@@ -92,5 +92,11 @@ struct move_if_helper<false, T> {
 template <bool P, class T>
 using move_if_helper_t = typename move_if_helper<P, T>::type;
 
+#else
+template <typename T>
+struct cow {
+    using element_type = T;
+    operator const element_type& () const;
+};
 #endif
 /**************************************************************************************************/

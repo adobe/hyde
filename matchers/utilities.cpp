@@ -89,7 +89,7 @@ std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_d
 
 // Get a string representation of the parts of the signature that can be
 // overloaded on.
-std::string GetSignature(const ASTContext* n, const FunctionDecl* function, bool fully_qualified, bool named_args) {
+std::string GetSignature(const ASTContext* n, const FunctionDecl* function, bool named_args) {
     if (!function) return "";
 
     bool isTrailing = false;
@@ -108,26 +108,38 @@ std::string GetSignature(const ASTContext* n, const FunctionDecl* function, bool
         if (function->isConstexpr()) {
             signature.append("constexpr ");
         }
-        auto storage = function->getStorageClass();
-        switch (storage) {
+
+        switch (function->getStorageClass()) {
             case SC_Static:
                 signature.append("static ");
+                break;
             case SC_Extern:
                 signature.append("extern ");
+                break;
             default:
                 break;
         }
 
         if (isTrailing) {
-            signature.append("auto").append(" ");
+            signature.append("auto ");
         } else {
             signature.append(hyde::to_string(n, function->getReturnType())).append(" ");
         }
     }
+
+#if 0
+    auto nameAsString = function->getNameAsString();
+    auto nameInfo = function->getNameInfo();
+    auto name1 = ::to_string(n, nameInfo.getLoc(), true);
+    auto name2 = hyde::to_string(n, nameInfo.getName().getCXXNameType());
     signature
-        .append(fully_qualified ? function->getQualifiedNameAsString() :
-                                  function->getNameAsString())
+        .append(name1)
         .append("(");
+#else
+    signature
+        .append(function->getNameAsString())
+        .append("(");
+#endif
 
     for (int i = 0, paramsCount = function->getNumParams(); i < paramsCount; ++i) {
         if (i) signature.append(", ");
@@ -229,7 +241,7 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::string GetSignature(const ASTContext* n, const Decl* d, bool fully_qualified, bool named_args) {
+std::string GetSignature(const ASTContext* n, const Decl* d, bool named_args) {
     if (!d) return "";
 
     const auto* nd = dyn_cast<NamedDecl>(d);
@@ -240,17 +252,17 @@ std::string GetSignature(const ASTContext* n, const Decl* d, bool fully_qualifie
         case Decl::Record:
         case Decl::CXXRecord:
         case Decl::Enum:
-            return fully_qualified ? nd->getQualifiedNameAsString() : nd->getNameAsString();
+            return nd->getNameAsString();
         case Decl::CXXConstructor:
         case Decl::CXXDestructor:
         case Decl::CXXConversion:
         case Decl::CXXMethod:
         case Decl::Function:
-            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), fully_qualified, named_args);
+            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), named_args);
         case Decl::ObjCMethod:
             // ObjC Methods can not be overloaded, qualified name uniquely identifies
             // the method.
-            return fully_qualified ? nd->getQualifiedNameAsString() : nd->getNameAsString();
+            return nd->getNameAsString();
         default:
             return "";
     }
@@ -324,8 +336,8 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     json info = StandardDeclInfo(n, f);
     info["return_type"] = hyde::to_string(n, f->getReturnType());
     info["arguments"] = json::array();
-    info["signature"] = GetSignature(n, f, false, false);
-    info["signature_with_names"] = GetSignature(n, f, false, true);
+    info["signature"] = GetSignature(n, f, false);
+    info["signature_with_names"] = GetSignature(n, f, true);
     if (f->isConstexpr()) info["constexpr"] = true;
 
     auto storage = f->getStorageClass();
