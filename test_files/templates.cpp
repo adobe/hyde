@@ -15,7 +15,7 @@ written permission of Adobe.
 #include <functional>
 
 /**************************************************************************************************/
-
+#ifndef ADOBE_TOOL_HYDE
 template <std::size_t N, class... EventArgs>
 struct banana {
     template <std::size_t M, class... Args>
@@ -73,5 +73,24 @@ template <class Seq, template<std::size_t> class F, std::size_t Index>
 struct index_sequence_transform<Seq, F, Index, 1> {
     using type = typename F<index_sequence_to_array<Seq>::value[Index]>::type;
 };
+#else
+/**************************************************************************************************/
 
+template <bool, class T>
+struct move_if_helper;
+
+template <class T>
+struct move_if_helper<true, T> {
+    using type = std::remove_reference_t<T>&&;
+};
+
+template <class T>
+struct move_if_helper<false, T> {
+    using type = std::remove_reference_t<T>&;
+};
+
+template <bool P, class T>
+using move_if_helper_t = typename move_if_helper<P, T>::type;
+
+#endif
 /**************************************************************************************************/

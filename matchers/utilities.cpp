@@ -207,8 +207,6 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
                     name +=
                         hyde::GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
                 }
-            } else {
-                assert(false && "What kind of a parent is this?");
             }
 
             result.push_back(std::move(name));
@@ -272,19 +270,26 @@ json GetParentCXXRecords(const ASTContext* n, const Decl* d) { return GetParents
 json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
     json info = StandardDeclInfo(n, cxx);
 
+    // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
+#if 0
         std::string arguments = GetArgumentList(n, s->getTemplateInstantiationArgs().asArray());
         info["qualified_name"] =
             static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
+#else
+        std::string as_written = hyde::to_string(n, s->getTypeAsWritten()->getType());
+        std::string qname = static_cast<const std::string&>(info["qualified_name"]);
+        std::string name = static_cast<const std::string&>(info["name"]);
+        info["qualified_name"] = as_written;
+        info["name"] = as_written;
+#endif
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
         std::string arguments =
             GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
         info["qualified_name"] =
             static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
-    } else {
-        assert(false && "What kind of a record is this?");
     }
 
     return info;
