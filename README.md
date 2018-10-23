@@ -19,7 +19,7 @@
         - `brew install boost`
         - `brew install ninja` (optional)
 ## LINUX
-note only tested on ubuntu bionic so far
+note only tested on ubuntu cosmic so far
 
 - Apt
     - `sudo apt-get install libboost-system-dev libboost-filesystem-dev`
