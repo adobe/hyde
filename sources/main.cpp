@@ -161,14 +161,19 @@ int main(int argc, const char** argv) try {
 
     // Get the current Xcode toolchain and add its include directories to the tool.
     std::string xcode_path = exec("xcode-select -p");
-    std::string c_includes = xcode_path + "/usr/lib/llvm-gcc/4.2.1/include";
-    std::string cpp_includes =
-        xcode_path + "/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1";
-    std::string clang_includes = xcode_path + clang_path();
 
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + clang_includes).c_str()));
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + cpp_includes).c_str()));
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + c_includes).c_str()));
+    // Order matters here. The first include path will be looked up first, so should
+    // be the highest priority path.
+    std::string include_directories[] = {
+        xcode_path + clang_path(),
+        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+        xcode_path + "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
+    };
+
+    for (const auto& include : include_directories) {
+        Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include).c_str()));
+    }
+
     Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-DADOBE_TOOL_HYDE=1"));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
