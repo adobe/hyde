@@ -48,6 +48,8 @@ bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clan
 std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::TemplateArgument> args);
 std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::NamedDecl*> args);
 
+std::string derive_qualified_name(const json& j);
+
 /**************************************************************************************************/
 
 inline std::string to_string(clang::AccessSpecifier access) {
@@ -75,7 +77,7 @@ json StandardDeclInfo(const clang::ASTContext* n, const DeclarationType* d) {
     info["name"] = d->getNameAsString();
     info["namespaces"] = GetParentNamespaces(n, d);
     info["parents"] = GetParentCXXRecords(n, d);
-    info["qualified_name"] = d->getQualifiedNameAsString();
+    info["qualified_name"] = derive_qualified_name(info);
 
     std::string access(to_string(d->getAccess()));
     if (access != "none" ) info["access"] = std::move(access);

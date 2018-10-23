@@ -200,8 +200,7 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
         if (node) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
-                name += hyde::GetArgumentList(
-                    n, specialization->getTemplateInstantiationArgs().asArray());
+                name = hyde::to_string(n, specialization->getTypeAsWritten()->getType());
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
                     name +=
@@ -272,24 +271,13 @@ json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
 
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
-#if 0
-        std::string arguments = GetArgumentList(n, s->getTemplateInstantiationArgs().asArray());
-        info["qualified_name"] =
-            static_cast<const std::string&>(info["qualified_name"]) + arguments;
-        info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
-#else
-        std::string as_written = hyde::to_string(n, s->getTypeAsWritten()->getType());
-        std::string qname = static_cast<const std::string&>(info["qualified_name"]);
-        std::string name = static_cast<const std::string&>(info["name"]);
-        info["qualified_name"] = as_written;
-        info["name"] = as_written;
-#endif
+        info["name"] = hyde::to_string(n, s->getTypeAsWritten()->getType());
+        info["qualified_name"] = derive_qualified_name(info);
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
         std::string arguments =
             GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
-        info["qualified_name"] =
-            static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
+        info["qualified_name"] = derive_qualified_name(info);
     }
 
     return info;
@@ -437,6 +425,31 @@ std::string GetArgumentList(const ASTContext*, const llvm::ArrayRef<clang::Named
     }
 
     result += ">";
+
+    return result;
+}
+
+/**************************************************************************************************/
+
+std::string derive_qualified_name(const json& j) {
+    std::string result;
+    bool first{true};
+
+    for (const auto& ns : j["namespaces"]) {
+        if (!first) result += "::";
+        first = false;
+        result += static_cast<const std::string&>(ns);
+    }
+
+    for (const auto& p : j["parents"]) {
+        if (!first) result += "::";
+        first = false;
+        result += static_cast<const std::string&>(p);
+    }
+
+    if (!first) result += "::";
+
+    result += static_cast<const std::string&>(j["name"]);
 
     return result;
 }
