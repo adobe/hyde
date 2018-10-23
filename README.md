@@ -8,7 +8,9 @@
 - **Schema enforcement**: Because of the highly structured nature of the output, `hyde` is able to compare pre-existing documentation files against the current state of your C++ sources. Library developers can use `hyde`'s _update_ mode to facilitate updating documentation against the state of sources. Build engineers can use `hyde`'s _validate_ mode to make sure changes to a code base are accurately reflected in the latest documentation. In the end, the documentation stays true to the code with minimal effort.
 - **Adaptable**: While `hyde`'s primary purpose at this point is to output and enforce documentation, the tool can also be used to output AST-based information about your code as a JSON-based IR. This makes room for additional tools to be build atop what `hyde` is able to produce, or additional emitters can be added natively to the tool.
 
+# Example Output
 
+`hyde` produces intermediate documentation files that the developer then fills in with additional details as necessary. The files are then fed through a static site generation tool (like Jekyll) to produce [output like this](http://stlab.cc/libraries/stlab2Fcopy_on_write.hpp/copy_on_write3CT3E/).
 
 # Requirements
 ## OSX
