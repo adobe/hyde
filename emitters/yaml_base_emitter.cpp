@@ -298,10 +298,13 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
     const std::string& have_scalar(have);
 
     if (expected_scalar == tag_value_missing_k) {
-        // Expected to be filled in.
-        if (have_scalar == tag_value_missing_k && _mode == yaml_mode::validate) {
+        if (have_scalar != tag_value_missing_k)
+            return false;
+
+        if (_mode == yaml_mode::validate) {
             notify("value not documented", "");
         }
+
         return true;
     }
 
@@ -600,16 +603,20 @@ bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
     for (const auto& ancestor : ancestors) {
         if (checker_s.exists(ancestor)) continue;
 
-        boost::system::error_code ec;
-        create_directory(ancestor, ec);
+        if (_mode == yaml_mode::validate) {
+            return true;
+        } else {
+            boost::system::error_code ec;
+            create_directory(ancestor, ec);
 
-        if (ec) {
-            static std::map<std::string, bool> bad_path_map_s;
-            const auto bad_path = ancestor.string();
-            if (!bad_path_map_s.count(bad_path))
-                std::cerr << bad_path << ": directory could not be created (" << ec << ")\n";
-            bad_path_map_s[bad_path] = true;
-            failure = true;
+            if (ec) {
+                static std::map<std::string, bool> bad_path_map_s;
+                const auto bad_path = ancestor.string();
+                if (!bad_path_map_s.count(bad_path))
+                    std::cerr << bad_path << ": directory could not be created (" << ec << ")\n";
+                bad_path_map_s[bad_path] = true;
+                failure = true;
+            }
         }
     }
 
@@ -625,6 +632,8 @@ bool yaml_base_emitter::reconcile(json expected,
     bool failure{false};
 
     std::string relative_path(("." / relative(path, root_path)).string());
+
+    failure |= create_path_directories(path);
 
     if (checker_s.exists(path)) {
         // we have to load the file ourselves and find the place where the
@@ -652,7 +661,6 @@ bool yaml_base_emitter::reconcile(json expected,
                 // do nothing
             } break;
             case hyde::yaml_mode::update: {
-                failure |= create_path_directories(path);
                 boost::filesystem::ofstream output(path);
                 if (!output) {
                     std::cerr << "./" << path.string() << ": could not open file for output\n";
@@ -673,7 +681,6 @@ bool yaml_base_emitter::reconcile(json expected,
             } break;
             case hyde::yaml_mode::update: {
                 // Add update. No remainder yet, as above.
-                failure |= create_path_directories(path);
                 boost::filesystem::ofstream output(path);
                 if (!output) {
                     std::cerr << "./" << path.string() << ": could not open file for output\n";

@@ -73,9 +73,13 @@ bool yaml_sourcefile_emitter::extraneous_file_check_internal(const boost::filesy
     for (const auto& entry :
          boost::make_iterator_range(boost::filesystem::directory_iterator(path), {})) {
         if (!checker_s.checked(entry)) {
-            std::string bad_path = boost::filesystem::path("." / relative(entry, root)).string();
-            std::cerr << bad_path << ": extraneous file\n";
-            failure = true;
+            boost::filesystem::path entry_path(entry);
+            // We need better validation here against the existence of example (cpp) files.
+            if (entry_path.extension() != ".cpp") {
+                std::string bad_path = boost::filesystem::path(entry).string();
+                std::cerr << bad_path << ": extraneous file\n";
+                failure = true;
+            }
         }
 
         if (is_directory(entry)) {
