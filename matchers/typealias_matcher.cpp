@@ -43,10 +43,10 @@ void TypeAliasInfo::run(const MatchFinder::MatchResult& Result) {
     // do not process class type aliases here.
     if (!info["parents"].empty()) return;
 
-    info["type"] = node->getUnderlyingType().getAsString();
+    info["type"] = hyde::to_string(Result.Context, node->getUnderlyingType());
 
     if (auto template_decl = node->getDescribedAliasTemplate()) {
-        info["template_parameters"] = GetTemplateParameters(template_decl);
+        info["template_parameters"] = GetTemplateParameters(Result.Context, template_decl);
     }
 
     _j["typealiases"].push_back(std::move(info));

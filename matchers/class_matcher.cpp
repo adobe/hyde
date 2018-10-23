@@ -70,7 +70,7 @@ public:
             auto type = hyde::StandardDeclInfo(context, d);
             auto name = type["qualified_name"].get<std::string>();
             type["static"] = true;
-            type["type"] = d->getType().getAsString();
+            type["type"] = hyde::to_string(context, d->getType());
             static_members[name] = type;
         }
         return true;
@@ -112,7 +112,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     static_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
 
     if (const auto& template_decl = clas->getDescribedClassTemplate()) {
-        info["template_parameters"] = GetTemplateParameters(template_decl);
+        info["template_parameters"] = GetTemplateParameters(Result.Context, template_decl);
     }
 
     for (const auto& method : clas->methods()) {
@@ -132,7 +132,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
 
     for (const auto& field : clas->fields()) {
         json fieldInfo = StandardDeclInfo(Result.Context, field);
-        fieldInfo["type"] = field->getType().getAsString();
+        fieldInfo["type"] = hyde::to_string(Result.Context, field->getType());
         info["fields"][static_cast<const std::string&>(fieldInfo["qualified_name"])] =
             fieldInfo; // can't move this into place for some reason.
     }
@@ -151,7 +151,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     for (const auto& type_def : typedefs) {
         // REVISIT (fbrereto) : Refactor this block and TypedefInfo::run's.
         json typedefInfo = StandardDeclInfo(Result.Context, type_def);
-        typedefInfo["type"] = type_def->getUnderlyingType().getAsString();
+        typedefInfo["type"] = hyde::to_string(Result.Context, type_def->getUnderlyingType());
 
         info["typedefs"].push_back(std::move(typedefInfo));
     }
@@ -163,9 +163,9 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     for (const auto& type_alias : typealiases) {
         // REVISIT (fbrereto) : Refactor this block and TypeAliasInfo::run's.
         json typealiasInfo = StandardDeclInfo(Result.Context, type_alias);
-        typealiasInfo["type"] = type_alias->getUnderlyingType().getAsString();
+        typealiasInfo["type"] = hyde::to_string(Result.Context, type_alias->getUnderlyingType());
         if (auto template_decl = type_alias->getDescribedAliasTemplate()) {
-            typealiasInfo["template_parameters"] = GetTemplateParameters(template_decl);
+            typealiasInfo["template_parameters"] = GetTemplateParameters(Result.Context, template_decl);
         }
 
         info["typealiases"].push_back(std::move(typealiasInfo));

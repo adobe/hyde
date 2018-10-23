@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -39,50 +39,77 @@ using namespace clang::ast_matchers;
 namespace {
 
 /**************************************************************************************************/
+
+void trim_back(std::string& src) {
+    std::size_t start(src.size());
+
+    while (start != 0 && (std::isspace(src[start - 1]) || src[start - 1] == '\n'))
+        start--;
+
+    src.erase(start, std::string::npos);
+}
+
+/**************************************************************************************************/
+
+std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
+    const auto char_range = as_token ? clang::CharSourceRange::getTokenRange(range) :
+                                       clang::CharSourceRange::getCharRange(range);
+    std::string result =
+        Lexer::getSourceText(char_range, n->getSourceManager(), n->getLangOpts()).str();
+    trim_back(result);
+    return result;
+}
+
+/**************************************************************************************************/
+
+std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_decl) {
+    std::size_t count{0};
+    std::string result = "template <";
+    for (const auto& parameter_decl : *template_decl->getTemplateParameters()) {
+        if (count++) result += ", ";
+        if (const auto& template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
+            result += template_type->wasDeclaredWithTypename() ? "typename" : "class";
+            if (template_type->isParameterPack()) result += "...";
+            result += " " + template_type->getNameAsString();
+        } else if (const auto& non_template_type =
+                       dyn_cast<NonTypeTemplateParmDecl>(parameter_decl)) {
+            result += hyde::to_string(n, non_template_type->getType());
+            if (non_template_type->isParameterPack()) result += "...";
+            result += " " + non_template_type->getNameAsString();
+        }
+    }
+    result += "> ";
+
+    return result;
+}
+
+/**************************************************************************************************/
 // Taken from https://clang.llvm.org/doxygen/IssueHash_8cpp_source.html#l00031
 // and cleaned up a bit.
 
 // Get a string representation of the parts of the signature that can be
 // overloaded on.
-std::string GetSignature(const FunctionDecl* function, bool fully_qualified, bool named_args) {
+std::string GetSignature(const ASTContext* n, const FunctionDecl* function, bool fully_qualified, bool named_args) {
     if (!function) return "";
-    std::string signature;
+
     bool isTrailing = false;
+    std::string signature;
+
     if (const auto* fp = function->getType()->getAs<FunctionProtoType>()) {
         isTrailing = fp->hasTrailingReturn();
     }
-    // When a flow sensitive bug happens in templated code we should not generate
-    // distinct hash value for every instantiation. Use the signature from the
-    // primary template.
-    // if (const FunctionDecl* instantiatedFrom = function->getTemplateInstantiationPattern())
-    //    function = instantiatedFrom;
 
     if (auto template_decl = function->getDescribedFunctionTemplate()) {
-        std::size_t count{0};
-        signature += "template <";
-        for (const auto& parameter_decl : *template_decl->getTemplateParameters()) {
-            if (count++) signature += ", ";
-            if (const auto& template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
-                signature += template_type->wasDeclaredWithTypename() ? "typename" : "class";
-                if (template_type->isParameterPack()) signature += "...";
-                signature += " " + template_type->getNameAsString();
-            } else if (const auto& non_template_type =
-                           dyn_cast<NonTypeTemplateParmDecl>(parameter_decl)) {
-                signature += non_template_type->getType().getAsString();
-                if (non_template_type->isParameterPack()) signature += "...";
-                signature += " " + non_template_type->getNameAsString();
-            }
-        }
-        signature += "> ";
+        signature = to_string(n, template_decl);
     }
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
-        if(function->isConstexpr()) {
+        if (function->isConstexpr()) {
             signature.append("constexpr ");
         }
         auto storage = function->getStorageClass();
-        switch(storage) {
+        switch (storage) {
             case SC_Static:
                 signature.append("static ");
             case SC_Extern:
@@ -94,7 +121,7 @@ std::string GetSignature(const FunctionDecl* function, bool fully_qualified, boo
         if (isTrailing) {
             signature.append("auto").append(" ");
         } else {
-            signature.append(function->getReturnType().getAsString()).append(" ");
+            signature.append(hyde::to_string(n, function->getReturnType())).append(" ");
         }
     }
     signature
@@ -104,7 +131,7 @@ std::string GetSignature(const FunctionDecl* function, bool fully_qualified, boo
 
     for (int i = 0, paramsCount = function->getNumParams(); i < paramsCount; ++i) {
         if (i) signature.append(", ");
-        signature.append(function->getParamDecl(i)->getType().getAsString());
+        signature.append(hyde::to_string(n, function->getParamDecl(i)->getType()));
         if (named_args) {
             auto arg_name = function->getParamDecl(i)->getNameAsString();
             if (!arg_name.empty()) {
@@ -117,21 +144,20 @@ std::string GetSignature(const FunctionDecl* function, bool fully_qualified, boo
     if (function->isVariadic()) signature.append(", ...");
     signature.append(")");
     const auto* functionT = llvm::dyn_cast_or_null<FunctionType>(function->getType().getTypePtr());
-    bool canHaveCV = functionT || isa<CXXMethodDecl>(function); 
+    bool canHaveCV = functionT || isa<CXXMethodDecl>(function);
     if (isTrailing) {
-        if(canHaveCV) {
-            //bit of repetition but hey not much.
+        if (canHaveCV) {
+            // bit of repetition but hey not much.
             if (functionT->isConst()) signature.append(" const");
             if (functionT->isVolatile()) signature.append(" volatile");
             if (functionT->isRestrict()) signature.append(" restrict");
         }
-        signature.append(" -> ").append(function->getReturnType().getAsString()).append("");
+        signature.append(" -> ").append(hyde::to_string(n, function->getReturnType())).append("");
     }
 
-    if(!canHaveCV)
-        return signature;
+    if (!canHaveCV) return signature;
 
-    if(!isTrailing) {
+    if (!isTrailing) {
         if (functionT->isConst()) signature.append(" const");
         if (functionT->isVolatile()) signature.append(" volatile");
         if (functionT->isRestrict()) signature.append(" restrict");
@@ -157,12 +183,12 @@ std::string GetSignature(const FunctionDecl* function, bool fully_qualified, boo
 /**************************************************************************************************/
 
 template <typename NodeType>
-hyde::json GetParents(ASTContext* n, const Decl* d) {
+hyde::json GetParents(const ASTContext* n, const Decl* d) {
     hyde::json result = hyde::json::array();
 
     if (!n || !d) return result;
 
-    auto parent = n->getParents(*d);
+    auto parent = const_cast<ASTContext*>(n)->getParents(*d);
 
     while (true) {
         if (parent.size() == 0) break;
@@ -174,18 +200,21 @@ hyde::json GetParents(ASTContext* n, const Decl* d) {
         if (node) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
-                name +=
-                    hyde::GetArgumentList(specialization->getTemplateInstantiationArgs().asArray());
+                name += hyde::GetArgumentList(
+                    n, specialization->getTemplateInstantiationArgs().asArray());
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
                     name +=
-                        hyde::GetArgumentList(template_decl->getTemplateParameters()->asArray());
+                        hyde::GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
                 }
+            } else {
+                assert(false && "What kind of a parent is this?");
             }
+
             result.push_back(std::move(name));
         }
 
-        parent = n->getParents(*parent.begin());
+        parent = const_cast<ASTContext*>(n)->getParents(*parent.begin());
     }
 
     std::reverse(result.begin(), result.end());
@@ -203,7 +232,7 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::string GetSignature(const Decl* d, bool fully_qualified, bool named_args) {
+std::string GetSignature(const ASTContext* n, const Decl* d, bool fully_qualified, bool named_args) {
     if (!d) return "";
 
     const auto* nd = dyn_cast<NamedDecl>(d);
@@ -220,7 +249,7 @@ std::string GetSignature(const Decl* d, bool fully_qualified, bool named_args) {
         case Decl::CXXConversion:
         case Decl::CXXMethod:
         case Decl::Function:
-            return ::GetSignature(dyn_cast_or_null<FunctionDecl>(nd), fully_qualified, named_args);
+            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), fully_qualified, named_args);
         case Decl::ObjCMethod:
             // ObjC Methods can not be overloaded, qualified name uniquely identifies
             // the method.
@@ -232,27 +261,30 @@ std::string GetSignature(const Decl* d, bool fully_qualified, bool named_args) {
 
 /**************************************************************************************************/
 
-json GetParentNamespaces(ASTContext* n, const Decl* d) { return GetParents<NamespaceDecl>(n, d); }
+json GetParentNamespaces(const ASTContext* n, const Decl* d) { return GetParents<NamespaceDecl>(n, d); }
 
 /**************************************************************************************************/
 
-json GetParentCXXRecords(ASTContext* n, const Decl* d) { return GetParents<CXXRecordDecl>(n, d); }
+json GetParentCXXRecords(const ASTContext* n, const Decl* d) { return GetParents<CXXRecordDecl>(n, d); }
 
 /**************************************************************************************************/
 
-json DetailCXXRecordDecl(clang::ASTContext* n, const clang::CXXRecordDecl* cxx) {
+json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
     json info = StandardDeclInfo(n, cxx);
 
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
-        std::string arguments = GetArgumentList(s->getTemplateInstantiationArgs().asArray());
+        std::string arguments = GetArgumentList(n, s->getTemplateInstantiationArgs().asArray());
         info["qualified_name"] =
             static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
-        std::string arguments = GetArgumentList(template_decl->getTemplateParameters()->asArray());
+        std::string arguments =
+            GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
         info["qualified_name"] =
             static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
+    } else {
+        assert(false && "What kind of a record is this?");
     }
 
     return info;
@@ -260,7 +292,7 @@ json DetailCXXRecordDecl(clang::ASTContext* n, const clang::CXXRecordDecl* cxx) 
 
 /**************************************************************************************************/
 
-json GetTemplateParameters(const clang::TemplateDecl* d) {
+json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
     json result = json::array();
 
     for (const auto& parameter_decl : *d->getTemplateParameters()) {
@@ -273,9 +305,18 @@ json GetTemplateParameters(const clang::TemplateDecl* d) {
             parameter_info["name"] = template_type->getNameAsString();
         } else if (const auto& non_template_type =
                        dyn_cast<NonTypeTemplateParmDecl>(parameter_decl)) {
-            parameter_info["type"] = non_template_type->getType().getAsString();
+            parameter_info["type"] = hyde::to_string(n, non_template_type->getType());
             if (non_template_type->isParameterPack()) parameter_info["parameter_pack"] = "true";
             parameter_info["name"] = non_template_type->getNameAsString();
+        } else if (const auto& template_template_type =
+                       dyn_cast<TemplateTemplateParmDecl>(parameter_decl)) {
+            parameter_info["type"] =
+                ::to_string(n, template_template_type->getSourceRange(), false);
+            if (template_template_type->isParameterPack())
+                parameter_info["parameter_pack"] = "true";
+            parameter_info["name"] = template_template_type->getNameAsString();
+        } else {
+            std::cerr << "What type is this thing, exactly?\n";
         }
 
         result.push_back(std::move(parameter_info));
@@ -286,16 +327,16 @@ json GetTemplateParameters(const clang::TemplateDecl* d) {
 
 /**************************************************************************************************/
 
-json DetailFunctionDecl(ASTContext* n, const FunctionDecl* f) {
+json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     json info = StandardDeclInfo(n, f);
-    info["return_type"] = f->getReturnType().getAsString();
+    info["return_type"] = hyde::to_string(n, f->getReturnType());
     info["arguments"] = json::array();
-    info["signature"] = GetSignature(f, false, false);
-    info["signature_with_names"] = GetSignature(f, false, true);
+    info["signature"] = GetSignature(n, f, false, false);
+    info["signature_with_names"] = GetSignature(n, f, false, true);
     if (f->isConstexpr()) info["constexpr"] = true;
-    
+
     auto storage = f->getStorageClass();
-    switch(storage) {
+    switch (storage) {
         case SC_Static:
             info["static"] = true;
         case SC_Extern:
@@ -321,13 +362,13 @@ json DetailFunctionDecl(ASTContext* n, const FunctionDecl* f) {
     }
 
     if (auto template_decl = f->getDescribedFunctionTemplate()) {
-        info["template_parameters"] = GetTemplateParameters(template_decl);
+        info["template_parameters"] = GetTemplateParameters(n, template_decl);
     }
 
     for (const auto& p : f->parameters()) {
         json argument = json::object();
 
-        argument["type"] = p->getOriginalType().getAsString();
+        argument["type"] = to_string(n, p->getOriginalType());
         argument["name"] = p->getNameAsString();
 
         info["arguments"].push_back(std::move(argument));
@@ -337,34 +378,49 @@ json DetailFunctionDecl(ASTContext* n, const FunctionDecl* f) {
 
 /**************************************************************************************************/
 
-std::string GetArgumentList(const llvm::ArrayRef<clang::TemplateArgument> args) {
+std::string GetArgumentList(const ASTContext* n,
+                            const llvm::ArrayRef<clang::TemplateArgument> args) {
     bool first = true;
     std::stringstream str;
     str << "<";
-    // There is a better approach coming
 
+    // There is a better approach coming
     // https://en.cppreference.com/w/cpp/experimental/ostream_joiner/make_ostream_joiner
+
     for (const auto& arg : args) {
         if (first) {
             first = false;
         } else {
             str << ", ";
         }
-        if (arg.getKind() == TemplateArgument::ArgKind::Type) {
-            str << arg.getAsType().getAsString();
-        } else if (arg.getKind() == TemplateArgument::ArgKind::Integral) {
-            str << arg.getAsIntegral().toString(10);
-        } else {
-            str << "XXXXXX";
+
+        switch(arg.getKind()) {
+            case TemplateArgument::ArgKind::Type: {
+                str << to_string(n, arg.getAsType());
+            } break;
+            case TemplateArgument::ArgKind::Integral: {
+                str << arg.getAsIntegral().toString(10);
+            } break;
+            case TemplateArgument::ArgKind::Template: {
+                str << ::to_string(n, arg.getAsTemplate().getAsTemplateDecl());
+            } break;
+            case TemplateArgument::ArgKind::Expression: {
+                str << ::to_string(n, arg.getAsExpr()->getSourceRange(), true);
+            } break;
+            default: {
+                str << "XXXXXX";
+            } break;
         }
     }
+
     str << ">";
+
     return str.str();
 }
 
 /**************************************************************************************************/
 
-std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args) {
+std::string GetArgumentList(const ASTContext*, const llvm::ArrayRef<clang::NamedDecl*> args) {
     std::size_t count{0};
     std::string result("<");
 
@@ -372,7 +428,7 @@ std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args) {
         if (count++) {
             result += ", ";
         }
-        result += arg->getNameAsString(); // getAsType().getAsString();
+        result += arg->getNameAsString();
     }
 
     result += ">";

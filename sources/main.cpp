@@ -174,6 +174,8 @@ int main(int argc, const char** argv) try {
         Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include).c_str()));
     }
 
+    //Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-xc++"));
+    //Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-std=c++17"));
     Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-DADOBE_TOOL_HYDE=1"));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))

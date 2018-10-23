@@ -43,7 +43,7 @@ void TypedefInfo::run(const MatchFinder::MatchResult& Result) {
     // do not process class type aliases here.
     if (!info["parents"].empty()) return;
 
-    info["type"] = node->getUnderlyingType().getAsString();
+    info["type"] = hyde::to_string(Result.Context, node->getUnderlyingType());
 
     _j["typedefs"].push_back(std::move(info));
 }
