@@ -207,8 +207,6 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
                     name +=
                         hyde::GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
                 }
-            } else {
-                assert(false && "What kind of a parent is this?");
             }
 
             result.push_back(std::move(name));
@@ -283,8 +281,6 @@ json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
         info["qualified_name"] =
             static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
-    } else {
-        assert(false && "What kind of a record is this?");
     }
 
     return info;
