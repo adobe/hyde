@@ -33,20 +33,20 @@ namespace hyde {
 
 std::string GetSignature(const clang::Decl* d, bool fully_qualified, bool named_args);
 
-json GetParentNamespaces(clang::ASTContext* n, const clang::Decl* d);
+json GetParentNamespaces(const clang::ASTContext* n, const clang::Decl* d);
 
-json GetParentCXXRecords(clang::ASTContext* n, const clang::Decl* d);
+json GetParentCXXRecords(const clang::ASTContext* n, const clang::Decl* d);
 
-json GetTemplateParameters(const clang::TemplateDecl* d);
+json GetTemplateParameters(const clang::ASTContext* n, const clang::TemplateDecl* d);
 
-json DetailFunctionDecl(clang::ASTContext* n, const clang::FunctionDecl* f);
+json DetailFunctionDecl(const clang::ASTContext* n, const clang::FunctionDecl* f);
 
-json DetailCXXRecordDecl(clang::ASTContext* n, const clang::CXXRecordDecl* cxx);
+json DetailCXXRecordDecl(const clang::ASTContext* n, const clang::CXXRecordDecl* cxx);
 
 bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clang::ASTContext* n);
 
-std::string GetArgumentList(const llvm::ArrayRef<clang::TemplateArgument> args);
-std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args);
+std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::TemplateArgument> args);
+std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::NamedDecl*> args);
 
 /**************************************************************************************************/
 
@@ -59,11 +59,17 @@ inline std::string to_string(clang::AccessSpecifier access) {
     }
 }
 
+/**************************************************************************************************/
+
+inline std::string to_string(const clang::ASTContext* n, clang::QualType type) {
+    static const clang::PrintingPolicy policy(n->getLangOpts());
+    return type.getAsString(policy);
+}
 
 /**************************************************************************************************/
 
 template <typename DeclarationType>
-json StandardDeclInfo(clang::ASTContext* n, const DeclarationType* d) {
+json StandardDeclInfo(const clang::ASTContext* n, const DeclarationType* d) {
     json info = json::object();
 
     info["name"] = d->getNameAsString();
