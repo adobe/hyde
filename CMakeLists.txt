@@ -40,6 +40,9 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sources/*.cpp)
 
 #TODO: use target_source
 add_executable(hyde   ${EMITTER_FILES} ${MATCHER_FILES} ${SRC_FILES})
+if (NOT LLVM_ENABLE_RTTI)
+    target_compile_options (hyde PRIVATE -fno-rtti)
+endif()
 
 
 target_include_directories(hyde PUBLIC ${Boost_INCLUDE_DIRS})
