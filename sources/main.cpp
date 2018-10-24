@@ -15,6 +15,7 @@ written permission of Adobe.
 
 // boost
 #include "boost/filesystem.hpp"
+#include "boost/range/irange.hpp"
 
 // clang/llvm
 #include "clang/Frontend/FrontendActions.h"
@@ -85,6 +86,7 @@ std::vector<std::string> make_absolute(std::vector<std::string> paths) {
         https://llvm.org/docs/CommandLine.html
 */
 enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate };
+enum ToolDiagnostic { ToolDiagnosticQuiet, ToolDiagnosticVerbose };
 static llvm::cl::OptionCategory MyToolCategory(
     "Hyde is a tool to scan library headers to ensure documentation is kept up to\n"
     "date");
@@ -96,6 +98,12 @@ static cl::opt<ToolMode> ToolMode(
         clEnumValN(ToolModeYAMLUpdate,
                    "hyde-update",
                    "Write updated YAML documentation for missing elements")),
+    cl::cat(MyToolCategory));
+static cl::opt<ToolDiagnostic> ToolDiagnostic(
+    cl::desc("There are several modes under which the tool can run:"),
+    cl::values(
+        clEnumValN(ToolDiagnosticQuiet, "hyde-quiet", "output less to the console"),
+        clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console")),
     cl::cat(MyToolCategory));
 static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
                                        cl::desc("Root directory for YAML validation / update"),
@@ -122,15 +130,37 @@ static cl::extrahelp HydeHelp(
 
 /**************************************************************************************************/
 
-const char* clang_path() {
-#define ADOBE_HYDE_XSTR(X) ADOBE_HYDE_STR(X)
-#define ADOBE_HYDE_STR(X) #X
-    return "/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/" \
-            ADOBE_HYDE_XSTR(__clang_major__) "." \
-            ADOBE_HYDE_XSTR(__clang_minor__) "." \
-            ADOBE_HYDE_XSTR(__clang_patchlevel__) "/include";
-#undef ADOBE_HYDE_XSTR
-#undef ADOBE_HYDE_STR
+boost::filesystem::path clang_path(boost::filesystem::path xcode_path) {
+    boost::filesystem::path root_clang_path = xcode_path / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/";
+    boost::filesystem::path last_directory;
+
+    for (const auto& entry :
+         boost::make_iterator_range(boost::filesystem::directory_iterator(root_clang_path), {})) {
+        if (is_directory(entry)) {
+            last_directory = entry;
+        }
+    }
+
+    if (!exists(last_directory))
+        throw std::runtime_error("could not derive clang directory");
+
+    return last_directory / "include";
+}
+
+/**************************************************************************************************/
+
+boost::filesystem::path get_xcode_path() {
+    // This routine gets us to the "/path/to/Xcode.app/Contents/Developer" folder
+#if 0
+    return exec("xcode-select -p");
+#else
+    std::string clang_details = exec("clang++ --version");
+    // This assumes "InstalledDir:" is the last flag in the lineup.
+    const std::string needle("InstalledDir: ");
+    auto installed_dir_pos = clang_details.find(needle);
+    boost::filesystem::path result = clang_details.substr(installed_dir_pos + needle.size(), std::string::npos);
+    return canonical(result / ".." / ".." / ".." / "..");
+#endif
 }
 
 /**************************************************************************************************/
@@ -160,18 +190,20 @@ int main(int argc, const char** argv) try {
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     // Get the current Xcode toolchain and add its include directories to the tool.
-    std::string xcode_path = exec("xcode-select -p");
+    const boost::filesystem::path xcode_path = get_xcode_path();
 
     // Order matters here. The first include path will be looked up first, so should
     // be the highest priority path.
-    std::string include_directories[] = {
-        xcode_path + clang_path(),
+    boost::filesystem::path include_directories[] = {
+        clang_path(xcode_path),
         "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-        xcode_path + "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
+        xcode_path / "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
     };
 
     for (const auto& include : include_directories) {
-        Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include).c_str()));
+        if (ToolDiagnostic == ToolDiagnosticVerbose)
+            std::cout<< "Including: " << include.string() << '\n';
+        Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include.string()).c_str()));
     }
 
     //Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-xc++"));

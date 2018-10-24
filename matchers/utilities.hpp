@@ -31,8 +31,6 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::string GetSignature(const clang::Decl* d, bool fully_qualified, bool named_args);
-
 json GetParentNamespaces(const clang::ASTContext* n, const clang::Decl* d);
 
 json GetParentCXXRecords(const clang::ASTContext* n, const clang::Decl* d);

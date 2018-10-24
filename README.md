@@ -17,7 +17,7 @@
    - Homebrew
         - `brew install cmake`
         - `brew install llvm`
-        - `brew install yaml-cpp`
+        - `brew install yaml-cpp --with-static-lib`
         - `brew install boost`
         - `brew install ninja` (optional)
 ## LINUX

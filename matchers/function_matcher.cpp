@@ -44,7 +44,7 @@ void FunctionInfo::run(const MatchFinder::MatchResult& Result) {
 
     auto info = DetailFunctionDecl(Result.Context, function);
 
-    _j["functions"][static_cast<const std::string&>(info["qualified_name"])].
+    _j["functions"][static_cast<const std::string&>(info["short_name"])].
         push_back(std::move(info));
 }
 

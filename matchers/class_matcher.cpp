@@ -117,7 +117,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
 
     for (const auto& method : clas->methods()) {
         json methodInfo = DetailFunctionDecl(Result.Context, method);
-        info["methods"][static_cast<const std::string&>(methodInfo["qualified_name"])].push_back(
+        info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
             std::move(methodInfo));
     }
 
@@ -126,7 +126,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
         if (!function_template_decl) continue;
         json methodInfo =
             DetailFunctionDecl(Result.Context, function_template_decl->getTemplatedDecl());
-        info["methods"][static_cast<const std::string&>(methodInfo["qualified_name"])].push_back(
+        info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
             std::move(methodInfo));
     }
 

@@ -50,7 +50,9 @@ void trim_back(std::string& src) {
 }
 
 /**************************************************************************************************/
-
+// If `as_token` is true, the end of the range is assumed to be the beginning of a token, and the
+// range will be extended to the end of that token before it is serialized. Otherwise, the end of
+// the range is unchanged before serialization.
 std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
     const auto char_range = as_token ? clang::CharSourceRange::getTokenRange(range) :
                                        clang::CharSourceRange::getCharRange(range);
@@ -58,6 +60,15 @@ std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
         Lexer::getSourceText(char_range, n->getSourceManager(), n->getLangOpts()).str();
     trim_back(result);
     return result;
+}
+
+/**************************************************************************************************/
+
+std::string to_string(const ASTContext* n,
+                      SourceLocation begin,
+                      SourceLocation end,
+                      bool as_token) {
+    return ::to_string(n, SourceRange(std::move(begin), std::move(end)), as_token);
 }
 
 /**************************************************************************************************/
@@ -84,100 +95,172 @@ std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_d
 }
 
 /**************************************************************************************************/
-// Taken from https://clang.llvm.org/doxygen/IssueHash_8cpp_source.html#l00031
-// and cleaned up a bit.
 
-// Get a string representation of the parts of the signature that can be
-// overloaded on.
-std::string GetSignature(const ASTContext* n, const FunctionDecl* function, bool fully_qualified, bool named_args) {
+enum class signature_options : std::uint8_t {
+    none = 0,
+    fully_qualified = 1 << 0,
+    named_args = 1 << 1,
+};
+
+template <typename T>
+bool flag_set(const T& value, const T& flag) {
+    using type = std::underlying_type_t<T>;
+    return (static_cast<type>(value) & static_cast<type>(flag)) != 0;
+}
+
+/**************************************************************************************************/
+// See DeclPrinter::VisitFunctionDecl in clang/lib/AST/DeclPrinter.cpp for hints
+// on how to make this routine better.
+std::string GetSignature(const ASTContext* n,
+                         const FunctionDecl* function,
+                         signature_options options = signature_options::none) {
     if (!function) return "";
 
+    bool fully_qualified = flag_set(options, signature_options::fully_qualified);
+    bool named_args = flag_set(options, signature_options::named_args);
     bool isTrailing = false;
-    std::string signature;
+    std::stringstream signature;
 
     if (const auto* fp = function->getType()->getAs<FunctionProtoType>()) {
         isTrailing = fp->hasTrailingReturn();
     }
 
     if (auto template_decl = function->getDescribedFunctionTemplate()) {
-        signature = to_string(n, template_decl);
+        signature << to_string(n, template_decl);
+    }
+
+    if (auto ctor_decl = llvm::dyn_cast_or_null<CXXConstructorDecl>(function)) {
+        if (ctor_decl->isExplicitSpecified()) signature << "explicit ";
+    } else if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
+        if (conversion_decl->isExplicitSpecified()) signature << "explicit ";
     }
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
         if (function->isConstexpr()) {
-            signature.append("constexpr ");
+            signature << "constexpr ";
         }
-        auto storage = function->getStorageClass();
-        switch (storage) {
+
+        switch (function->getStorageClass()) {
             case SC_Static:
-                signature.append("static ");
+                signature << "static ";
+                break;
             case SC_Extern:
-                signature.append("extern ");
+                signature << "extern ";
+                break;
             default:
                 break;
         }
 
         if (isTrailing) {
-            signature.append("auto").append(" ");
+            signature << "auto ";
         } else {
-            signature.append(hyde::to_string(n, function->getReturnType())).append(" ");
+            signature << hyde::to_string(n, function->getReturnType()) << " ";
         }
     }
-    signature
-        .append(fully_qualified ? function->getQualifiedNameAsString() :
-                                  function->getNameAsString())
-        .append("(");
+
+    if (fully_qualified) {
+        bool first{true};
+
+        for (const auto& ns : hyde::GetParentNamespaces(n, function)) {
+            if (!first) signature << "::";
+            first = false;
+            signature << static_cast<const std::string&>(ns);
+        }
+
+        for (const auto& p : hyde::GetParentCXXRecords(n, function)) {
+            if (!first) signature << "::";
+            first = false;
+            signature << static_cast<const std::string&>(p);
+        }
+
+        if (!first) signature << "::";
+    }
+
+    if (auto conversionDecl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
+        if (conversionDecl->isExplicit()) signature << "explicit ";
+        signature << "operator " << hyde::to_string(n, conversionDecl->getConversionType());
+    } else {
+        signature << function->getNameInfo().getAsString();
+    }
+
+    signature << "(";
 
     for (int i = 0, paramsCount = function->getNumParams(); i < paramsCount; ++i) {
-        if (i) signature.append(", ");
-        signature.append(hyde::to_string(n, function->getParamDecl(i)->getType()));
+        if (i) signature << ", ";
+        signature << hyde::to_string(n, function->getParamDecl(i)->getType());
         if (named_args) {
             auto arg_name = function->getParamDecl(i)->getNameAsString();
             if (!arg_name.empty()) {
-                signature.append(" ");
-                signature.append(std::move(arg_name));
+                signature << " " << std::move(arg_name);
             }
         }
     }
 
-    if (function->isVariadic()) signature.append(", ...");
-    signature.append(")");
+    if (function->isVariadic()) signature << ", ...";
+    signature << ")";
     const auto* functionT = llvm::dyn_cast_or_null<FunctionType>(function->getType().getTypePtr());
     bool canHaveCV = functionT || isa<CXXMethodDecl>(function);
     if (isTrailing) {
         if (canHaveCV) {
             // bit of repetition but hey not much.
-            if (functionT->isConst()) signature.append(" const");
-            if (functionT->isVolatile()) signature.append(" volatile");
-            if (functionT->isRestrict()) signature.append(" restrict");
+            if (functionT->isConst()) signature << " const";
+            if (functionT->isVolatile()) signature << " volatile";
+            if (functionT->isRestrict()) signature << " restrict";
         }
-        signature.append(" -> ").append(hyde::to_string(n, function->getReturnType())).append("");
+
+        signature << " -> " << hyde::to_string(n, function->getReturnType());
     }
 
-    if (!canHaveCV) return signature;
+    if (!canHaveCV) {
+        return signature.str();
+    }
 
     if (!isTrailing) {
-        if (functionT->isConst()) signature.append(" const");
-        if (functionT->isVolatile()) signature.append(" volatile");
-        if (functionT->isRestrict()) signature.append(" restrict");
+        if (functionT->isConst()) signature << " const";
+        if (functionT->isVolatile()) signature << " volatile";
+        if (functionT->isRestrict()) signature << " restrict";
     }
 
     if (const auto* functionPT =
             dyn_cast_or_null<FunctionProtoType>(function->getType().getTypePtr())) {
         switch (functionPT->getRefQualifier()) {
             case RQ_LValue:
-                signature.append(" &");
+                signature << " &";
                 break;
             case RQ_RValue:
-                signature.append(" &&");
+                signature << " &&";
                 break;
             default:
                 break;
         }
     }
 
-    return signature;
+    return signature.str();
+}
+
+/**************************************************************************************************/
+
+std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* function) {
+    // The "short name" is the unqualified-id of the function, running between
+    // the return type and the open paren. It's used e.g., for the file names
+    // being output.
+
+    std::string name_as_string = function->getNameInfo().getAsString();
+
+    if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
+        !isa<CXXConversionDecl>(function)) {
+        std::string result_type = hyde::to_string(n, function->getReturnType());
+        auto result_pos = name_as_string.find(result_type);
+        if (result_pos != std::string::npos) {
+            name_as_string = name_as_string.substr(result_pos + result_type.size(), std::string::npos);
+        }
+    }
+
+    auto end_pos = name_as_string.find_last_of("(");
+    std::string result = name_as_string.substr(0, end_pos);
+
+    return result;
 }
 
 /**************************************************************************************************/
@@ -200,8 +283,7 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
         if (node) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
-                name += hyde::GetArgumentList(
-                    n, specialization->getTemplateInstantiationArgs().asArray());
+                name = hyde::to_string(n, specialization->getTypeAsWritten()->getType());
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
                     name +=
@@ -230,57 +312,30 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::string GetSignature(const ASTContext* n, const Decl* d, bool fully_qualified, bool named_args) {
-    if (!d) return "";
-
-    const auto* nd = dyn_cast<NamedDecl>(d);
-    if (!nd) return "";
-
-    switch (nd->getKind()) {
-        case Decl::Namespace:
-        case Decl::Record:
-        case Decl::CXXRecord:
-        case Decl::Enum:
-            return fully_qualified ? nd->getQualifiedNameAsString() : nd->getNameAsString();
-        case Decl::CXXConstructor:
-        case Decl::CXXDestructor:
-        case Decl::CXXConversion:
-        case Decl::CXXMethod:
-        case Decl::Function:
-            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), fully_qualified, named_args);
-        case Decl::ObjCMethod:
-            // ObjC Methods can not be overloaded, qualified name uniquely identifies
-            // the method.
-            return fully_qualified ? nd->getQualifiedNameAsString() : nd->getNameAsString();
-        default:
-            return "";
-    }
+json GetParentNamespaces(const ASTContext* n, const Decl* d) {
+    return GetParents<NamespaceDecl>(n, d);
 }
 
 /**************************************************************************************************/
 
-json GetParentNamespaces(const ASTContext* n, const Decl* d) { return GetParents<NamespaceDecl>(n, d); }
-
-/**************************************************************************************************/
-
-json GetParentCXXRecords(const ASTContext* n, const Decl* d) { return GetParents<CXXRecordDecl>(n, d); }
+json GetParentCXXRecords(const ASTContext* n, const Decl* d) {
+    return GetParents<CXXRecordDecl>(n, d);
+}
 
 /**************************************************************************************************/
 
 json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
     json info = StandardDeclInfo(n, cxx);
 
+    // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
-        std::string arguments = GetArgumentList(n, s->getTemplateInstantiationArgs().asArray());
-        info["qualified_name"] =
-            static_cast<const std::string&>(info["qualified_name"]) + arguments;
-        info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
+        info["name"] = hyde::to_string(n, s->getTypeAsWritten()->getType());
+        info["qualified_name"] = s->getQualifiedNameAsString();
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
         std::string arguments =
             GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
-        info["qualified_name"] =
-            static_cast<const std::string&>(info["qualified_name"]) + arguments;
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
+        info["qualified_name"] = template_decl->getQualifiedNameAsString();
     }
 
     return info;
@@ -327,8 +382,13 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     json info = StandardDeclInfo(n, f);
     info["return_type"] = hyde::to_string(n, f->getReturnType());
     info["arguments"] = json::array();
-    info["signature"] = GetSignature(n, f, false, false);
-    info["signature_with_names"] = GetSignature(n, f, false, true);
+    info["signature"] = GetSignature(n, f);
+    info["signature_with_names"] = GetSignature(n, f, signature_options::named_args);
+    info["short_name"] = GetShortName(n, f);
+    // redo the name and qualified name for this entry, now that we have a proper function
+    info["name"] = info["signature"];
+    info["qualified_name"] = GetSignature(n, f, signature_options::fully_qualified);
+
     if (f->isConstexpr()) info["constexpr"] = true;
 
     auto storage = f->getStorageClass();
@@ -350,10 +410,20 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
         bool is_dtor = isa<CXXDestructorDecl>(method);
 
         if (is_ctor || is_dtor) {
-            if (is_ctor) info["is_ctor"] = true;
+            if (is_ctor) {
+                info["is_ctor"] = true;
+
+                if (auto ctor_decl = llvm::dyn_cast_or_null<CXXConstructorDecl>(method)) {
+                    if (ctor_decl->isExplicitSpecified()) info["explicit"] = true;
+                }
+            }
             if (is_dtor) info["is_dtor"] = true;
-            if (method->isDeleted()) info["delete"] = true;
-            if (method->isDefaulted()) info["default"] = true;
+            if (method->isDeletedAsWritten()) info["delete"] = true;
+            if (method->isExplicitlyDefaulted()) info["default"] = true;
+        }
+
+        if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(method)) {
+            if (conversion_decl->isExplicitSpecified()) info["explicit"] = true;
         }
     }
 
@@ -390,7 +460,7 @@ std::string GetArgumentList(const ASTContext* n,
             str << ", ";
         }
 
-        switch(arg.getKind()) {
+        switch (arg.getKind()) {
             case TemplateArgument::ArgKind::Type: {
                 str << to_string(n, arg.getAsType());
             } break;
@@ -403,9 +473,7 @@ std::string GetArgumentList(const ASTContext* n,
             case TemplateArgument::ArgKind::Expression: {
                 str << ::to_string(n, arg.getAsExpr()->getSourceRange(), true);
             } break;
-            default: {
-                str << "XXXXXX";
-            } break;
+            default: { str << "XXXXXX"; } break;
         }
     }
 
