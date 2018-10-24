@@ -80,7 +80,7 @@ bool yaml_function_emitter::emit(const json& j) {
             dst = dst_path(overload);
             // always the unqualified name, as free functions may be defined
             // over different namespaces.
-            name = overload["name"];
+            name = overload["short_name"];
             // prefix to keep free-function from colliding with class member (e.g., `swap`)
             filename = (_as_methods ? "m_" : "f_") + filename_filter(name);
             defined_path = defined_in_file(overload["defined-in-file"], _src_root);
