@@ -235,10 +235,11 @@ std::string GetSignature(const ASTContext* n,
 /**************************************************************************************************/
 
 std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* function) {
-    // The "short name" runs between the return type and the open paren. It's
-    // used e.g., for the file names being output.
+    // The "short name" is the unqualified-id of the function, running between
+    // the return type and the open paren. It's used e.g., for the file names
+    // being output.
 
-#if 1
+#if 0
     std::string result;
     {
     llvm::raw_string_ostream stream(result);
@@ -250,9 +251,6 @@ std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* 
     }
     return result;
 #else
-    auto begin = function->getSourceRange().getBegin();
-    //auto end = function->getSourceRange().getEnd();
-
     /*
     location options to select from:
         SourceLocation getInnerLocStart() const
@@ -264,6 +262,9 @@ std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* 
         SourceLocation getLocation() const (Decl)
         SourceLocation getTypeSpecStartLoc() const
     */
+
+    auto begin = function->getInnerLocStart();
+    //auto end = function->getSourceRange().getEnd();
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
