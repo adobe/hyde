@@ -31,14 +31,6 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-enum class signature_options : std::uint8_t {
-    none = 0,
-    fully_qualified = 1 << 0,
-    named_args = 1 << 1,
-};
-
-std::string GetSignature(const clang::Decl* d, signature_options options = signature_options::none);
-
 json GetParentNamespaces(const clang::ASTContext* n, const clang::Decl* d);
 
 json GetParentCXXRecords(const clang::ASTContext* n, const clang::Decl* d);

@@ -26,6 +26,7 @@ find_package(Clang REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
 find_package(YAML-CPP REQUIRED CONFIG)
 
+set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 add_definitions(${Clang_DEFINITIONS})

@@ -50,7 +50,9 @@ void trim_back(std::string& src) {
 }
 
 /**************************************************************************************************/
-
+// If `as_token` is true, the end of the range is assumed to be the beginning of a token, and the
+// range will be extended to the end of that token before it is serialized. Otherwise, the end of
+// the range is unchanged before serialization.
 std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
     const auto char_range = as_token ? clang::CharSourceRange::getTokenRange(range) :
                                        clang::CharSourceRange::getCharRange(range);
@@ -61,12 +63,11 @@ std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
 }
 
 /**************************************************************************************************/
-#if 0
-// unused for now.
+
 std::string to_string(const ASTContext* n, SourceLocation begin, SourceLocation end, bool as_token) {
     return ::to_string(n, SourceRange(std::move(begin), std::move(end)), as_token);
 }
-#endif
+
 /**************************************************************************************************/
 
 std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_decl) {
@@ -92,6 +93,12 @@ std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_d
 
 /**************************************************************************************************/
 
+enum class signature_options : std::uint8_t {
+    none = 0,
+    fully_qualified = 1 << 0,
+    named_args = 1 << 1,
+};
+
 template <typename T>
 bool flag_set(const T& value, const T& flag) {
     using type = std::underlying_type_t<T>;
@@ -99,16 +106,14 @@ bool flag_set(const T& value, const T& flag) {
 }
 
 /**************************************************************************************************/
-// Taken from https://clang.llvm.org/doxygen/IssueHash_8cpp_source.html#l00031
-// and cleaned up a bit.
 
-// Get a string representation of the parts of the signature that can be
-// overloaded on.
-std::string GetSignature(const ASTContext* n, const FunctionDecl* function, hyde::signature_options options) {
+std::string GetSignature(const ASTContext* n,
+                         const FunctionDecl* function,
+                         signature_options options = signature_options::none) {
     if (!function) return "";
 
-    bool fully_qualified = flag_set(options, hyde::signature_options::fully_qualified);
-    bool named_args = flag_set(options, hyde::signature_options::named_args);
+    bool fully_qualified = flag_set(options, signature_options::fully_qualified);
+    bool named_args = flag_set(options, signature_options::named_args);
     bool isTrailing = false;
     std::stringstream signature;
 
@@ -225,13 +230,51 @@ std::string GetSignature(const ASTContext* n, const FunctionDecl* function, hyde
     }
 
     return signature.str();
-#if 0
-    auto signature_begin = function->getSourceRange().getBegin();
-    auto signature_end = function->getSourceRange().getEnd();
-    if (auto body = function->getBody()) {
-        signature_end = body->getSourceRange().getBegin();
+}
+
+/**************************************************************************************************/
+
+std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* function) {
+    // The "short name" runs between the return type and the open paren. It's
+    // used e.g., for the file names being output.
+
+#if 1
+    std::string result;
+    {
+    llvm::raw_string_ostream stream(result);
+    PrintingPolicy policy(n->getLangOpts());
+    policy.ConstantArraySizeAsWritten = true;
+    policy.ConstantsAsWritten = true;
+    policy.SuppressTemplateArgsInCXXConstructors = true;
+    function->getNameForDiagnostic(stream, policy, false);
     }
-    return ::to_string(n, signature_begin, signature_end, false);
+    return result;
+#else
+    auto begin = function->getSourceRange().getBegin();
+    //auto end = function->getSourceRange().getEnd();
+
+    /*
+    location options to select from:
+        SourceLocation getInnerLocStart() const
+        SourceLocation getOuterLocStart() const
+        SourceLocation getLocStart() const
+        SourceLocation getBeginLoc()
+        SourceLocation getLocEnd() const (Decl)
+        SourceLocation getEndLoc() const (Decl)
+        SourceLocation getLocation() const (Decl)
+        SourceLocation getTypeSpecStartLoc() const
+    */
+
+    if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
+        !isa<CXXConversionDecl>(function)) {
+        // begin = function->getReturnType()->getSourceRange().getBegin();
+    }
+
+    if (auto body = function->getBody()) {
+        //signature_end = body->getSourceRange().getBegin();
+    }
+
+    return ::to_string(n, begin, begin, true);
 #endif
 }
 
@@ -281,37 +324,6 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
 /**************************************************************************************************/
 
 namespace hyde {
-
-/**************************************************************************************************/
-
-std::string GetSignature(const ASTContext* n, const Decl* d, signature_options options) {
-    if (!d) return "";
-
-    const auto* nd = dyn_cast<NamedDecl>(d);
-    if (!nd) return "";
-
-    switch (nd->getKind()) {
-        case Decl::Namespace:
-        case Decl::Record:
-        case Decl::CXXRecord:
-        case Decl::Enum:
-            return flag_set(options, signature_options::fully_qualified) ?
-                       nd->getQualifiedNameAsString() :
-                       nd->getNameAsString();
-        case Decl::CXXConstructor:
-        case Decl::CXXDestructor:
-        case Decl::CXXConversion:
-        case Decl::CXXMethod:
-        case Decl::Function:
-            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), options);
-        case Decl::ObjCMethod:
-            // ObjC Methods can not be overloaded, qualified name uniquely identifies
-            // the method.
-            return nd->getNameAsString();
-        default:
-            return "";
-    }
-}
 
 /**************************************************************************************************/
 
@@ -381,8 +393,9 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     json info = StandardDeclInfo(n, f);
     info["return_type"] = hyde::to_string(n, f->getReturnType());
     info["arguments"] = json::array();
-    info["signature"] = GetSignature(n, f, hyde::signature_options::none);
-    info["signature_with_names"] = GetSignature(n, f, hyde::signature_options::named_args);
+    info["signature"] = GetSignature(n, f);
+    info["signature_with_names"] = GetSignature(n, f, signature_options::named_args);
+    info["short_name"] = GetShortName(n, f);
     // redo the name and qualified name for this entry, now that we have a proper function signature.
     // info["name"] = info["signature"];
     // info["qualified_name"] = GetSignature(n, f, hyde::signature_options::fully_qualified);
