@@ -31,7 +31,13 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::string GetSignature(const clang::Decl* d, bool named_args);
+enum class signature_options : std::uint8_t {
+    none = 0,
+    fully_qualified = 1 << 0,
+    named_args = 1 << 1,
+};
+
+std::string GetSignature(const clang::Decl* d, signature_options options = signature_options::none);
 
 json GetParentNamespaces(const clang::ASTContext* n, const clang::Decl* d);
 
@@ -47,8 +53,6 @@ bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clan
 
 std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::TemplateArgument> args);
 std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::NamedDecl*> args);
-
-std::string derive_qualified_name(const json& j);
 
 /**************************************************************************************************/
 
@@ -77,7 +81,7 @@ json StandardDeclInfo(const clang::ASTContext* n, const DeclarationType* d) {
     info["name"] = d->getNameAsString();
     info["namespaces"] = GetParentNamespaces(n, d);
     info["parents"] = GetParentCXXRecords(n, d);
-    info["qualified_name"] = derive_qualified_name(info);
+    info["qualified_name"] = d->getQualifiedNameAsString();
 
     std::string access(to_string(d->getAccess()));
     if (access != "none" ) info["access"] = std::move(access);

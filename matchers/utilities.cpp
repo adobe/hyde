@@ -61,6 +61,13 @@ std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
 }
 
 /**************************************************************************************************/
+#if 0
+// unused for now.
+std::string to_string(const ASTContext* n, SourceLocation begin, SourceLocation end, bool as_token) {
+    return ::to_string(n, SourceRange(std::move(begin), std::move(end)), as_token);
+}
+#endif
+/**************************************************************************************************/
 
 std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_decl) {
     std::size_t count{0};
@@ -84,112 +91,148 @@ std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_d
 }
 
 /**************************************************************************************************/
+
+template <typename T>
+bool flag_set(const T& value, const T& flag) {
+    using type = std::underlying_type_t<T>;
+    return (static_cast<type>(value) & static_cast<type>(flag)) != 0;
+}
+
+/**************************************************************************************************/
 // Taken from https://clang.llvm.org/doxygen/IssueHash_8cpp_source.html#l00031
 // and cleaned up a bit.
 
 // Get a string representation of the parts of the signature that can be
 // overloaded on.
-std::string GetSignature(const ASTContext* n, const FunctionDecl* function, bool named_args) {
+std::string GetSignature(const ASTContext* n, const FunctionDecl* function, hyde::signature_options options) {
     if (!function) return "";
 
+    bool fully_qualified = flag_set(options, hyde::signature_options::fully_qualified);
+    bool named_args = flag_set(options, hyde::signature_options::named_args);
     bool isTrailing = false;
-    std::string signature;
+    std::stringstream signature;
 
     if (const auto* fp = function->getType()->getAs<FunctionProtoType>()) {
         isTrailing = fp->hasTrailingReturn();
     }
 
     if (auto template_decl = function->getDescribedFunctionTemplate()) {
-        signature = to_string(n, template_decl);
+        signature << to_string(n, template_decl);
     }
+
+    //if (function->isExplicitSpecified()) signature << "explicit ";
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
         if (function->isConstexpr()) {
-            signature.append("constexpr ");
+            signature << "constexpr ";
         }
 
         switch (function->getStorageClass()) {
             case SC_Static:
-                signature.append("static ");
+                signature << "static ";
                 break;
             case SC_Extern:
-                signature.append("extern ");
+                signature << "extern ";
                 break;
             default:
                 break;
         }
 
         if (isTrailing) {
-            signature.append("auto ");
+            signature << "auto ";
         } else {
-            signature.append(hyde::to_string(n, function->getReturnType())).append(" ");
+            signature << hyde::to_string(n, function->getReturnType()) << " ";
         }
     }
 
-#if 0
-    auto nameAsString = function->getNameAsString();
-    auto nameInfo = function->getNameInfo();
-    auto name1 = ::to_string(n, nameInfo.getLoc(), true);
-    auto name2 = hyde::to_string(n, nameInfo.getName().getCXXNameType());
-    signature
-        .append(name1)
-        .append("(");
-#else
-    signature
-        .append(function->getNameAsString())
-        .append("(");
-#endif
+    if (fully_qualified) {
+        bool first{true};
+
+        for (const auto& ns : hyde::GetParentNamespaces(n, function)) {
+            if (!first) signature << "::";
+            first = false;
+            signature << static_cast<const std::string&>(ns);
+        }
+
+        for (const auto& p : hyde::GetParentCXXRecords(n, function)) {
+            if (!first) signature << "::";
+            first = false;
+            signature << static_cast<const std::string&>(p);
+        }
+
+        if (!first) signature << "::";
+    }
+
+    if (auto conversionDecl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
+        if (conversionDecl->isExplicit())
+            signature << "explicit ";
+        signature << "operator " << hyde::to_string(n, conversionDecl->getConversionType());
+    } else {
+        signature << function->getNameAsString();
+    }
+
+    signature << "(";
 
     for (int i = 0, paramsCount = function->getNumParams(); i < paramsCount; ++i) {
-        if (i) signature.append(", ");
-        signature.append(hyde::to_string(n, function->getParamDecl(i)->getType()));
+        if (i) signature << ", ";
+        signature << hyde::to_string(n, function->getParamDecl(i)->getType());
         if (named_args) {
             auto arg_name = function->getParamDecl(i)->getNameAsString();
             if (!arg_name.empty()) {
-                signature.append(" ");
-                signature.append(std::move(arg_name));
+                signature << " " << std::move(arg_name);
             }
         }
     }
 
-    if (function->isVariadic()) signature.append(", ...");
-    signature.append(")");
+    if (function->isVariadic()) signature << ", ...";
+    signature << ")";
     const auto* functionT = llvm::dyn_cast_or_null<FunctionType>(function->getType().getTypePtr());
     bool canHaveCV = functionT || isa<CXXMethodDecl>(function);
     if (isTrailing) {
         if (canHaveCV) {
             // bit of repetition but hey not much.
-            if (functionT->isConst()) signature.append(" const");
-            if (functionT->isVolatile()) signature.append(" volatile");
-            if (functionT->isRestrict()) signature.append(" restrict");
+            if (functionT->isConst()) signature << " const";
+            if (functionT->isVolatile()) signature << " volatile";
+            if (functionT->isRestrict()) signature << " restrict";
         }
-        signature.append(" -> ").append(hyde::to_string(n, function->getReturnType())).append("");
+
+        signature << " -> " << hyde::to_string(n, function->getReturnType());
     }
 
-    if (!canHaveCV) return signature;
+    if (!canHaveCV) {
+        return signature.str();
+    }
 
     if (!isTrailing) {
-        if (functionT->isConst()) signature.append(" const");
-        if (functionT->isVolatile()) signature.append(" volatile");
-        if (functionT->isRestrict()) signature.append(" restrict");
+        if (functionT->isConst()) signature << " const";
+        if (functionT->isVolatile()) signature << " volatile";
+        if (functionT->isRestrict()) signature << " restrict";
     }
 
     if (const auto* functionPT =
             dyn_cast_or_null<FunctionProtoType>(function->getType().getTypePtr())) {
         switch (functionPT->getRefQualifier()) {
             case RQ_LValue:
-                signature.append(" &");
+                signature << " &";
                 break;
             case RQ_RValue:
-                signature.append(" &&");
+                signature << " &&";
                 break;
             default:
                 break;
         }
     }
 
-    return signature;
+    return signature.str();
+#if 0
+    auto signature_begin = function->getSourceRange().getBegin();
+    auto signature_end = function->getSourceRange().getEnd();
+    if (auto body = function->getBody()) {
+        signature_end = body->getSourceRange().getBegin();
+    }
+    return ::to_string(n, signature_begin, signature_end, false);
+#endif
 }
 
 /**************************************************************************************************/
@@ -241,7 +284,7 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::string GetSignature(const ASTContext* n, const Decl* d, bool named_args) {
+std::string GetSignature(const ASTContext* n, const Decl* d, signature_options options) {
     if (!d) return "";
 
     const auto* nd = dyn_cast<NamedDecl>(d);
@@ -252,13 +295,15 @@ std::string GetSignature(const ASTContext* n, const Decl* d, bool named_args) {
         case Decl::Record:
         case Decl::CXXRecord:
         case Decl::Enum:
-            return nd->getNameAsString();
+            return flag_set(options, signature_options::fully_qualified) ?
+                       nd->getQualifiedNameAsString() :
+                       nd->getNameAsString();
         case Decl::CXXConstructor:
         case Decl::CXXDestructor:
         case Decl::CXXConversion:
         case Decl::CXXMethod:
         case Decl::Function:
-            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), named_args);
+            return ::GetSignature(n, dyn_cast_or_null<FunctionDecl>(nd), options);
         case Decl::ObjCMethod:
             // ObjC Methods can not be overloaded, qualified name uniquely identifies
             // the method.
@@ -284,12 +329,12 @@ json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
         info["name"] = hyde::to_string(n, s->getTypeAsWritten()->getType());
-        info["qualified_name"] = derive_qualified_name(info);
+        info["qualified_name"] = s->getQualifiedNameAsString();
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
         std::string arguments =
             GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
-        info["qualified_name"] = derive_qualified_name(info);
+        info["qualified_name"] = template_decl->getQualifiedNameAsString();
     }
 
     return info;
@@ -336,9 +381,14 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     json info = StandardDeclInfo(n, f);
     info["return_type"] = hyde::to_string(n, f->getReturnType());
     info["arguments"] = json::array();
-    info["signature"] = GetSignature(n, f, false);
-    info["signature_with_names"] = GetSignature(n, f, true);
+    info["signature"] = GetSignature(n, f, hyde::signature_options::none);
+    info["signature_with_names"] = GetSignature(n, f, hyde::signature_options::named_args);
+    // redo the name and qualified name for this entry, now that we have a proper function signature.
+    // info["name"] = info["signature"];
+    // info["qualified_name"] = GetSignature(n, f, hyde::signature_options::fully_qualified);
+
     if (f->isConstexpr()) info["constexpr"] = true;
+    //if (f->isExplicitSpecified()) info["explicit"] = true;
 
     auto storage = f->getStorageClass();
     switch (storage) {
@@ -359,10 +409,22 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
         bool is_dtor = isa<CXXDestructorDecl>(method);
 
         if (is_ctor || is_dtor) {
-            if (is_ctor) info["is_ctor"] = true;
+            if (is_ctor) {
+                info["is_ctor"] = true;
+
+                if (auto ctor_decl = llvm::dyn_cast_or_null<CXXConstructorDecl>(method)) {
+                    if (ctor_decl->isExplicitSpecified())
+                        info["explicit"] = true;
+                }
+            }
             if (is_dtor) info["is_dtor"] = true;
-            if (method->isDeleted()) info["delete"] = true;
-            if (method->isDefaulted()) info["default"] = true;
+            if (method->isDeletedAsWritten()) info["delete"] = true;
+            if (method->isExplicitlyDefaulted()) info["default"] = true;
+        }
+
+        if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(method)) {
+            if (conversion_decl->isExplicitSpecified())
+                info["explicit"] = true;
         }
     }
 
@@ -437,31 +499,6 @@ std::string GetArgumentList(const ASTContext*, const llvm::ArrayRef<clang::Named
     }
 
     result += ">";
-
-    return result;
-}
-
-/**************************************************************************************************/
-
-std::string derive_qualified_name(const json& j) {
-    std::string result;
-    bool first{true};
-
-    for (const auto& ns : j["namespaces"]) {
-        if (!first) result += "::";
-        first = false;
-        result += static_cast<const std::string&>(ns);
-    }
-
-    for (const auto& p : j["parents"]) {
-        if (!first) result += "::";
-        first = false;
-        result += static_cast<const std::string&>(p);
-    }
-
-    if (!first) result += "::";
-
-    result += static_cast<const std::string&>(j["name"]);
 
     return result;
 }

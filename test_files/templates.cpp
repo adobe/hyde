@@ -97,6 +97,9 @@ template <typename T>
 struct cow {
     using element_type = T;
     operator const element_type& () const;
+    std::string to_string(const element_type& x) const;
+    template <typename U>
+    std::string to_string(const element_type& x, U&& y) const;
 };
 #endif
 /**************************************************************************************************/
