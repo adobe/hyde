@@ -61,7 +61,9 @@ inline std::string to_string(clang::AccessSpecifier access) {
 
 inline std::string to_string(const clang::ASTContext* n, clang::QualType type) {
     static const clang::PrintingPolicy policy(n->getLangOpts());
-    return type.getAsString(policy);
+    std::string result = type.getAsString(policy);
+    bool is_lambda = result.find("(lambda at ") == 0;
+    return is_lambda ? "__lambda" : result;
 }
 
 /**************************************************************************************************/

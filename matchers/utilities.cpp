@@ -64,15 +64,6 @@ std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
 
 /**************************************************************************************************/
 
-std::string to_string(const ASTContext* n,
-                      SourceLocation begin,
-                      SourceLocation end,
-                      bool as_token) {
-    return ::to_string(n, SourceRange(std::move(begin), std::move(end)), as_token);
-}
-
-/**************************************************************************************************/
-
 std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_decl) {
     std::size_t count{0};
     std::string result = "template <";
