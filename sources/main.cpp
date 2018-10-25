@@ -151,16 +151,12 @@ boost::filesystem::path clang_path(boost::filesystem::path xcode_path) {
 
 boost::filesystem::path get_xcode_path() {
     // This routine gets us to the "/path/to/Xcode.app/Contents/Developer" folder
-#if 0
-    return exec("xcode-select -p");
-#else
     std::string clang_details = exec("clang++ --version");
     // This assumes "InstalledDir:" is the last flag in the lineup.
     const std::string needle("InstalledDir: ");
     auto installed_dir_pos = clang_details.find(needle);
     boost::filesystem::path result = clang_details.substr(installed_dir_pos + needle.size(), std::string::npos);
     return canonical(result / ".." / ".." / ".." / "..");
-#endif
 }
 
 /**************************************************************************************************/
