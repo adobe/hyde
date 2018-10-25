@@ -96,6 +96,14 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (clas->isLambda()) return;
 
+    if (!clas->getSourceRange().isValid()) return; // e.g., compiler-injected class specialization
+
+    // e.g., compiler-injected class specializations not caught by the above
+    if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(clas)) {
+        if (!s->getTypeAsWritten())
+            return;
+    }
+
     json info = DetailCXXRecordDecl(Result.Context, clas);
     info["kind"] = clas->getKindName();
     info["methods"] = json::object();

@@ -178,7 +178,6 @@ std::string GetSignature(const ASTContext* n,
     }
 
     if (auto conversionDecl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
-        if (conversionDecl->isExplicit()) signature << "explicit ";
         signature << "operator " << hyde::to_string(n, conversionDecl->getConversionType());
     } else {
         signature << function->getNameInfo().getAsString();
@@ -246,19 +245,16 @@ std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* 
     // the return type and the open paren. It's used e.g., for the file names
     // being output.
 
-    std::string name_as_string = function->getNameInfo().getAsString();
+    std::string result = function->getNameInfo().getAsString();
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
-        std::string result_type = hyde::to_string(n, function->getReturnType());
-        auto result_pos = name_as_string.find(result_type);
-        if (result_pos != std::string::npos) {
-            name_as_string = name_as_string.substr(result_pos + result_type.size(), std::string::npos);
+        std::string return_type = hyde::to_string(n, function->getReturnType());
+        auto return_pos = result.find(return_type);
+        if (return_pos != std::string::npos) {
+            result = result.substr(return_pos + return_type.size(), std::string::npos);
         }
     }
-
-    auto end_pos = name_as_string.find_last_of("(");
-    std::string result = name_as_string.substr(0, end_pos);
 
     return result;
 }
