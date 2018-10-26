@@ -38,12 +38,14 @@ void TypeAliasInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, node, Result.Context)) return;
 
+    if (!AccessCheck(_access_filter, node->getAccess())) return;
+
     json info = StandardDeclInfo(Result.Context, node);
 
     // do not process class type aliases here.
     if (!info["parents"].empty()) return;
 
-    info["type"] = hyde::to_string(Result.Context, node->getUnderlyingType());
+    info["type"] = hyde::to_string(node, node->getUnderlyingType());
 
     if (auto template_decl = node->getDescribedAliasTemplate()) {
         info["template_parameters"] = GetTemplateParameters(Result.Context, template_decl);

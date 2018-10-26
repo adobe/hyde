@@ -631,6 +631,24 @@ bool yaml_base_emitter::reconcile(json expected,
     static const std::string front_matter_delimiter_k("---\n");
     bool failure{false};
 
+    /* begin hack */ {
+        // I hope to remove this soon. Paths with '...' in them make Perforce go
+        // stir-crazy (it's a special token for the tool), so we remove them.
+        static const std::string needle = "...";
+        std::string p_str = path.string();
+        auto pos = 0;
+        auto found = false;
+        while (true) {
+            pos = p_str.find(needle, pos);
+            if (pos == std::string::npos) break;
+            found = true;
+            p_str.replace(pos, needle.size(), "");
+        }
+        if (found) {
+            path = boost::filesystem::path(p_str);
+        }
+    }
+
     std::string relative_path(("." / relative(path, root_path)).string());
 
     failure |= create_path_directories(path);
@@ -716,8 +734,13 @@ std::string yaml_base_emitter::subcomponent(const boost::filesystem::path& src_p
 void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
     std::string annotation;
 
-    if (j.count("access"))
-        node["annotation"].push_back(static_cast<const std::string&>(j["access"]));
+    if (j.count("access")) {
+        const std::string& access = j["access"];
+
+        if (access != "public") {
+            node["annotation"].push_back(access);
+        }
+    }
 
     if (j.count("default") && j["default"])
         node["annotation"].push_back("default");

@@ -33,6 +33,7 @@ written permission of Adobe.
 #include "matchers/class_matcher.hpp"
 #include "matchers/enum_matcher.hpp"
 #include "matchers/function_matcher.hpp"
+#include "matchers/matcher_fwd.hpp"
 #include "matchers/namespace_matcher.hpp"
 #include "matchers/typealias_matcher.hpp"
 #include "matchers/typedef_matcher.hpp"
@@ -99,11 +100,22 @@ static cl::opt<ToolMode> ToolMode(
                    "hyde-update",
                    "Write updated YAML documentation for missing elements")),
     cl::cat(MyToolCategory));
+static cl::opt<hyde::ToolAccessFilter> ToolAccessFilter(
+    cl::desc(
+        "Restrict documentation of class elements by their access specifier."),
+    cl::values(
+        clEnumValN(hyde::ToolAccessFilterPrivate, "access-filter-private", "Process all elements"),
+        clEnumValN(hyde::ToolAccessFilterProtected,
+                   "access-filter-protected",
+                   "Process track public and protected elements"),
+        clEnumValN(hyde::ToolAccessFilterPublic,
+                   "access-filter-public",
+                   "Process track public elements")),
+    cl::cat(MyToolCategory));
 static cl::opt<ToolDiagnostic> ToolDiagnostic(
     cl::desc("There are several modes under which the tool can run:"),
-    cl::values(
-        clEnumValN(ToolDiagnosticQuiet, "hyde-quiet", "output less to the console"),
-        clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console")),
+    cl::values(clEnumValN(ToolDiagnosticQuiet, "hyde-quiet", "output less to the console"),
+               clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console")),
     cl::cat(MyToolCategory));
 static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
                                        cl::desc("Root directory for YAML validation / update"),
@@ -131,7 +143,8 @@ static cl::extrahelp HydeHelp(
 /**************************************************************************************************/
 
 boost::filesystem::path clang_path(boost::filesystem::path xcode_path) {
-    boost::filesystem::path root_clang_path = xcode_path / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/";
+    boost::filesystem::path root_clang_path =
+        xcode_path / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/";
     boost::filesystem::path last_directory;
 
     for (const auto& entry :
@@ -141,8 +154,7 @@ boost::filesystem::path clang_path(boost::filesystem::path xcode_path) {
         }
     }
 
-    if (!exists(last_directory))
-        throw std::runtime_error("could not derive clang directory");
+    if (!exists(last_directory)) throw std::runtime_error("could not derive clang directory");
 
     return last_directory / "include";
 }
@@ -155,7 +167,8 @@ boost::filesystem::path get_xcode_path() {
     // This assumes "InstalledDir:" is the last flag in the lineup.
     const std::string needle("InstalledDir: ");
     auto installed_dir_pos = clang_details.find(needle);
-    boost::filesystem::path result = clang_details.substr(installed_dir_pos + needle.size(), std::string::npos);
+    boost::filesystem::path result =
+        clang_details.substr(installed_dir_pos + needle.size(), std::string::npos);
     return canonical(result / ".." / ".." / ".." / "..");
 }
 
@@ -167,22 +180,22 @@ int main(int argc, const char** argv) try {
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
 
-    hyde::FunctionInfo function_matcher(sourcePaths);
+    hyde::FunctionInfo function_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::FunctionInfo::GetMatcher(), &function_matcher);
 
-    hyde::EnumInfo enum_matcher(sourcePaths);
+    hyde::EnumInfo enum_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::EnumInfo::GetMatcher(), &enum_matcher);
 
-    hyde::ClassInfo class_matcher(sourcePaths);
+    hyde::ClassInfo class_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::ClassInfo::GetMatcher(), &class_matcher);
 
-    hyde::NamespaceInfo namespace_matcher(sourcePaths);
+    hyde::NamespaceInfo namespace_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::NamespaceInfo::GetMatcher(), &namespace_matcher);
 
-    hyde::TypeAliasInfo typealias_matcher(sourcePaths);
+    hyde::TypeAliasInfo typealias_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::TypeAliasInfo::GetMatcher(), &typealias_matcher);
 
-    hyde::TypedefInfo typedef_matcher(sourcePaths);
+    hyde::TypedefInfo typedef_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     // Get the current Xcode toolchain and add its include directories to the tool.
@@ -198,12 +211,12 @@ int main(int argc, const char** argv) try {
 
     for (const auto& include : include_directories) {
         if (ToolDiagnostic == ToolDiagnosticVerbose)
-            std::cout<< "Including: " << include.string() << '\n';
+            std::cout << "Including: " << include.string() << '\n';
         Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include.string()).c_str()));
     }
 
-    //Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-xc++"));
-    //Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-std=c++17"));
+    // Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-xc++"));
+    // Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-std=c++17"));
     Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-DADOBE_TOOL_HYDE=1"));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))

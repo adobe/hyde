@@ -69,20 +69,44 @@ std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_d
     std::string result = "template <";
     for (const auto& parameter_decl : *template_decl->getTemplateParameters()) {
         if (count++) result += ", ";
-        if (const auto& template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
+        if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
             result += template_type->wasDeclaredWithTypename() ? "typename" : "class";
             if (template_type->isParameterPack()) result += "...";
             result += " " + template_type->getNameAsString();
-        } else if (const auto& non_template_type =
-                       dyn_cast<NonTypeTemplateParmDecl>(parameter_decl)) {
-            result += hyde::to_string(n, non_template_type->getType());
+        } else if (auto* non_template_type = dyn_cast<NonTypeTemplateParmDecl>(parameter_decl)) {
+            result += hyde::to_string(non_template_type, non_template_type->getType());
             if (non_template_type->isParameterPack()) result += "...";
             result += " " + non_template_type->getNameAsString();
         }
     }
-    result += "> ";
+    result += ">\n";
 
     return result;
+}
+
+/**************************************************************************************************/
+
+template <typename F>
+void ForEachParent(const Decl* d, F f) {
+    if (!d) return;
+
+    auto& context = d->getASTContext();
+    auto parents = context.getParents(*d);
+
+    while (true) {
+        if (parents.size() == 0) break;
+        if (parents.size() != 1) {
+            assert(false && "What exactly is going on here?");
+        }
+
+        auto* parent = parents.begin();
+
+        if (auto* node = parent->get<Decl>()) {
+            f(node);
+        }
+
+        parents = context.getParents(*parent);
+    }
 }
 
 /**************************************************************************************************/
@@ -146,7 +170,7 @@ std::string GetSignature(const ASTContext* n,
         if (isTrailing) {
             signature << "auto ";
         } else {
-            signature << hyde::to_string(n, function->getReturnType()) << " ";
+            signature << hyde::to_string(function, function->getReturnType()) << " ";
         }
     }
 
@@ -169,16 +193,18 @@ std::string GetSignature(const ASTContext* n,
     }
 
     if (auto conversionDecl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
-        signature << "operator " << hyde::to_string(n, conversionDecl->getConversionType());
+        signature << "operator "
+                  << hyde::to_string(conversionDecl, conversionDecl->getConversionType());
     } else {
-        signature << function->getNameInfo().getAsString();
+        signature << hyde::PostProcessType(function, function->getNameInfo().getAsString());
     }
 
     signature << "(";
 
     for (int i = 0, paramsCount = function->getNumParams(); i < paramsCount; ++i) {
         if (i) signature << ", ";
-        signature << hyde::to_string(n, function->getParamDecl(i)->getType());
+        auto* paramDecl = function->getParamDecl(i);
+        signature << hyde::to_string(paramDecl, paramDecl->getType());
         if (named_args) {
             auto arg_name = function->getParamDecl(i)->getNameAsString();
             if (!arg_name.empty()) {
@@ -199,7 +225,7 @@ std::string GetSignature(const ASTContext* n,
             if (functionT->isRestrict()) signature << " restrict";
         }
 
-        signature << " -> " << hyde::to_string(n, function->getReturnType());
+        signature << " -> " << hyde::to_string(function, function->getReturnType());
     }
 
     if (!canHaveCV) {
@@ -236,11 +262,11 @@ std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* 
     // the return type and the open paren. It's used e.g., for the file names
     // being output.
 
-    std::string result = function->getNameInfo().getAsString();
+    std::string result = hyde::PostProcessType(function, function->getNameInfo().getAsString());
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
-        std::string return_type = hyde::to_string(n, function->getReturnType());
+        std::string return_type = hyde::to_string(function, function->getReturnType());
         auto return_pos = result.find(return_type);
         if (return_pos != std::string::npos) {
             result = result.substr(return_pos + return_type.size(), std::string::npos);
@@ -270,11 +296,12 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
         if (node) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
-                name = hyde::to_string(n, specialization->getTypeAsWritten()->getType());
+                name =
+                    hyde::to_string(specialization, specialization->getTypeAsWritten()->getType());
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
                     name +=
-                        hyde::GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
+                        hyde::GetArgumentList(template_decl->getTemplateParameters()->asArray());
                 }
             }
 
@@ -316,11 +343,11 @@ json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
 
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
-        info["name"] = hyde::to_string(n, s->getTypeAsWritten()->getType());
+        info["name"] = hyde::to_string(s, s->getTypeAsWritten()->getType());
         info["qualified_name"] = s->getQualifiedNameAsString();
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
         std::string arguments =
-            GetArgumentList(n, template_decl->getTemplateParameters()->asArray());
+            GetArgumentList(template_decl->getTemplateParameters()->asArray());
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
         info["qualified_name"] = template_decl->getQualifiedNameAsString();
     }
@@ -343,7 +370,8 @@ json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
             parameter_info["name"] = template_type->getNameAsString();
         } else if (const auto& non_template_type =
                        dyn_cast<NonTypeTemplateParmDecl>(parameter_decl)) {
-            parameter_info["type"] = hyde::to_string(n, non_template_type->getType());
+            parameter_info["type"] =
+                hyde::to_string(non_template_type, non_template_type->getType());
             if (non_template_type->isParameterPack()) parameter_info["parameter_pack"] = "true";
             parameter_info["name"] = non_template_type->getNameAsString();
         } else if (const auto& template_template_type =
@@ -367,7 +395,7 @@ json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
 
 json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     json info = StandardDeclInfo(n, f);
-    info["return_type"] = hyde::to_string(n, f->getReturnType());
+    info["return_type"] = hyde::to_string(f, f->getReturnType());
     info["arguments"] = json::array();
     info["signature"] = GetSignature(n, f);
     info["signature_with_names"] = GetSignature(n, f, signature_options::named_args);
@@ -421,7 +449,7 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     for (const auto& p : f->parameters()) {
         json argument = json::object();
 
-        argument["type"] = to_string(n, p->getOriginalType());
+        argument["type"] = to_string(p, p->getOriginalType());
         argument["name"] = p->getNameAsString();
 
         info["arguments"].push_back(std::move(argument));
@@ -431,47 +459,7 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
 
 /**************************************************************************************************/
 
-std::string GetArgumentList(const ASTContext* n,
-                            const llvm::ArrayRef<clang::TemplateArgument> args) {
-    bool first = true;
-    std::stringstream str;
-    str << "<";
-
-    // There is a better approach coming
-    // https://en.cppreference.com/w/cpp/experimental/ostream_joiner/make_ostream_joiner
-
-    for (const auto& arg : args) {
-        if (first) {
-            first = false;
-        } else {
-            str << ", ";
-        }
-
-        switch (arg.getKind()) {
-            case TemplateArgument::ArgKind::Type: {
-                str << to_string(n, arg.getAsType());
-            } break;
-            case TemplateArgument::ArgKind::Integral: {
-                str << arg.getAsIntegral().toString(10);
-            } break;
-            case TemplateArgument::ArgKind::Template: {
-                str << ::to_string(n, arg.getAsTemplate().getAsTemplateDecl());
-            } break;
-            case TemplateArgument::ArgKind::Expression: {
-                str << ::to_string(n, arg.getAsExpr()->getSourceRange(), true);
-            } break;
-            default: { str << "XXXXXX"; } break;
-        }
-    }
-
-    str << ">";
-
-    return str.str();
-}
-
-/**************************************************************************************************/
-
-std::string GetArgumentList(const ASTContext*, const llvm::ArrayRef<clang::NamedDecl*> args) {
+std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args) {
     std::size_t count{0};
     std::string result("<");
 
@@ -494,6 +482,105 @@ bool PathCheck(const std::vector<std::string>& paths, const Decl* d, ASTContext*
     auto location = beginLoc.printToString(n->getSourceManager());
     std::string path = location.substr(0, location.find(':'));
     return std::find(paths.begin(), paths.end(), path) != paths.end();
+}
+
+/**************************************************************************************************/
+
+bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_access) {
+    // return true iff the element should be included in the documentation based
+    // on its access specifier. false otherwise.
+
+    if (clang_access == AS_none) return true;
+
+    switch (hyde_filter) {
+        case ToolAccessFilterPrivate:
+            return true;
+        case ToolAccessFilterProtected:
+            switch (clang_access) {
+                case AS_public:
+                case AS_protected:
+                    return true;
+                default:
+                    return false;
+            }
+        case ToolAccessFilterPublic:
+            switch (clang_access) {
+                case AS_public:
+                    return true;
+                default:
+                    return false;
+            }
+    }
+}
+
+/**************************************************************************************************/
+
+std::string PostProcessType(const clang::Decl* decl, std::string type) {
+    // If our type contains one or more `type-parameter-N-M`s, run up the parent
+    // tree in an attempt to resolve them.
+    static const std::string needle("type-parameter-");
+
+    auto pos = type.find(needle);
+
+    // Do this early to avoid the following rigamaroll for nearly all use cases.
+    if (pos == std::string::npos) return type;
+
+    auto& context = decl->getASTContext();
+    std::vector<std::pair<std::string, std::string>> parent_template_types;
+
+    ForEachParent(decl, [&](const Decl* parent) {
+        // REVISIT (fbrereto) : Gotta do this for FunctionTemplateDecl, and ClassTemplateDecl
+        if (auto* ctpsd = dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(parent)) {
+            for (const auto& parameter_decl : *ctpsd->getTemplateParameters()) {
+                if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
+                    auto depth = template_type->getDepth();
+                    auto index = template_type->getIndex();
+                    auto qualType = context.getTemplateTypeParmType(
+                        depth, index, template_type->isParameterPack(), template_type);
+
+                    std::string old_type =
+                        needle + std::to_string(depth) + "-" + std::to_string(index);
+                    std::string new_type = hyde::to_string(template_type, qualType);
+                    parent_template_types.emplace_back(
+                        std::make_pair(std::move(old_type), std::move(new_type)));
+                }
+            }
+        }
+    });
+
+    while (true) {
+        auto end_pos = pos + needle.size();
+
+        // This loop is faster than std::string::find_first_not_of
+        while (true) {
+            auto c = type[end_pos];
+            if (!std::isdigit(c) && c != '-') break;
+            ++end_pos;
+        }
+
+        auto length = end_pos - pos;
+        std::string old_type = type.substr(pos, length);
+
+        // sort and lower_bound this? parent_template_types.size() is usually
+        // small (< 5 or so), so it might not be worth the effort.
+        auto found = std::find_if(parent_template_types.begin(), parent_template_types.end(),
+                                  [&](const auto& cur_pair) { return cur_pair.first == old_type; });
+
+        if (found != parent_template_types.end()) {
+            const auto& new_type = found->second;
+            type.replace(pos, length, new_type);
+            pos += new_type.size();
+        } else {
+            // Not resolved. Skip to avoid infinite loop.
+            pos += old_type.size();
+        }
+
+        pos = type.find(needle, pos);
+
+        if (pos == std::string::npos) break;
+    }
+
+    return type;
 }
 
 /**************************************************************************************************/
