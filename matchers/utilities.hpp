@@ -21,9 +21,9 @@ written permission of Adobe.
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 
-
 // application
 #include "json.hpp"
+#include "matchers/matcher_fwd.hpp"
 
 /**************************************************************************************************/
 
@@ -42,6 +42,8 @@ json DetailFunctionDecl(const clang::ASTContext* n, const clang::FunctionDecl* f
 json DetailCXXRecordDecl(const clang::ASTContext* n, const clang::CXXRecordDecl* cxx);
 
 bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clang::ASTContext* n);
+
+bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_access);
 
 std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::TemplateArgument> args);
 std::string GetArgumentList(const clang::ASTContext* n, const llvm::ArrayRef<clang::NamedDecl*> args);

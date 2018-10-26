@@ -38,6 +38,8 @@ void EnumInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, enumeration, Result.Context)) return;
 
+    if (!AccessCheck(_access_filter, enumeration->getAccess())) return;
+
     json info = StandardDeclInfo(Result.Context, enumeration);
     //info["scoped"] = enumeration->isScoped();
     //info["fixed"] = enumeration->isFixed();

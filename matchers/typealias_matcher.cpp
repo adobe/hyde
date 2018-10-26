@@ -38,6 +38,8 @@ void TypeAliasInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, node, Result.Context)) return;
 
+    if (!AccessCheck(_access_filter, node->getAccess())) return;
+
     json info = StandardDeclInfo(Result.Context, node);
 
     // do not process class type aliases here.

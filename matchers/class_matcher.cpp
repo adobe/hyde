@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -62,8 +62,11 @@ private:
 
 class FindStaticMembers : public RecursiveASTVisitor<FindStaticMembers> {
 public:
-    FindStaticMembers(ASTContext* context) : context(context), static_members(hyde::json::object()) {}
+    FindStaticMembers(ASTContext* context, hyde::ToolAccessFilter access_filter)
+        : context(context), _access_filter(access_filter), static_members(hyde::json::object()) {}
     bool VisitVarDecl(const VarDecl* d) {
+        if (!AccessCheck(_access_filter, d->getAccess())) return true;
+
         auto storage = d->getStorageClass();
         // TODO(Wyles): Do we want to worry about other kinds of storage?
         if (storage == SC_Static) {
@@ -80,6 +83,7 @@ public:
 
 private:
     ASTContext* context = nullptr;
+    hyde::ToolAccessFilter _access_filter;
     hyde::json static_members;
 };
 
@@ -92,6 +96,8 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, clas, Result.Context)) return;
 
+    if (!AccessCheck(_access_filter, clas->getAccess())) return;
+
     if (!clas->isCompleteDefinition()) return; // e.g., a forward declaration.
 
     if (clas->isLambda()) return;
@@ -100,8 +106,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
 
     // e.g., compiler-injected class specializations not caught by the above
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(clas)) {
-        if (!s->getTypeAsWritten())
-            return;
+        if (!s->getTypeAsWritten()) return;
     }
 
     json info = DetailCXXRecordDecl(Result.Context, clas);
@@ -116,7 +121,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     dtor_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
     if (!dtor_finder) info["dtor"] = "unspecified";
 
-    FindStaticMembers static_finder(Result.Context);
+    FindStaticMembers static_finder(Result.Context, _access_filter);
     static_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
 
     if (const auto& template_decl = clas->getDescribedClassTemplate()) {
@@ -124,12 +129,16 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     for (const auto& method : clas->methods()) {
+        if (!AccessCheck(_access_filter, method->getAccess())) continue;
+
         json methodInfo = DetailFunctionDecl(Result.Context, method);
         info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
             std::move(methodInfo));
     }
 
     for (const auto& decl : clas->decls()) {
+        if (!AccessCheck(_access_filter, decl->getAccess())) continue;
+
         auto* function_template_decl = dyn_cast<FunctionTemplateDecl>(decl);
         if (!function_template_decl) continue;
         json methodInfo =
@@ -139,12 +148,16 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     for (const auto& field : clas->fields()) {
+        if (!AccessCheck(_access_filter, field->getAccess())) continue;
+
         json fieldInfo = StandardDeclInfo(Result.Context, field);
         fieldInfo["type"] = hyde::to_string(Result.Context, field->getType());
         info["fields"][static_cast<const std::string&>(fieldInfo["qualified_name"])] =
             fieldInfo; // can't move this into place for some reason.
     }
+
     hyde::json static_members = static_finder.get_results();
+
     if (static_members.size() > 0) {
         if (info["fields"].size() == 0) {
             info["fields"] = hyde::json::object();
@@ -158,6 +171,8 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
                            typedef_iterator(CXXRecordDecl::decl_iterator()));
     for (const auto& type_def : typedefs) {
         // REVISIT (fbrereto) : Refactor this block and TypedefInfo::run's.
+        if (!AccessCheck(_access_filter, type_def->getAccess())) continue;
+
         json typedefInfo = StandardDeclInfo(Result.Context, type_def);
         typedefInfo["type"] = hyde::to_string(Result.Context, type_def->getUnderlyingType());
 
@@ -170,10 +185,13 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
                                 typealias_iterator(CXXRecordDecl::decl_iterator()));
     for (const auto& type_alias : typealiases) {
         // REVISIT (fbrereto) : Refactor this block and TypeAliasInfo::run's.
+        if (!AccessCheck(_access_filter, type_alias->getAccess())) continue;
+
         json typealiasInfo = StandardDeclInfo(Result.Context, type_alias);
         typealiasInfo["type"] = hyde::to_string(Result.Context, type_alias->getUnderlyingType());
         if (auto template_decl = type_alias->getDescribedAliasTemplate()) {
-            typealiasInfo["template_parameters"] = GetTemplateParameters(Result.Context, template_decl);
+            typealiasInfo["template_parameters"] =
+                GetTemplateParameters(Result.Context, template_decl);
         }
 
         info["typealiases"].push_back(std::move(typealiasInfo));

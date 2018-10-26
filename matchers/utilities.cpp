@@ -80,9 +80,103 @@ std::string to_string(const ASTContext* n, const clang::TemplateDecl* template_d
             result += " " + non_template_type->getNameAsString();
         }
     }
-    result += "> ";
+    result += ">\n";
 
     return result;
+}
+
+/**************************************************************************************************/
+
+template <typename NodeType, typename F>
+void ForEachParent(const Decl* d, F f) {
+    if (!d) return;
+
+    auto& context = d->getASTContext();
+    auto parents = context.getParents(*d);
+
+    while (true) {
+        if (parents.size() == 0) break;
+        if (parents.size() != 1) {
+            assert(false && "What exactly is going on here?");
+        }
+
+        auto* parent = parents.begin();
+
+        if (auto* node = parent->get<NodeType>()) {
+            f(node);
+        }
+
+        parents = context.getParents(*parent);
+    }
+}
+
+/**************************************************************************************************/
+
+std::string post_process_name(const FunctionDecl* function, std::string name) {
+    // If our name has `type-parameter-N-M` in it, run up the parent tree in an attempt
+    // to resolve them.
+    static const std::string needle("type-parameter-");
+
+    auto pos = name.find(needle);
+
+    // Do this early to avoid the following rigamaroll for nearly all use cases.
+    if (pos == std::string::npos) return name;
+
+    auto& context = function->getASTContext();
+    std::vector<std::pair<std::string, std::string>> parent_template_types;
+
+    ForEachParent<Decl>(function, [&](const Decl* parent) {
+        // REVISIT (fbrereto) : Gotta do this for FunctionTemplateDecl, and ClassTemplateDecl
+        if (auto* ctpsd = dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(parent)) {
+            for (const auto& parameter_decl : *ctpsd->getTemplateParameters()) {
+                if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
+                    auto depth = template_type->getDepth();
+                    auto index = template_type->getIndex();
+                    auto qualType = context.getTemplateTypeParmType(
+                        depth, index, template_type->isParameterPack(), template_type);
+
+                    std::string old_type =
+                        needle + std::to_string(depth) + "-" + std::to_string(index);
+                    std::string new_type = hyde::to_string(&context, qualType);
+                    parent_template_types.emplace_back(
+                        std::make_pair(std::move(old_type), std::move(new_type)));
+                }
+            }
+        }
+    });
+
+    while (true) {
+        auto end_pos = pos + needle.size();
+
+        // This loop is faster than std::string::find_first_not_of
+        while (true) {
+            auto c = name[end_pos];
+            if (!std::isdigit(c) && c != '-') break;
+            ++end_pos;
+        }
+
+        auto length = end_pos - pos;
+        std::string old_type = name.substr(pos, length);
+
+        // sort and lower_bound this?
+        auto found = std::find_if(parent_template_types.begin(), parent_template_types.end(),
+                                  [&](const auto& cur_pair) { return cur_pair.first == old_type; });
+
+        if (found != parent_template_types.end()) {
+            const auto& new_type = found->second;
+            name.replace(pos, length, new_type);
+            pos += new_type.size();
+        } else {
+            // Not resolved. Skip to avoid infinite loop.
+            pos += old_type.size();
+        }
+
+        pos = name.find(needle, pos);
+
+        if (pos == std::string::npos) break;
+    }
+
+    return name;
 }
 
 /**************************************************************************************************/
@@ -171,7 +265,7 @@ std::string GetSignature(const ASTContext* n,
     if (auto conversionDecl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
         signature << "operator " << hyde::to_string(n, conversionDecl->getConversionType());
     } else {
-        signature << function->getNameInfo().getAsString();
+        signature << post_process_name(function, function->getNameInfo().getAsString());
     }
 
     signature << "(";
@@ -236,7 +330,7 @@ std::string GetShortName(const clang::ASTContext* n, const clang::FunctionDecl* 
     // the return type and the open paren. It's used e.g., for the file names
     // being output.
 
-    std::string result = function->getNameInfo().getAsString();
+    std::string result = post_process_name(function, function->getNameInfo().getAsString());
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
         !isa<CXXConversionDecl>(function)) {
@@ -494,6 +588,35 @@ bool PathCheck(const std::vector<std::string>& paths, const Decl* d, ASTContext*
     auto location = beginLoc.printToString(n->getSourceManager());
     std::string path = location.substr(0, location.find(':'));
     return std::find(paths.begin(), paths.end(), path) != paths.end();
+}
+
+/**************************************************************************************************/
+
+bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_access) {
+    // return true iff the element should be included in the documentation based
+    // on its access specifier. false otherwise.
+
+    if (clang_access == AS_none) return true;
+
+    switch (hyde_filter) {
+        case ToolAccessFilterPrivate:
+            return true;
+        case ToolAccessFilterProtected:
+            switch (clang_access) {
+                case AS_public:
+                case AS_protected:
+                    return true;
+                default:
+                    return false;
+            }
+        case ToolAccessFilterPublic:
+            switch (clang_access) {
+                case AS_public:
+                    return true;
+                default:
+                    return false;
+            }
+    }
 }
 
 /**************************************************************************************************/

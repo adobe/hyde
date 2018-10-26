@@ -42,6 +42,8 @@ void FunctionInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, function, Result.Context)) return;
 
+    if (!AccessCheck(_access_filter, function->getAccess())) return;
+
     auto info = DetailFunctionDecl(Result.Context, function);
 
     _j["functions"][static_cast<const std::string&>(info["short_name"])].
