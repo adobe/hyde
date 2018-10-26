@@ -43,7 +43,7 @@ void EnumInfo::run(const MatchFinder::MatchResult& Result) {
     json info = StandardDeclInfo(Result.Context, enumeration);
     //info["scoped"] = enumeration->isScoped();
     //info["fixed"] = enumeration->isFixed();
-    info["type"] = hyde::to_string(Result.Context, enumeration->getIntegerType());
+    info["type"] = hyde::to_string(enumeration, enumeration->getIntegerType());
     info["values"] = json::array();
 
     for (const auto& p : enumeration->enumerators()) {

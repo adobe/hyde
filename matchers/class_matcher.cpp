@@ -73,7 +73,7 @@ public:
             auto type = hyde::StandardDeclInfo(context, d);
             auto name = type["qualified_name"].get<std::string>();
             type["static"] = true;
-            type["type"] = hyde::to_string(context, d->getType());
+            type["type"] = hyde::to_string(d, d->getType());
             static_members[name] = type;
         }
         return true;
@@ -151,7 +151,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
         if (!AccessCheck(_access_filter, field->getAccess())) continue;
 
         json fieldInfo = StandardDeclInfo(Result.Context, field);
-        fieldInfo["type"] = hyde::to_string(Result.Context, field->getType());
+        fieldInfo["type"] = hyde::to_string(field, field->getType());
         info["fields"][static_cast<const std::string&>(fieldInfo["qualified_name"])] =
             fieldInfo; // can't move this into place for some reason.
     }
@@ -174,7 +174,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
         if (!AccessCheck(_access_filter, type_def->getAccess())) continue;
 
         json typedefInfo = StandardDeclInfo(Result.Context, type_def);
-        typedefInfo["type"] = hyde::to_string(Result.Context, type_def->getUnderlyingType());
+        typedefInfo["type"] = hyde::to_string(type_def, type_def->getUnderlyingType());
 
         info["typedefs"].push_back(std::move(typedefInfo));
     }
@@ -188,7 +188,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
         if (!AccessCheck(_access_filter, type_alias->getAccess())) continue;
 
         json typealiasInfo = StandardDeclInfo(Result.Context, type_alias);
-        typealiasInfo["type"] = hyde::to_string(Result.Context, type_alias->getUnderlyingType());
+        typealiasInfo["type"] = hyde::to_string(type_alias, type_alias->getUnderlyingType());
         if (auto template_decl = type_alias->getDescribedAliasTemplate()) {
             typealiasInfo["template_parameters"] =
                 GetTemplateParameters(Result.Context, template_decl);

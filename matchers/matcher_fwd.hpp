@@ -18,9 +18,9 @@ namespace hyde {
 /**************************************************************************************************/
 
 enum ToolAccessFilter {
-    ToolAccessFilterPublic,
+    ToolAccessFilterPrivate,
     ToolAccessFilterProtected,
-    ToolAccessFilterPrivate
+    ToolAccessFilterPublic,
 };
 
 /**************************************************************************************************/
