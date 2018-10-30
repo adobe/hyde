@@ -1,0 +1,7 @@
+---
+layout: post
+title:  Welcome!
+excerpt_separator: <!--more-->
+---
+
+This is the landing page for the `hyde` sample files example site. Poke around in the `Libraries` section, above.
