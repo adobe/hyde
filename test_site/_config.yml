@@ -1,0 +1,24 @@
+# Welcome to Jekyll!
+#
+# This config file is meant for settings that affect your whole blog, values
+# which you are expected to set up once and rarely need to edit after that.
+# For technical reasons, this file is *NOT* reloaded automatically when you use
+# 'jekyll serve'. If you change this file, please restart the server process.
+
+# Site settings
+title: Hyde Example Docs
+subtitle: Website showing a possible Jekyll-formatted hyde output.
+email: noreply@adobe.com
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "http://github.com/adobe/hyde" # the base hostname & protocol for your site
+repository: adobe/hyde
+
+exclude:
+    - "*.sh"
+    - vendor # For Travis-CI (see https://jekyllrb.com/docs/continuous-integration/)
+
+# Build settings
+markdown: kramdown
+
+plugins:
+  - jekyll-redirect-from

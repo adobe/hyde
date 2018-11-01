@@ -3,4 +3,5 @@
 .DS_Store
 .vscode/
 build/
-test_files_out/
+test_site/_site/
+test_site/Gemfile.lock
