@@ -11,6 +11,7 @@ subtitle: Website showing a possible Jekyll-formatted hyde output.
 email: noreply@adobe.com
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://github.com/adobe/hyde" # the base hostname & protocol for your site
+repository: adobe/hyde
 
 exclude:
     - "*.sh"
