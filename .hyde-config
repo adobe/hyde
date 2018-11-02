@@ -1,0 +1,4 @@
+{
+    "src_root" : ".",
+    "yaml_dir" : "./test_site/libraries"
+}

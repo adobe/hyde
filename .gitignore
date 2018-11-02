@@ -5,3 +5,5 @@
 build/
 test_site/_site/
 test_site/Gemfile.lock
+test_site/libraries
+!test_site/libraries/index.md
