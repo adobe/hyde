@@ -327,6 +327,10 @@ int main(int argc, const char** argv) try {
         }
     }
 
+    //this may not work on windows, need to investigate using strings
+    const boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+
+
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
@@ -350,25 +354,23 @@ int main(int argc, const char** argv) try {
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     // Get the current Xcode toolchain and add its include directories to the tool.
-    const boost::filesystem::path xcode_path = get_xcode_path();
+   // const boost::filesystem::path xcode_path = get_xcode_path();
 
     // Order matters here. The first include path will be looked up first, so should
     // be the highest priority path.
-    boost::filesystem::path include_directories[] = {
-        clang_path(xcode_path),
-        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-        xcode_path / "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
-    };
+   // boost::filesystem::path include_directories[] = {
+    ///    clang_path(xcode_path),
+      //  "/Library/Developer/CommandLineTools/usr/include/c++/v1",
+      //  xcode_path / "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
+   // };
 
-    for (const auto& include : include_directories) {
-        if (ToolDiagnostic == ToolDiagnosticVerbose)
-            std::cout << "Including: " << include.string() << '\n';
-        Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include.string()).c_str()));
-    }
-
-    // Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-xc++"));
-    // Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-std=c++17"));
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-DADOBE_TOOL_HYDE=1"));
+    
+    clang::tooling::CommandLineArguments  arguments;
+    std::string resouree_arg("-resource-dir=");
+    resouree_arg += resource_dir.string();
+    arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
+    arguments.emplace_back(resouree_arg);
+    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");

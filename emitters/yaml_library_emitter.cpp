@@ -34,7 +34,7 @@ bool yaml_library_emitter::do_merge(const std::string& filepath,
 
 /**************************************************************************************************/
 
-bool yaml_library_emitter::emit(const json& j) {
+bool yaml_library_emitter::emit(const json&) {
     json node = base_emitter_node("library", "API Documentation", "library");
     node["library-type"] = "library";
 

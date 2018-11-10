@@ -645,7 +645,7 @@ bool yaml_base_emitter::reconcile(json expected,
         // stir-crazy (it's a special token for the tool), so we remove them.
         static const std::string needle = "...";
         std::string p_str = path.string();
-        auto pos = 0;
+        std::size_t pos = 0;
         auto found = false;
         while (true) {
             pos = p_str.find(needle, pos);
