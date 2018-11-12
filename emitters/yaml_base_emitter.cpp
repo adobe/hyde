@@ -625,7 +625,7 @@ bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
 
 /**************************************************************************************************/
 
-auto load_yaml(const boost::filesystem::path path) try {
+auto load_yaml(const boost::filesystem::path& path) try {
     return YAML::LoadFile(path.c_str());
 } catch (...) {
     std::cerr << "YAML File: " << path.string() << '\n';
