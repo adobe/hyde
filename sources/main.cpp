@@ -249,14 +249,14 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
         }
     }
 
-    if (config.count("src_root")) {
-        boost::filesystem::path relative_path = static_cast<const std::string&>(config["src_root"]);
+    if (config.count("hyde-src-root")) {
+        boost::filesystem::path relative_path = static_cast<const std::string&>(config["hyde-src-root"]);
         boost::filesystem::path absolute_path = canonical(config_dir / relative_path);
         hyde_flags.emplace_back("-hyde-src-root=" + absolute_path.string());
     }
 
-    if (config.count("yaml_dir")) {
-        boost::filesystem::path relative_path = static_cast<const std::string&>(config["yaml_dir"]);
+    if (config.count("hyde-yaml-dir")) {
+        boost::filesystem::path relative_path = static_cast<const std::string&>(config["hyde-yaml-dir"]);
         boost::filesystem::path absolute_path = canonical(config_dir / relative_path);
         hyde_flags.emplace_back("-hyde-yaml-dir=" + absolute_path.string());
     }

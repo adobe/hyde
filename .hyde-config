@@ -1,4 +1,4 @@
 {
-    "src_root" : ".",
-    "yaml_dir" : "./test_site/libraries"
+    "hyde-src-root" : ".",
+    "hyde-yaml-dir" : "./test_site/libraries"
 }
