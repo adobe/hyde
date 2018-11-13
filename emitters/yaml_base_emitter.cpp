@@ -625,6 +625,15 @@ bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
 
 /**************************************************************************************************/
 
+auto load_yaml(const boost::filesystem::path& path) try {
+    return YAML::LoadFile(path.c_str());
+} catch (...) {
+    std::cerr << "YAML File: " << path.string() << '\n';
+    throw;
+}
+
+/**************************************************************************************************/
+
 bool yaml_base_emitter::reconcile(json expected,
                                   boost::filesystem::path root_path,
                                   boost::filesystem::path path) {
@@ -669,7 +678,7 @@ bool yaml_base_emitter::reconcile(json expected,
             front_matter_pos, front_matter_end + front_matter_delimiter_k.size());
         have_contents.erase(front_matter_pos, front_matter_end + front_matter_delimiter_k.size());
         std::string remainder = std::move(have_contents);
-        json have = yaml_to_json(YAML::LoadFile(path.c_str()));
+        json have = yaml_to_json(load_yaml(path));
         json merged;
 
         std::tie(failure, merged) = merge(relative_path, have, expected);
@@ -714,6 +723,7 @@ bool yaml_base_emitter::reconcile(json expected,
 
     return failure;
 }
+
 
 /**************************************************************************************************/
 
