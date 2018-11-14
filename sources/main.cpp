@@ -190,7 +190,7 @@ std::pair<boost::filesystem::path, hyde::json> load_hyde_config(
     boost::filesystem::path hyde_config_path;
 
     if (exists(src_file)) {
-        const boost::filesystem::path pwd_k = exec("pwd");
+        const boost::filesystem::path pwd_k = boost::filesystem::current_path();
 
         if (src_file.is_relative()) {
             src_file = canonical(pwd_k / src_file);
@@ -265,6 +265,9 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     hyde::json config;
     std::tie(config_dir, config) =
         load_hyde_config(cli_hyde_flags.empty() ? "" : cli_hyde_flags.back());
+
+    if (exists(config_dir))
+        current_path(config_dir);
 
     if (config.count("clang_flags")) {
         for (const auto& clang_flag : config["clang_flags"]) {
