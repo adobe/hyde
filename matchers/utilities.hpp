@@ -63,6 +63,7 @@ inline std::string to_string(clang::AccessSpecifier access) {
         case clang::AccessSpecifier::AS_none:
             return "none";
     }
+    return "none";
 }
 
 /**************************************************************************************************/

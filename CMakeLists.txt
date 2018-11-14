@@ -88,7 +88,10 @@ target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(hyde SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 target_include_directories(hyde SYSTEM PUBLIC ${CLANG_INCLUDE_DIRS})
 target_include_directories(hyde SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
-target_include_directories(hyde SYSTEM PUBLIC ${YAML_CPP_INCLUDE_DIR})
+#this gets a little messy with gcc so it can't be a system include :(
+#you end up with a "can't find stdlib.h" error if it is
+target_include_directories(hyde PUBLIC ${YAML_CPP_INCLUDE_DIR})
+
 
 target_compile_options(hyde PUBLIC -Wall  -Werror)
 
