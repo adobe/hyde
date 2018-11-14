@@ -80,12 +80,15 @@ target_compile_definitions(hyde PRIVATE
  CLANG_RESOURCE_DIR="${CLANG_RESOURCE_DIR}"
 )
 
-target_include_directories(hyde PUBLIC ${Boost_INCLUDE_DIRS})
-target_include_directories(hyde PUBLIC ${CLANG_INCLUDE_DIRS})
+#our headers
 target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(hyde PUBLIC ${LLVM_INCLUDE_DIRS})
-target_include_directories(hyde PUBLIC ${YAML_CPP_INCLUDE_DIR})
+
+#3rd party
+target_include_directories(hyde SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
+target_include_directories(hyde SYSTEM PUBLIC ${CLANG_INCLUDE_DIRS})
+target_include_directories(hyde SYSTEM PUBLIC ${LLVM_INCLUDE_DIRS})
+target_include_directories(hyde SYSTEM PUBLIC ${YAML_CPP_INCLUDE_DIR})
 
 target_compile_options(hyde PUBLIC -Wall  -Werror)
 
