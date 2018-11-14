@@ -94,7 +94,7 @@ static llvm::cl::OptionCategory MyToolCategory(
 static cl::opt<ToolMode> ToolMode(
     cl::desc("There are several modes under which the tool can run:"),
     cl::values(
-        clEnumValN(ToolModeJSON, "hyde-json", "JSON analysis"),
+        clEnumValN(ToolModeJSON, "hyde-json", "JSON analysis (default)"),
         clEnumValN(ToolModeYAMLValidate, "hyde-validate", "Validate existing YAML documentation"),
         clEnumValN(ToolModeYAMLUpdate,
                    "hyde-update",
@@ -102,19 +102,21 @@ static cl::opt<ToolMode> ToolMode(
     cl::cat(MyToolCategory));
 static cl::opt<hyde::ToolAccessFilter> ToolAccessFilter(
     cl::desc("Restrict documentation of class elements by their access specifier."),
-    cl::values(
-        clEnumValN(hyde::ToolAccessFilterPrivate, "access-filter-private", "Process all elements"),
-        clEnumValN(hyde::ToolAccessFilterProtected,
-                   "access-filter-protected",
-                   "Process track public and protected elements"),
-        clEnumValN(hyde::ToolAccessFilterPublic,
-                   "access-filter-public",
-                   "Process track public elements")),
+    cl::values(clEnumValN(hyde::ToolAccessFilterPrivate,
+                          "access-filter-private",
+                          "Process all elements (default)"),
+               clEnumValN(hyde::ToolAccessFilterProtected,
+                          "access-filter-protected",
+                          "Process only public and protected elements"),
+               clEnumValN(hyde::ToolAccessFilterPublic,
+                          "access-filter-public",
+                          "Process only public elements")),
     cl::cat(MyToolCategory));
 static cl::opt<ToolDiagnostic> ToolDiagnostic(
-    cl::desc("There are several modes under which the tool can run:"),
-    cl::values(clEnumValN(ToolDiagnosticQuiet, "hyde-quiet", "output less to the console"),
-               clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console")),
+    cl::desc("Several tool diagnostic modes are available:"),
+    cl::values(
+        clEnumValN(ToolDiagnosticQuiet, "hyde-quiet", "output less to the console (default)"),
+        clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console")),
     cl::cat(MyToolCategory));
 static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
                                        cl::desc("Root directory for YAML validation / update"),
@@ -129,7 +131,9 @@ static cl::extrahelp HydeHelp(
     "compiler (e.g., include directories), append them after the `--` token on the\n"
     "command line. For example:\n"
     "\n"
-    "    hyde input_file.hpp -hyde-json -- -x c++ -I/path/to/includes\n"
+    "    hyde -hyde-json input_file.hpp -- -x c++ -I/path/to/includes\n"
+    "\n"
+    "(The file to be processed must be the last argument before the `--` token.)\n"
     "\n"
     "Alternatively, if you have a compilation database and would like to pass that\n"
     "instead of command-line compiler arguments, you can pass that with -p.\n"
@@ -139,10 +143,11 @@ static cl::extrahelp HydeHelp(
     "the documentation.\n"
     "\n"
     "Hyde supports project configuration files. It must be named either `.hyde-config`\n"
-    "or `_hyde-config`, and must be at or along the working directory path. The\n"
+    "or `_hyde-config`, and must be at or above the file being processed. The\n"
     "format of the file is JSON. This allows you to specify command line\n"
     "parameters in a common location so they do not need to be passed for every\n"
-    "file in your project.\n"
+    "file in your project. The flags sent to Clang should be a in a top-level\n"
+    "array under the `clang_flags` key.\n"
     "\n");
 
 /**************************************************************************************************/
@@ -181,38 +186,40 @@ boost::filesystem::path get_xcode_path() {
 
 std::pair<boost::filesystem::path, hyde::json> load_hyde_config(
     boost::filesystem::path src_file) try {
-    boost::filesystem::path pwd_k = exec("pwd");
-
-    if (src_file.is_relative()) {
-        src_file = canonical(pwd_k / src_file);
-    }
-
-    if (!is_directory(src_file)) {
-        src_file = src_file.parent_path();
-    }
-
     bool found{false};
     boost::filesystem::path hyde_config_path;
 
-    const auto hyde_config_check = [&](boost::filesystem::path path) {
-        found = exists(path);
-        if (found) {
-            hyde_config_path = std::move(path);
-        }
-        return found;
-    };
+    if (exists(src_file)) {
+        const boost::filesystem::path pwd_k = exec("pwd");
 
-    const auto directory_walk = [hyde_config_check](boost::filesystem::path directory) {
-        while (true) {
-            if (!exists(directory)) break;
-            if (hyde_config_check(directory / ".hyde-config")) break;
-            if (hyde_config_check(directory / "_hyde-config")) break;
-            directory = directory.parent_path();
+        if (src_file.is_relative()) {
+            src_file = canonical(pwd_k / src_file);
         }
-    };
 
-    // walk up the directory tree starting from the source file being processed.
-    directory_walk(src_file);
+        if (!is_directory(src_file)) {
+            src_file = src_file.parent_path();
+        }
+
+        const auto hyde_config_check = [&](boost::filesystem::path path) {
+            found = exists(path);
+            if (found) {
+                hyde_config_path = std::move(path);
+            }
+            return found;
+        };
+
+        const auto directory_walk = [hyde_config_check](boost::filesystem::path directory) {
+            while (true) {
+                if (!exists(directory)) break;
+                if (hyde_config_check(directory / ".hyde-config")) break;
+                if (hyde_config_check(directory / "_hyde-config")) break;
+                directory = directory.parent_path();
+            }
+        };
+
+        // walk up the directory tree starting from the source file being processed.
+        directory_walk(src_file);
+    }
 
     return found ?
                std::make_pair(hyde_config_path.parent_path(),
@@ -256,7 +263,8 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     std::vector<std::string> clang_flags;
     boost::filesystem::path config_dir;
     hyde::json config;
-    std::tie(config_dir, config) = load_hyde_config(cli_hyde_flags.back());
+    std::tie(config_dir, config) =
+        load_hyde_config(cli_hyde_flags.empty() ? "" : cli_hyde_flags.back());
 
     if (config.count("clang_flags")) {
         for (const auto& clang_flag : config["clang_flags"]) {
