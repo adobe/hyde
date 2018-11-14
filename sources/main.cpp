@@ -179,30 +179,45 @@ boost::filesystem::path get_xcode_path() {
 
 /**************************************************************************************************/
 
-std::pair<boost::filesystem::path, hyde::json> load_hyde_config(boost::filesystem::path src_file) try {
+std::pair<boost::filesystem::path, hyde::json> load_hyde_config(
+    boost::filesystem::path src_file) try {
+    boost::filesystem::path pwd_k = exec("pwd");
+
     if (src_file.is_relative()) {
-        src_file = canonical(exec("pwd") / src_file);
+        src_file = canonical(pwd_k / src_file);
     }
 
     if (!is_directory(src_file)) {
         src_file = src_file.parent_path();
     }
 
-    boost::filesystem::path directory = src_file;
+    bool found{false};
     boost::filesystem::path hyde_config_path;
-    hyde::json result;
 
-    while (true) {
-        if (!exists(directory)) return std::make_pair(boost::filesystem::path(), result);
-        hyde_config_path = directory / ".hyde-config";
-        if (exists(hyde_config_path)) break;
-        hyde_config_path = directory / "_hyde-config";
-        if (exists(hyde_config_path)) break;
-        directory = directory.parent_path();
-    }
+    const auto hyde_config_check = [&](boost::filesystem::path path) {
+        found = exists(path);
+        if (found) {
+            hyde_config_path = std::move(path);
+        }
+        return found;
+    };
 
-    return std::make_pair(directory,
-                          hyde::json::parse(boost::filesystem::ifstream(hyde_config_path)));
+    const auto directory_walk = [hyde_config_check](boost::filesystem::path directory) {
+        while (true) {
+            if (!exists(directory)) break;
+            if (hyde_config_check(directory / ".hyde-config")) break;
+            if (hyde_config_check(directory / "_hyde-config")) break;
+            directory = directory.parent_path();
+        }
+    };
+
+    // walk up the directory tree starting from the source file being processed.
+    directory_walk(src_file);
+
+    return found ?
+               std::make_pair(hyde_config_path.parent_path(),
+                              hyde::json::parse(boost::filesystem::ifstream(hyde_config_path))) :
+               std::make_pair(boost::filesystem::path(), hyde::json());
 } catch (...) {
     throw std::runtime_error("failed to parse the hyde-config file");
 }
@@ -250,13 +265,15 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     }
 
     if (config.count("hyde-src-root")) {
-        boost::filesystem::path relative_path = static_cast<const std::string&>(config["hyde-src-root"]);
+        boost::filesystem::path relative_path =
+            static_cast<const std::string&>(config["hyde-src-root"]);
         boost::filesystem::path absolute_path = canonical(config_dir / relative_path);
         hyde_flags.emplace_back("-hyde-src-root=" + absolute_path.string());
     }
 
     if (config.count("hyde-yaml-dir")) {
-        boost::filesystem::path relative_path = static_cast<const std::string&>(config["hyde-yaml-dir"]);
+        boost::filesystem::path relative_path =
+            static_cast<const std::string&>(config["hyde-yaml-dir"]);
         boost::filesystem::path absolute_path = canonical(config_dir / relative_path);
         hyde_flags.emplace_back("-hyde-yaml-dir=" + absolute_path.string());
     }
@@ -291,6 +308,14 @@ int main(int argc, const char** argv) try {
                    [](const auto& arg) { return arg.c_str(); });
 
     CommonOptionsParser OptionsParser(new_argc, &new_argv[0], MyToolCategory);
+
+    if (ToolDiagnostic == ToolDiagnosticVerbose) {
+        std::cout << "Args:\n";
+        for (const auto& arg : args) {
+            std::cout << arg << '\n';
+        }
+    }
+
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
