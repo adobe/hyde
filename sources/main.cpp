@@ -300,14 +300,7 @@ int main(int argc, const char** argv) try {
         }
     }
 
-    //this may not work on windows, need to investigate using strings
-<<<<<<< HEAD
-=======
-    boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
-
-
     CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
->>>>>>> updating our script to locate hyde in known locations.
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
@@ -331,14 +324,16 @@ int main(int argc, const char** argv) try {
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     clang::tooling::CommandLineArguments  arguments;
+    
+    boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
     if (!ArgumentResourceDir.empty()) {
         resource_dir = boost::filesystem::path{ArgumentResourceDir};
     }
-
     std::string resource_arg("-resource-dir=");
     resource_arg += resource_dir.string();
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
     arguments.emplace_back(resource_arg);
+    
     Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
