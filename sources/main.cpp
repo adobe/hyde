@@ -121,9 +121,14 @@ static cl::opt<ToolDiagnostic> ToolDiagnostic(
 static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
                                        cl::desc("Root directory for YAML validation / update"),
                                        cl::cat(MyToolCategory));
-static cl::opt<std::string> YamlSrcDir(
+static cl::opt<std::string> ArgumentResourceDir(
     "hyde-src-root",
     cl::desc("The root path to the header file(s) being analyzed"),
+    cl::cat(MyToolCategory));
+    
+static cl::opt<std::string> YamlSrcDir(
+    "resource-dir",
+    cl::desc("The resource dir(see clang resource dir) for hyde to use."),
     cl::cat(MyToolCategory));
 
 static cl::extrahelp HydeHelp(
@@ -149,38 +154,6 @@ static cl::extrahelp HydeHelp(
     "file in your project. The flags sent to Clang should be a in a top-level\n"
     "array under the `clang_flags` key.\n"
     "\n");
-
-/**************************************************************************************************/
-
-boost::filesystem::path clang_path(boost::filesystem::path xcode_path) {
-    boost::filesystem::path root_clang_path =
-        xcode_path / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/";
-    boost::filesystem::path last_directory;
-
-    for (const auto& entry :
-         boost::make_iterator_range(boost::filesystem::directory_iterator(root_clang_path), {})) {
-        if (is_directory(entry)) {
-            last_directory = entry;
-        }
-    }
-
-    if (!exists(last_directory)) throw std::runtime_error("could not derive clang directory");
-
-    return last_directory / "include";
-}
-
-/**************************************************************************************************/
-
-boost::filesystem::path get_xcode_path() {
-    // This routine gets us to the "/path/to/Xcode.app/Contents/Developer" folder
-    std::string clang_details = exec("clang++ --version");
-    // This assumes "InstalledDir:" is the last flag in the lineup.
-    const std::string needle("InstalledDir: ");
-    auto installed_dir_pos = clang_details.find(needle);
-    boost::filesystem::path result =
-        clang_details.substr(installed_dir_pos + needle.size(), std::string::npos);
-    return canonical(result / ".." / ".." / ".." / "..");
-}
 
 /**************************************************************************************************/
 
@@ -328,9 +301,13 @@ int main(int argc, const char** argv) try {
     }
 
     //this may not work on windows, need to investigate using strings
-    const boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+<<<<<<< HEAD
+=======
+    boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
 
 
+    CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
+>>>>>>> updating our script to locate hyde in known locations.
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
@@ -353,23 +330,14 @@ int main(int argc, const char** argv) try {
     hyde::TypedefInfo typedef_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
-    // Get the current Xcode toolchain and add its include directories to the tool.
-   // const boost::filesystem::path xcode_path = get_xcode_path();
-
-    // Order matters here. The first include path will be looked up first, so should
-    // be the highest priority path.
-   // boost::filesystem::path include_directories[] = {
-    ///    clang_path(xcode_path),
-      //  "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-      //  xcode_path / "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
-   // };
-
-    
     clang::tooling::CommandLineArguments  arguments;
-    std::string resouree_arg("-resource-dir=");
-    resouree_arg += resource_dir.string();
+    if (!ArgumentResourceDir.empty())
+        resource_dir = boost::filesystem::path{ArgumentResourceDir};
+
+    std::string resource_arg("-resource-dir=");
+    resource_arg += resource_dir.string();
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
-    arguments.emplace_back(resouree_arg);
+    arguments.emplace_back(resource_arg);
     Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
