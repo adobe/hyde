@@ -38,9 +38,12 @@ void EnumInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, enumeration, Result.Context)) return;
 
-    if (!AccessCheck(_access_filter, enumeration->getAccess())) return;
+    if (!AccessCheck(_options._access_filter, enumeration->getAccess())) return;
 
     json info = StandardDeclInfo(Result.Context, enumeration);
+
+    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
+
     //info["scoped"] = enumeration->isScoped();
     //info["fixed"] = enumeration->isFixed();
     info["type"] = hyde::to_string(enumeration, enumeration->getIntegerType());

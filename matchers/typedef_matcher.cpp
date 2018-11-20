@@ -38,9 +38,11 @@ void TypedefInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, node, Result.Context)) return;
 
-    if (!AccessCheck(_access_filter, node->getAccess())) return;
+    if (!AccessCheck(_options._access_filter, node->getAccess())) return;
 
     json info = StandardDeclInfo(Result.Context, node);
+
+    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
 
     // do not process class type aliases here.
     if (!info["parents"].empty()) return;

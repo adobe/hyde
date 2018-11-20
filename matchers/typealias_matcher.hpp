@@ -30,8 +30,8 @@ namespace hyde {
 
 class TypeAliasInfo : public MatchFinder::MatchCallback {
 public:
-    TypeAliasInfo(std::vector<std::string> paths, ToolAccessFilter filter)
-        : _paths(std::move(paths)), _access_filter(filter) {
+    TypeAliasInfo(std::vector<std::string> paths, processing_options options)
+        : _paths(std::move(paths)), _options(options) {
         _j["typealiases"] = json::array();
     }
 
@@ -43,7 +43,7 @@ public:
 
 private:
     std::vector<std::string> _paths;
-    ToolAccessFilter _access_filter;
+    processing_options _options;
     json _j;
 };
 

@@ -45,6 +45,8 @@ bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clan
 
 bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_access);
 
+bool NamespaceBlacklist(const std::vector<std::string>& blacklist, const json& j);
+
 std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args);
 
 // type-parameter-N-M filtering.

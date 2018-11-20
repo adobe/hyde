@@ -96,7 +96,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, clas, Result.Context)) return;
 
-    if (!AccessCheck(_access_filter, clas->getAccess())) return;
+    if (!AccessCheck(_options._access_filter, clas->getAccess())) return;
 
     if (!clas->isCompleteDefinition()) return; // e.g., a forward declaration.
 
@@ -110,6 +110,9 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     json info = DetailCXXRecordDecl(Result.Context, clas);
+
+    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
+
     info["kind"] = clas->getKindName();
     info["methods"] = json::object();
 
@@ -121,7 +124,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     dtor_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
     if (!dtor_finder) info["dtor"] = "unspecified";
 
-    FindStaticMembers static_finder(Result.Context, _access_filter);
+    FindStaticMembers static_finder(Result.Context, _options._access_filter);
     static_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
 
     if (const auto& template_decl = clas->getDescribedClassTemplate()) {
@@ -129,7 +132,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     for (const auto& method : clas->methods()) {
-        if (!AccessCheck(_access_filter, method->getAccess())) continue;
+        if (!AccessCheck(_options._access_filter, method->getAccess())) continue;
 
         json methodInfo = DetailFunctionDecl(Result.Context, method);
         info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
@@ -137,7 +140,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     for (const auto& decl : clas->decls()) {
-        if (!AccessCheck(_access_filter, decl->getAccess())) continue;
+        if (!AccessCheck(_options._access_filter, decl->getAccess())) continue;
 
         auto* function_template_decl = dyn_cast<FunctionTemplateDecl>(decl);
         if (!function_template_decl) continue;
@@ -148,7 +151,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     for (const auto& field : clas->fields()) {
-        if (!AccessCheck(_access_filter, field->getAccess())) continue;
+        if (!AccessCheck(_options._access_filter, field->getAccess())) continue;
 
         json fieldInfo = StandardDeclInfo(Result.Context, field);
         fieldInfo["type"] = hyde::to_string(field, field->getType());
@@ -171,7 +174,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
                            typedef_iterator(CXXRecordDecl::decl_iterator()));
     for (const auto& type_def : typedefs) {
         // REVISIT (fbrereto) : Refactor this block and TypedefInfo::run's.
-        if (!AccessCheck(_access_filter, type_def->getAccess())) continue;
+        if (!AccessCheck(_options._access_filter, type_def->getAccess())) continue;
 
         json typedefInfo = StandardDeclInfo(Result.Context, type_def);
         typedefInfo["type"] = hyde::to_string(type_def, type_def->getUnderlyingType());
@@ -185,7 +188,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
                                 typealias_iterator(CXXRecordDecl::decl_iterator()));
     for (const auto& type_alias : typealiases) {
         // REVISIT (fbrereto) : Refactor this block and TypeAliasInfo::run's.
-        if (!AccessCheck(_access_filter, type_alias->getAccess())) continue;
+        if (!AccessCheck(_options._access_filter, type_alias->getAccess())) continue;
 
         json typealiasInfo = StandardDeclInfo(Result.Context, type_alias);
         typealiasInfo["type"] = hyde::to_string(type_alias, type_alias->getUnderlyingType());

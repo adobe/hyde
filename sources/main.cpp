@@ -126,6 +126,12 @@ static cl::opt<std::string> YamlSrcDir(
     cl::desc("The root path to the header file(s) being analyzed"),
     cl::cat(MyToolCategory));
 
+static cl::list<std::string> NamespaceBlacklist(
+    "namespace-blacklist",
+    cl::desc("Namespace(s) whose contents should not be processed"),
+    cl::cat(MyToolCategory),
+    cl::CommaSeparated);
+
 static cl::extrahelp HydeHelp(
     "\nThis tool parses the header source(s) using Clang. To pass arguments to the\n"
     "compiler (e.g., include directories), append them after the `--` token on the\n"
@@ -330,23 +336,24 @@ int main(int argc, const char** argv) try {
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
+    hyde::processing_options options{ToolAccessFilter, NamespaceBlacklist};
 
-    hyde::FunctionInfo function_matcher(sourcePaths, ToolAccessFilter);
+    hyde::FunctionInfo function_matcher(sourcePaths, options);
     Finder.addMatcher(hyde::FunctionInfo::GetMatcher(), &function_matcher);
 
-    hyde::EnumInfo enum_matcher(sourcePaths, ToolAccessFilter);
+    hyde::EnumInfo enum_matcher(sourcePaths, options);
     Finder.addMatcher(hyde::EnumInfo::GetMatcher(), &enum_matcher);
 
-    hyde::ClassInfo class_matcher(sourcePaths, ToolAccessFilter);
+    hyde::ClassInfo class_matcher(sourcePaths, options);
     Finder.addMatcher(hyde::ClassInfo::GetMatcher(), &class_matcher);
 
-    hyde::NamespaceInfo namespace_matcher(sourcePaths, ToolAccessFilter);
+    hyde::NamespaceInfo namespace_matcher(sourcePaths, options);
     Finder.addMatcher(hyde::NamespaceInfo::GetMatcher(), &namespace_matcher);
 
-    hyde::TypeAliasInfo typealias_matcher(sourcePaths, ToolAccessFilter);
+    hyde::TypeAliasInfo typealias_matcher(sourcePaths, options);
     Finder.addMatcher(hyde::TypeAliasInfo::GetMatcher(), &typealias_matcher);
 
-    hyde::TypedefInfo typedef_matcher(sourcePaths, ToolAccessFilter);
+    hyde::TypedefInfo typedef_matcher(sourcePaths, options);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     // Get the current Xcode toolchain and add its include directories to the tool.

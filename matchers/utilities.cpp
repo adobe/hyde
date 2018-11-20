@@ -296,8 +296,12 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
         if (node) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
-                name =
-                    hyde::to_string(specialization, specialization->getTypeAsWritten()->getType());
+                if (auto taw = specialization->getTypeAsWritten()) {
+                    name =
+                        hyde::to_string(specialization, taw->getType());
+                } else {
+
+                }
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
                     name +=
@@ -482,6 +486,20 @@ bool PathCheck(const std::vector<std::string>& paths, const Decl* d, ASTContext*
     auto location = beginLoc.printToString(n->getSourceManager());
     std::string path = location.substr(0, location.find(':'));
     return std::find(paths.begin(), paths.end(), path) != paths.end();
+}
+
+/**************************************************************************************************/
+
+bool NamespaceBlacklist(const std::vector<std::string>& blacklist, const json& j) {
+    // iff one of the namespaces in j are found in the blacklist, return true.
+    if (j.count("namespaces")) {
+        for (const auto& ns : j["namespaces"]) {
+            auto found = std::find(blacklist.begin(), blacklist.end(), ns);
+            if (found != blacklist.end()) return true;
+        }
+    }
+
+    return false;
 }
 
 /**************************************************************************************************/

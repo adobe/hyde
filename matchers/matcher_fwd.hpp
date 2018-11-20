@@ -11,6 +11,10 @@ written permission of Adobe.
 
 #pragma once
 
+// stdc++
+#include <string>
+#include <vector>
+
 /**************************************************************************************************/
 
 namespace hyde {
@@ -21,6 +25,13 @@ enum ToolAccessFilter {
     ToolAccessFilterPrivate,
     ToolAccessFilterProtected,
     ToolAccessFilterPublic,
+};
+
+/**************************************************************************************************/
+
+struct processing_options {
+    ToolAccessFilter _access_filter;
+    std::vector<std::string> _namespace_blacklist;
 };
 
 /**************************************************************************************************/

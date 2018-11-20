@@ -42,9 +42,11 @@ void FunctionInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, function, Result.Context)) return;
 
-    if (!AccessCheck(_access_filter, function->getAccess())) return;
+    if (!AccessCheck(_options._access_filter, function->getAccess())) return;
 
     auto info = DetailFunctionDecl(Result.Context, function);
+
+    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
 
     _j["functions"][static_cast<const std::string&>(info["short_name"])].
         push_back(std::move(info));

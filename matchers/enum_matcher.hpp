@@ -30,8 +30,8 @@ namespace hyde {
 
 class EnumInfo : public MatchFinder::MatchCallback {
 public:
-    EnumInfo(std::vector<std::string> paths, ToolAccessFilter filter)
-        : _paths(std::move(paths)), _access_filter(filter) {
+    EnumInfo(std::vector<std::string> paths, processing_options options)
+        : _paths(std::move(paths)), _options(options) {
         _j["enums"] = json::array();
     }
 
@@ -43,7 +43,7 @@ public:
 
 private:
     std::vector<std::string> _paths;
-    ToolAccessFilter _access_filter;
+    processing_options _options;
     json _j;
 };
 

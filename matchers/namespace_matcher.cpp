@@ -38,9 +38,13 @@ void NamespaceInfo::run(const MatchFinder::MatchResult& Result) {
 
     if (!PathCheck(_paths, ns, Result.Context)) return;
 
-    if (!AccessCheck(_access_filter, ns->getAccess())) return;
+    if (!AccessCheck(_options._access_filter, ns->getAccess())) return;
 
-    _j["namespaces"].push_back(StandardDeclInfo(Result.Context, ns));
+    auto info = StandardDeclInfo(Result.Context, ns);
+
+    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
+
+    _j["namespaces"].push_back(std::move(info));
 }
 
 /**************************************************************************************************/
