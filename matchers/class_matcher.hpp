@@ -31,7 +31,7 @@ namespace hyde {
 class ClassInfo : public MatchFinder::MatchCallback {
 public:
     explicit ClassInfo(std::vector<std::string> paths, processing_options options)
-        : _paths(std::move(paths)), _options(options) {
+        : _paths(std::move(paths)), _options(std::move(options)) {
         _j["class"] = json::array();
     }
 
