@@ -62,29 +62,30 @@ private:
 
 class FindStaticMembers : public RecursiveASTVisitor<FindStaticMembers> {
 public:
-    FindStaticMembers(ASTContext* context, hyde::ToolAccessFilter access_filter)
-        : context(context), _access_filter(access_filter), static_members(hyde::json::object()) {}
+    FindStaticMembers(const hyde::processing_options& options)
+        : _options(options), _static_members(hyde::json::object()) {}
     bool VisitVarDecl(const VarDecl* d) {
-        if (!AccessCheck(_access_filter, d->getAccess())) return true;
+        if (!AccessCheck(_options._access_filter, d->getAccess())) return true;
 
         auto storage = d->getStorageClass();
         // TODO(Wyles): Do we want to worry about other kinds of storage?
         if (storage == SC_Static) {
-            auto type = hyde::StandardDeclInfo(context, d);
+            auto type_opt = hyde::StandardDeclInfo(_options, d);
+            if (!type_opt) return true;
+            auto type = std::move(*type_opt);
             auto name = type["qualified_name"].get<std::string>();
             type["static"] = true;
             type["type"] = hyde::to_string(d, d->getType());
-            static_members[name] = type;
+            _static_members[name] = type;
         }
         return true;
     }
 
-    hyde::json get_results() { return static_members; }
+    const hyde::json& get_results() const { return _static_members; }
 
 private:
-    ASTContext* context = nullptr;
-    hyde::ToolAccessFilter _access_filter;
-    hyde::json static_members;
+    const hyde::processing_options& _options;
+    hyde::json _static_members;
 };
 
 namespace hyde {
@@ -93,10 +94,6 @@ namespace hyde {
 
 void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     auto clas = Result.Nodes.getNodeAs<CXXRecordDecl>("class");
-
-    if (!PathCheck(_paths, clas, Result.Context)) return;
-
-    if (!AccessCheck(_options._access_filter, clas->getAccess())) return;
 
     if (!clas->isCompleteDefinition()) return; // e.g., a forward declaration.
 
@@ -109,7 +106,9 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
         if (!s->getTypeAsWritten()) return;
     }
 
-    json info = DetailCXXRecordDecl(Result.Context, clas);
+    auto info_opt = DetailCXXRecordDecl(_options, clas);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
     if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
 
@@ -124,7 +123,7 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     dtor_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
     if (!dtor_finder) info["dtor"] = "unspecified";
 
-    FindStaticMembers static_finder(Result.Context, _options._access_filter);
+    FindStaticMembers static_finder(_options);
     static_finder.TraverseDecl(const_cast<Decl*>(static_cast<const Decl*>(clas)));
 
     if (const auto& template_decl = clas->getDescribedClassTemplate()) {
@@ -132,28 +131,28 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     }
 
     for (const auto& method : clas->methods()) {
-        if (!AccessCheck(_options._access_filter, method->getAccess())) continue;
-
-        json methodInfo = DetailFunctionDecl(Result.Context, method);
+        auto methodInfo_opt = DetailFunctionDecl(_options, method);
+        if (!methodInfo_opt) continue;
+        auto methodInfo = std::move(*methodInfo_opt);
         info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
             std::move(methodInfo));
     }
 
     for (const auto& decl : clas->decls()) {
-        if (!AccessCheck(_options._access_filter, decl->getAccess())) continue;
-
         auto* function_template_decl = dyn_cast<FunctionTemplateDecl>(decl);
         if (!function_template_decl) continue;
-        json methodInfo =
-            DetailFunctionDecl(Result.Context, function_template_decl->getTemplatedDecl());
+        auto methodInfo_opt =
+            DetailFunctionDecl(_options, function_template_decl->getTemplatedDecl());
+        if (!methodInfo_opt) continue;
+        auto methodInfo = std::move(*methodInfo_opt);
         info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
             std::move(methodInfo));
     }
 
     for (const auto& field : clas->fields()) {
-        if (!AccessCheck(_options._access_filter, field->getAccess())) continue;
-
-        json fieldInfo = StandardDeclInfo(Result.Context, field);
+        auto fieldInfo_opt = StandardDeclInfo(_options, field);
+        if (!fieldInfo_opt) continue;
+        auto fieldInfo = std::move(*fieldInfo_opt);
         fieldInfo["type"] = hyde::to_string(field, field->getType());
         info["fields"][static_cast<const std::string&>(fieldInfo["qualified_name"])] =
             fieldInfo; // can't move this into place for some reason.
@@ -174,9 +173,10 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
                            typedef_iterator(CXXRecordDecl::decl_iterator()));
     for (const auto& type_def : typedefs) {
         // REVISIT (fbrereto) : Refactor this block and TypedefInfo::run's.
-        if (!AccessCheck(_options._access_filter, type_def->getAccess())) continue;
+        auto typedefInfo_opt = StandardDeclInfo(_options, type_def);
+        if (!typedefInfo_opt) continue;
+        auto typedefInfo = std::move(*typedefInfo_opt);
 
-        json typedefInfo = StandardDeclInfo(Result.Context, type_def);
         typedefInfo["type"] = hyde::to_string(type_def, type_def->getUnderlyingType());
 
         info["typedefs"].push_back(std::move(typedefInfo));
@@ -188,9 +188,10 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
                                 typealias_iterator(CXXRecordDecl::decl_iterator()));
     for (const auto& type_alias : typealiases) {
         // REVISIT (fbrereto) : Refactor this block and TypeAliasInfo::run's.
-        if (!AccessCheck(_options._access_filter, type_alias->getAccess())) continue;
+        auto typealiasInfo_opt = StandardDeclInfo(_options, type_alias);
+        if (!typealiasInfo_opt) continue;
+        auto typealiasInfo = std::move(*typealiasInfo_opt);
 
-        json typealiasInfo = StandardDeclInfo(Result.Context, type_alias);
         typealiasInfo["type"] = hyde::to_string(type_alias, type_alias->getUnderlyingType());
         if (auto template_decl = type_alias->getDescribedAliasTemplate()) {
             typealiasInfo["template_parameters"] =

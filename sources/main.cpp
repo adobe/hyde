@@ -336,24 +336,24 @@ int main(int argc, const char** argv) try {
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
-    hyde::processing_options options{ToolAccessFilter, NamespaceBlacklist};
+    hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist};
 
-    hyde::FunctionInfo function_matcher(sourcePaths, options);
+    hyde::FunctionInfo function_matcher(options);
     Finder.addMatcher(hyde::FunctionInfo::GetMatcher(), &function_matcher);
 
-    hyde::EnumInfo enum_matcher(sourcePaths, options);
+    hyde::EnumInfo enum_matcher(options);
     Finder.addMatcher(hyde::EnumInfo::GetMatcher(), &enum_matcher);
 
-    hyde::ClassInfo class_matcher(sourcePaths, options);
+    hyde::ClassInfo class_matcher(options);
     Finder.addMatcher(hyde::ClassInfo::GetMatcher(), &class_matcher);
 
-    hyde::NamespaceInfo namespace_matcher(sourcePaths, options);
+    hyde::NamespaceInfo namespace_matcher(options);
     Finder.addMatcher(hyde::NamespaceInfo::GetMatcher(), &namespace_matcher);
 
-    hyde::TypeAliasInfo typealias_matcher(sourcePaths, options);
+    hyde::TypeAliasInfo typealias_matcher(options);
     Finder.addMatcher(hyde::TypeAliasInfo::GetMatcher(), &typealias_matcher);
 
-    hyde::TypedefInfo typedef_matcher(sourcePaths, options);
+    hyde::TypedefInfo typedef_matcher(options);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     // Get the current Xcode toolchain and add its include directories to the tool.

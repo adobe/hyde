@@ -297,10 +297,8 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
                 if (auto taw = specialization->getTypeAsWritten()) {
-                    name =
-                        hyde::to_string(specialization, taw->getType());
+                    name = hyde::to_string(specialization, taw->getType());
                 } else {
-
                 }
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
@@ -342,16 +340,18 @@ json GetParentCXXRecords(const ASTContext* n, const Decl* d) {
 
 /**************************************************************************************************/
 
-json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
-    json info = StandardDeclInfo(n, cxx);
+boost::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
+                                          const clang::CXXRecordDecl* cxx) {
+    auto info_opt = StandardDeclInfo(options, cxx);
+    if (!info_opt) return info_opt;
+    auto info = std::move(*info_opt);
 
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
         info["name"] = hyde::to_string(s, s->getTypeAsWritten()->getType());
         info["qualified_name"] = s->getQualifiedNameAsString();
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
-        std::string arguments =
-            GetArgumentList(template_decl->getTemplateParameters()->asArray());
+        std::string arguments = GetArgumentList(template_decl->getTemplateParameters()->asArray());
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
         info["qualified_name"] = template_decl->getQualifiedNameAsString();
     }
@@ -397,8 +397,12 @@ json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
 
 /**************************************************************************************************/
 
-json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
-    json info = StandardDeclInfo(n, f);
+boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options, const FunctionDecl* f) {
+    auto info_opt = StandardDeclInfo(options, f);
+    if (!info_opt) return info_opt;
+    auto info = std::move(*info_opt);
+    const clang::ASTContext* n = &f->getASTContext();
+
     info["return_type"] = hyde::to_string(f, f->getReturnType());
     info["arguments"] = json::array();
     info["signature"] = GetSignature(n, f);

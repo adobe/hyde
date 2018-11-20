@@ -35,14 +35,9 @@ namespace hyde {
 
 void EnumInfo::run(const MatchFinder::MatchResult& Result) {
     auto enumeration = Result.Nodes.getNodeAs<EnumDecl>("enum");
-
-    if (!PathCheck(_paths, enumeration, Result.Context)) return;
-
-    if (!AccessCheck(_options._access_filter, enumeration->getAccess())) return;
-
-    json info = StandardDeclInfo(Result.Context, enumeration);
-
-    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
+    auto info_opt = StandardDeclInfo(_options, enumeration);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
     //info["scoped"] = enumeration->isScoped();
     //info["fixed"] = enumeration->isFixed();

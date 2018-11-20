@@ -30,8 +30,7 @@ namespace hyde {
 
 class TypeAliasInfo : public MatchFinder::MatchCallback {
 public:
-    TypeAliasInfo(std::vector<std::string> paths, processing_options options)
-        : _paths(std::move(paths)), _options(std::move(options)) {
+    TypeAliasInfo(processing_options options) : _options(std::move(options)) {
         _j["typealiases"] = json::array();
     }
 
@@ -42,7 +41,6 @@ public:
     static DeclarationMatcher GetMatcher() { return typeAliasDecl().bind("typealias"); }
 
 private:
-    std::vector<std::string> _paths;
     processing_options _options;
     json _j;
 };

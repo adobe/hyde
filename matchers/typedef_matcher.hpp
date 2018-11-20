@@ -30,8 +30,7 @@ namespace hyde {
 
 class TypedefInfo : public MatchFinder::MatchCallback {
 public:
-    TypedefInfo(std::vector<std::string> paths, processing_options options)
-        : _paths(std::move(paths)), _options(std::move(options)) {
+    TypedefInfo(processing_options options) : _options(std::move(options)) {
         _j["typedefs"] = json::array();
     }
 
@@ -42,7 +41,6 @@ public:
     static DeclarationMatcher GetMatcher() { return typedefDecl().bind("typedef"); }
 
 private:
-    std::vector<std::string> _paths;
     processing_options _options;
     json _j;
 };

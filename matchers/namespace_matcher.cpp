@@ -35,14 +35,9 @@ namespace hyde {
 
 void NamespaceInfo::run(const MatchFinder::MatchResult& Result) {
     auto ns = Result.Nodes.getNodeAs<NamespaceDecl>("ns");
-
-    if (!PathCheck(_paths, ns, Result.Context)) return;
-
-    if (!AccessCheck(_options._access_filter, ns->getAccess())) return;
-
-    auto info = StandardDeclInfo(Result.Context, ns);
-
-    if (NamespaceBlacklist(_options._namespace_blacklist, info)) return;
+    auto info_opt = StandardDeclInfo(_options, ns);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
     _j["namespaces"].push_back(std::move(info));
 }
