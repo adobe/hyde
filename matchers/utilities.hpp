@@ -101,8 +101,10 @@ boost::optional<json> StandardDeclInfo(const hyde::processing_options& options,
 
     if (!AccessCheck(options._access_filter, clang_access)) return boost::optional<json>();
 
-    std::string access(to_string(clang_access));
-    if (access != "none") info["access"] = std::move(access);
+    if (clang_access != clang::AccessSpecifier::AS_none &&
+        clang_access != clang::AccessSpecifier::AS_public)
+        info["access"] = to_string(clang_access);
+
     info["defined-in-file"] = [&] {
         auto beginLoc = d->getBeginLoc();
         auto location = beginLoc.printToString(n->getSourceManager());

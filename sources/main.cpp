@@ -158,7 +158,7 @@ static cl::extrahelp HydeHelp(
 
 /**************************************************************************************************/
 
-boost::filesystem::path clang_path(boost::filesystem::path xcode_path) {
+boost::filesystem::path clang_path(const boost::filesystem::path& xcode_path) {
     boost::filesystem::path root_clang_path =
         xcode_path / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/";
     boost::filesystem::path last_directory;
@@ -243,12 +243,15 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     auto cmdline_mid = std::find_if(cmdline_first, cmdline_last,
                                     [](const char* arg) { return arg == std::string("--"); });
 
-    const std::vector<std::string> cli_hyde_flags = [cmdline_first, cmdline_mid] {
+    const std::vector<std::string> cli_hyde_flags = [argc, cmdline_first, cmdline_mid] {
         std::vector<std::string> result;
         auto hyde_first = cmdline_first;
         auto hyde_last = cmdline_mid;
         while (hyde_first != hyde_last) {
             result.emplace_back(*hyde_first++);
+        }
+        if (argc == 1) {
+            result.push_back("-help");
         }
         return result;
     }();

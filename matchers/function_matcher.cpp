@@ -44,8 +44,12 @@ void FunctionInfo::run(const MatchFinder::MatchResult& Result) {
     if (!info_opt) return;
     auto info = std::move(*info_opt);
 
-    _j["functions"][static_cast<const std::string&>(info["short_name"])].
-        push_back(std::move(info));
+    const std::string& short_name(info["short_name"]);
+
+    // Omit compiler-reserved functions
+    if (short_name.find("__") == 0) return;
+
+    _j["functions"][short_name].push_back(std::move(info));
 }
 
 /**************************************************************************************************/
