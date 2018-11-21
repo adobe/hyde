@@ -80,7 +80,7 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
 /**************************************************************************************************/
 
 bool yaml_class_emitter::emit(const json& j) {
-    json node = base_emitter_node("class", j["qualified_name"], "class");
+    json node = base_emitter_node("class", j["name"], "class");
     node["defined-in-file"] = defined_in_file(j["defined-in-file"], _src_root);
     maybe_annotate(j, node);
 

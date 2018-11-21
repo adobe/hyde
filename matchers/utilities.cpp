@@ -537,7 +537,7 @@ bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_acce
 
 /**************************************************************************************************/
 
-std::string PostProcessType(const clang::Decl* decl, std::string type) {
+std::string PostProcessTypeParameter(const clang::Decl* decl, std::string type) {
     // If our type contains one or more `type-parameter-N-M`s, run up the parent
     // tree in an attempt to resolve them.
     static const std::string needle("type-parameter-");
@@ -603,6 +603,27 @@ std::string PostProcessType(const clang::Decl* decl, std::string type) {
     }
 
     return type;
+}
+
+/**************************************************************************************************/
+
+std::string PostProcessSpacing(std::string type) {
+    std::string::size_type pos{0};
+
+    while (true) {
+        pos = type.find("> >", pos);
+        if (pos == std::string::npos) return type;
+        type.replace(pos, 3, ">>");
+        pos += 2;
+    }
+}
+
+/**************************************************************************************************/
+
+std::string PostProcessType(const clang::Decl* decl, std::string type) {
+    std::string result = PostProcessTypeParameter(decl, std::move(type));
+    result = PostProcessSpacing(std::move(result));
+    return result;
 }
 
 /**************************************************************************************************/
