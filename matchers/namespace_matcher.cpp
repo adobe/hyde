@@ -35,12 +35,11 @@ namespace hyde {
 
 void NamespaceInfo::run(const MatchFinder::MatchResult& Result) {
     auto ns = Result.Nodes.getNodeAs<NamespaceDecl>("ns");
+    auto info_opt = StandardDeclInfo(_options, ns);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
-    if (!PathCheck(_paths, ns, Result.Context)) return;
-
-    if (!AccessCheck(_access_filter, ns->getAccess())) return;
-
-    _j["namespaces"].push_back(StandardDeclInfo(Result.Context, ns));
+    _j["namespaces"].push_back(std::move(info));
 }
 
 /**************************************************************************************************/

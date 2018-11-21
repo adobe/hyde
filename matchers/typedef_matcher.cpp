@@ -35,12 +35,9 @@ namespace hyde {
 
 void TypedefInfo::run(const MatchFinder::MatchResult& Result) {
     auto node = Result.Nodes.getNodeAs<TypedefDecl>("typedef");
-
-    if (!PathCheck(_paths, node, Result.Context)) return;
-
-    if (!AccessCheck(_access_filter, node->getAccess())) return;
-
-    json info = StandardDeclInfo(Result.Context, node);
+    auto info_opt = StandardDeclInfo(_options, node);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
     // do not process class type aliases here.
     if (!info["parents"].empty()) return;

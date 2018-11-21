@@ -40,11 +40,9 @@ void FunctionInfo::run(const MatchFinder::MatchResult& Result) {
     // Do not process class methods here.
     if (llvm::dyn_cast_or_null<CXXMethodDecl>(function)) return;
 
-    if (!PathCheck(_paths, function, Result.Context)) return;
-
-    if (!AccessCheck(_access_filter, function->getAccess())) return;
-
-    auto info = DetailFunctionDecl(Result.Context, function);
+    auto info_opt = DetailFunctionDecl(_options, function);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
     _j["functions"][static_cast<const std::string&>(info["short_name"])].
         push_back(std::move(info));
