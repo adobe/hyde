@@ -568,11 +568,12 @@ std::string PostProcessTypeParameter(const clang::Decl* decl, std::string type) 
     };
 
     ForEachParent(decl, [&](const Decl* parent) {
-        // REVISIT (fbrereto) : Gotta do this for FunctionTemplateDecl, and ClassTemplateDecl
         if (auto* ctpsd = dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(parent)) {
             iterate_template_params(*ctpsd->getTemplateParameters());
         } else if (auto* ctd = dyn_cast_or_null<ClassTemplateDecl>(parent)) {
             iterate_template_params(*ctd->getTemplateParameters());
+        } else if (auto* ftd = dyn_cast_or_null<FunctionTemplateDecl>(parent)) {
+            iterate_template_params(*ftd->getTemplateParameters());
         }
     });
 
