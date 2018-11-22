@@ -550,23 +550,29 @@ std::string PostProcessTypeParameter(const clang::Decl* decl, std::string type) 
     auto& context = decl->getASTContext();
     std::vector<std::pair<std::string, std::string>> parent_template_types;
 
+    const auto iterate_template_params = [&](TemplateParameterList& tpl) {
+        for (const auto& parameter_decl : tpl) {
+            if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
+                auto depth = template_type->getDepth();
+                auto index = template_type->getIndex();
+                auto qualType = context.getTemplateTypeParmType(
+                    depth, index, template_type->isParameterPack(), template_type);
+
+                std::string old_type =
+                    needle + std::to_string(depth) + "-" + std::to_string(index);
+                std::string new_type = hyde::to_string(template_type, qualType);
+                parent_template_types.emplace_back(
+                    std::make_pair(std::move(old_type), std::move(new_type)));
+            }
+        }
+    };
+
     ForEachParent(decl, [&](const Decl* parent) {
         // REVISIT (fbrereto) : Gotta do this for FunctionTemplateDecl, and ClassTemplateDecl
         if (auto* ctpsd = dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(parent)) {
-            for (const auto& parameter_decl : *ctpsd->getTemplateParameters()) {
-                if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
-                    auto depth = template_type->getDepth();
-                    auto index = template_type->getIndex();
-                    auto qualType = context.getTemplateTypeParmType(
-                        depth, index, template_type->isParameterPack(), template_type);
-
-                    std::string old_type =
-                        needle + std::to_string(depth) + "-" + std::to_string(index);
-                    std::string new_type = hyde::to_string(template_type, qualType);
-                    parent_template_types.emplace_back(
-                        std::make_pair(std::move(old_type), std::move(new_type)));
-                }
-            }
+            iterate_template_params(*ctpsd->getTemplateParameters());
+        } else if (auto* ctd = dyn_cast_or_null<ClassTemplateDecl>(parent)) {
+            iterate_template_params(*ctd->getTemplateParameters());
         }
     });
 
