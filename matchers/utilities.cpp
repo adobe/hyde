@@ -418,8 +418,10 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
     switch (storage) {
         case SC_Static:
             info["static"] = true;
+            break;
         case SC_Extern:
             info["extern"] = true;
+            break;
         default:
             break;
     }
