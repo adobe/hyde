@@ -300,14 +300,6 @@ int main(int argc, const char** argv) try {
         }
     }
 
-    //this may not work on windows, need to investigate using strings
-<<<<<<< HEAD
-=======
-    boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
-
-
-    CommonOptionsParser OptionsParser(argc, argv, MyToolCategory);
->>>>>>> updating our script to locate hyde in known locations.
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
@@ -330,7 +322,10 @@ int main(int argc, const char** argv) try {
     hyde::TypedefInfo typedef_matcher(sourcePaths, ToolAccessFilter);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
-    clang::tooling::CommandLineArguments  arguments;
+    clang::tooling::CommandLineArguments arguments;
+    //this may not work on windows, need to investigate using strings
+    boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+
     if (!ArgumentResourceDir.empty())
         resource_dir = boost::filesystem::path{ArgumentResourceDir};
 
