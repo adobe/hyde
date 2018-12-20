@@ -121,12 +121,12 @@ static cl::opt<ToolDiagnostic> ToolDiagnostic(
 static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
                                        cl::desc("Root directory for YAML validation / update"),
                                        cl::cat(MyToolCategory));
-static cl::opt<std::string> ArgumentResourceDir(
+static cl::opt<std::string> YamlSrcDir(
     "hyde-src-root",
     cl::desc("The root path to the header file(s) being analyzed"),
     cl::cat(MyToolCategory));
     
-static cl::opt<std::string> YamlSrcDir(
+static cl::opt<std::string> ArgumentResourceDir(
     "resource-dir",
     cl::desc("The resource dir(see clang resource dir) for hyde to use."),
     cl::cat(MyToolCategory));
@@ -326,8 +326,9 @@ int main(int argc, const char** argv) try {
     //this may not work on windows, need to investigate using strings
     boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
 
-    if (!ArgumentResourceDir.empty())
+    if (!ArgumentResourceDir.empty()) {
         resource_dir = boost::filesystem::path{ArgumentResourceDir};
+    }
 
     std::string resource_arg("-resource-dir=");
     resource_arg += resource_dir.string();

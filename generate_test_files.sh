@@ -33,7 +33,7 @@ HYDE_DST_ROOT=${CUR_DUR}/test_site/libraries
 
 for CUR_FILE in ${CUR_DUR}/test_files/*; do
     echo "Processing $CUR_FILE"
-    CUR_COMMAND="${HYDE_PATH} -hyde-src-root=${HYDE_SRC_ROOT} -hyde-yaml-dir=${HYDE_DST_ROOT} -hyde-update "$CUR_FILE" --"
+    CUR_COMMAND="${HYDE_PATH} -hyde-update "$CUR_FILE" --"
     echo $CUR_COMMAND
     eval $CUR_COMMAND
 done
