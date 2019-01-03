@@ -8,7 +8,7 @@ CUR_DUR=$(pwd)
 
 HYDE_PATH=${CUR_DUR}/build/Debug/hyde # This assumes a binary built with Xcode.
 HYDE_SRC_ROOT=${CUR_DUR}
-HYDE_DST_ROOT=${CUR_DUR}/test_site/libraries
+HYDE_DST_ROOT=${CUR_DUR}/docs/libraries
 
 for CUR_FILE in ${CUR_DUR}/test_files/*; do
     echo "Processing $CUR_FILE"
