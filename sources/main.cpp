@@ -125,7 +125,7 @@ static cl::opt<std::string> YamlSrcDir(
     "hyde-src-root",
     cl::desc("The root path to the header file(s) being analyzed"),
     cl::cat(MyToolCategory));
-    
+
 static cl::opt<std::string> ArgumentResourceDir(
     "resource-dir",
     cl::desc("The resource dir(see clang resource dir) for hyde to use."),
@@ -239,8 +239,7 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     std::tie(config_dir, config) =
         load_hyde_config(cli_hyde_flags.empty() ? "" : cli_hyde_flags.back());
 
-    if (exists(config_dir))
-        current_path(config_dir);
+    if (exists(config_dir)) current_path(config_dir);
 
     if (config.count("clang_flags")) {
         for (const auto& clang_flag : config["clang_flags"]) {
@@ -323,19 +322,34 @@ int main(int argc, const char** argv) try {
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     clang::tooling::CommandLineArguments arguments;
-    //this may not work on windows, need to investigate using strings
+    // this may not work on windows, need to investigate using strings
     boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+
+    // in some versions of osx they have stopped using /usr/include and instead shove it here
+    // this doesn't seem to be part of the standard search path for clang so we add it manually
+    boost::filesystem::path include_dir{
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"};
+        
+    if (boost::filesystem::exists(include_dir)) {
+        if (ToolDiagnostic == ToolDiagnosticVerbose) {
+            std::cout << "Including: " << include_dir.string() << std::endl;
+        }
+        arguments.emplace_back(("-I" + include_dir.string()).c_str());
+    }
 
     if (!ArgumentResourceDir.empty()) {
         resource_dir = boost::filesystem::path{ArgumentResourceDir};
+    }
+    if (ToolDiagnostic == ToolDiagnosticVerbose) {
+        std::cout << "Resource dir: " << resource_dir.string() << std::endl;
     }
 
     std::string resource_arg("-resource-dir=");
     resource_arg += resource_dir.string();
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
     arguments.emplace_back(resource_arg);
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
-
+    Tool.appendArgumentsAdjuster(
+        getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");
 
