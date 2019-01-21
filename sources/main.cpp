@@ -324,19 +324,19 @@ int main(int argc, const char** argv) try {
     clang::tooling::CommandLineArguments arguments;
     // this may not work on windows, need to investigate using strings
     boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
-
+#ifdef __APPLE__
     // in some versions of osx they have stopped using /usr/include and instead shove it here
     // this doesn't seem to be part of the standard search path for clang so we add it manually
     boost::filesystem::path include_dir{
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"};
-        
+
     if (boost::filesystem::exists(include_dir)) {
         if (ToolDiagnostic == ToolDiagnosticVerbose) {
             std::cout << "Including: " << include_dir.string() << std::endl;
         }
         arguments.emplace_back(("-I" + include_dir.string()).c_str());
     }
-
+#endif
     if (!ArgumentResourceDir.empty()) {
         resource_dir = boost::filesystem::path{ArgumentResourceDir};
     }
