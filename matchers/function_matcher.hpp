@@ -30,8 +30,7 @@ namespace hyde {
 
 class FunctionInfo : public MatchFinder::MatchCallback {
 public:
-    FunctionInfo(std::vector<std::string> paths, ToolAccessFilter filter)
-        : _paths(std::move(paths)), _access_filter(filter) {
+    FunctionInfo(processing_options options) : _options(std::move(options)) {
         _j["functions"] = json::object();
     }
 
@@ -42,8 +41,7 @@ public:
     static DeclarationMatcher GetMatcher() { return functionDecl().bind("func"); }
 
 private:
-    std::vector<std::string> _paths;
-    ToolAccessFilter _access_filter;
+    processing_options _options;
     json _j;
 };
 

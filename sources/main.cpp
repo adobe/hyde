@@ -131,6 +131,12 @@ static cl::opt<std::string> ArgumentResourceDir(
     cl::desc("The resource dir(see clang resource dir) for hyde to use."),
     cl::cat(MyToolCategory));
 
+static cl::list<std::string> NamespaceBlacklist(
+    "namespace-blacklist",
+    cl::desc("Namespace(s) whose contents should not be processed"),
+    cl::cat(MyToolCategory),
+    cl::CommaSeparated);
+
 static cl::extrahelp HydeHelp(
     "\nThis tool parses the header source(s) using Clang. To pass arguments to the\n"
     "compiler (e.g., include directories), append them after the `--` token on the\n"
@@ -210,12 +216,15 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     auto cmdline_mid = std::find_if(cmdline_first, cmdline_last,
                                     [](const char* arg) { return arg == std::string("--"); });
 
-    const std::vector<std::string> cli_hyde_flags = [cmdline_first, cmdline_mid] {
+    const std::vector<std::string> cli_hyde_flags = [argc, cmdline_first, cmdline_mid] {
         std::vector<std::string> result;
         auto hyde_first = cmdline_first;
         auto hyde_last = cmdline_mid;
         while (hyde_first != hyde_last) {
             result.emplace_back(*hyde_first++);
+        }
+        if (argc == 1) {
+            result.push_back("-help");
         }
         return result;
     }();
@@ -302,23 +311,24 @@ int main(int argc, const char** argv) try {
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
+    hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist};
 
-    hyde::FunctionInfo function_matcher(sourcePaths, ToolAccessFilter);
+    hyde::FunctionInfo function_matcher(options);
     Finder.addMatcher(hyde::FunctionInfo::GetMatcher(), &function_matcher);
 
-    hyde::EnumInfo enum_matcher(sourcePaths, ToolAccessFilter);
+    hyde::EnumInfo enum_matcher(options);
     Finder.addMatcher(hyde::EnumInfo::GetMatcher(), &enum_matcher);
 
-    hyde::ClassInfo class_matcher(sourcePaths, ToolAccessFilter);
+    hyde::ClassInfo class_matcher(options);
     Finder.addMatcher(hyde::ClassInfo::GetMatcher(), &class_matcher);
 
-    hyde::NamespaceInfo namespace_matcher(sourcePaths, ToolAccessFilter);
+    hyde::NamespaceInfo namespace_matcher(options);
     Finder.addMatcher(hyde::NamespaceInfo::GetMatcher(), &namespace_matcher);
 
-    hyde::TypeAliasInfo typealias_matcher(sourcePaths, ToolAccessFilter);
+    hyde::TypeAliasInfo typealias_matcher(options);
     Finder.addMatcher(hyde::TypeAliasInfo::GetMatcher(), &typealias_matcher);
 
-    hyde::TypedefInfo typedef_matcher(sourcePaths, ToolAccessFilter);
+    hyde::TypedefInfo typedef_matcher(options);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     clang::tooling::CommandLineArguments arguments;

@@ -3,7 +3,7 @@
 .DS_Store
 .vscode/
 build/
-test_site/_site/
-test_site/Gemfile.lock
-test_site/libraries
-!test_site/libraries/index.md
+docs/_site/
+docs/Gemfile.lock
+docs/libraries
+!docs/libraries/index.md

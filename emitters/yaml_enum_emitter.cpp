@@ -51,7 +51,7 @@ bool yaml_enum_emitter::emit(const json& j) {
     }
     filename = filename_filter(std::move(filename) + name) + ".md";
 
-    json node = base_emitter_node("enumeration", j["qualified_name"], "enumeration");
+    json node = base_emitter_node("enumeration", j["name"], "enumeration");
     node["defined-in-file"] = defined_in_file(j["defined-in-file"], _src_root);
     maybe_annotate(j, node);
 

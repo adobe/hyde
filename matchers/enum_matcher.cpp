@@ -35,12 +35,10 @@ namespace hyde {
 
 void EnumInfo::run(const MatchFinder::MatchResult& Result) {
     auto enumeration = Result.Nodes.getNodeAs<EnumDecl>("enum");
+    auto info_opt = StandardDeclInfo(_options, enumeration);
+    if (!info_opt) return;
+    auto info = std::move(*info_opt);
 
-    if (!PathCheck(_paths, enumeration, Result.Context)) return;
-
-    if (!AccessCheck(_access_filter, enumeration->getAccess())) return;
-
-    json info = StandardDeclInfo(Result.Context, enumeration);
     //info["scoped"] = enumeration->isScoped();
     //info["fixed"] = enumeration->isFixed();
     info["type"] = hyde::to_string(enumeration, enumeration->getIntegerType());

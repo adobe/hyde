@@ -296,8 +296,10 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
         if (node) {
             std::string name = node->getNameAsString();
             if (auto specialization = dyn_cast_or_null<ClassTemplateSpecializationDecl>(node)) {
-                name =
-                    hyde::to_string(specialization, specialization->getTypeAsWritten()->getType());
+                if (auto taw = specialization->getTypeAsWritten()) {
+                    name = hyde::to_string(specialization, taw->getType());
+                } else {
+                }
             } else if (auto cxxrecord = dyn_cast_or_null<CXXRecordDecl>(node)) {
                 if (auto template_decl = cxxrecord->getDescribedClassTemplate()) {
                     name +=
@@ -338,16 +340,18 @@ json GetParentCXXRecords(const ASTContext* n, const Decl* d) {
 
 /**************************************************************************************************/
 
-json DetailCXXRecordDecl(const ASTContext* n, const clang::CXXRecordDecl* cxx) {
-    json info = StandardDeclInfo(n, cxx);
+boost::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
+                                          const clang::CXXRecordDecl* cxx) {
+    auto info_opt = StandardDeclInfo(options, cxx);
+    if (!info_opt) return info_opt;
+    auto info = std::move(*info_opt);
 
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
         info["name"] = hyde::to_string(s, s->getTypeAsWritten()->getType());
         info["qualified_name"] = s->getQualifiedNameAsString();
     } else if (auto template_decl = cxx->getDescribedClassTemplate()) {
-        std::string arguments =
-            GetArgumentList(template_decl->getTemplateParameters()->asArray());
+        std::string arguments = GetArgumentList(template_decl->getTemplateParameters()->asArray());
         info["name"] = static_cast<const std::string&>(info["name"]) + arguments;
         info["qualified_name"] = template_decl->getQualifiedNameAsString();
     }
@@ -393,8 +397,12 @@ json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
 
 /**************************************************************************************************/
 
-json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
-    json info = StandardDeclInfo(n, f);
+boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options, const FunctionDecl* f) {
+    auto info_opt = StandardDeclInfo(options, f);
+    if (!info_opt) return info_opt;
+    auto info = std::move(*info_opt);
+    const clang::ASTContext* n = &f->getASTContext();
+
     info["return_type"] = hyde::to_string(f, f->getReturnType());
     info["arguments"] = json::array();
     info["signature"] = GetSignature(n, f);
@@ -410,8 +418,10 @@ json DetailFunctionDecl(const ASTContext* n, const FunctionDecl* f) {
     switch (storage) {
         case SC_Static:
             info["static"] = true;
+            break;
         case SC_Extern:
             info["extern"] = true;
+            break;
         default:
             break;
     }
@@ -486,6 +496,20 @@ bool PathCheck(const std::vector<std::string>& paths, const Decl* d, ASTContext*
 
 /**************************************************************************************************/
 
+bool NamespaceBlacklist(const std::vector<std::string>& blacklist, const json& j) {
+    // iff one of the namespaces in j are found in the blacklist, return true.
+    if (j.count("namespaces")) {
+        for (const auto& ns : j["namespaces"]) {
+            auto found = std::find(blacklist.begin(), blacklist.end(), ns);
+            if (found != blacklist.end()) return true;
+        }
+    }
+
+    return false;
+}
+
+/**************************************************************************************************/
+
 bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_access) {
     // return true iff the element should be included in the documentation based
     // on its access specifier. false otherwise.
@@ -515,7 +539,7 @@ bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_acce
 
 /**************************************************************************************************/
 
-std::string PostProcessType(const clang::Decl* decl, std::string type) {
+std::string PostProcessTypeParameter(const clang::Decl* decl, std::string type) {
     // If our type contains one or more `type-parameter-N-M`s, run up the parent
     // tree in an attempt to resolve them.
     static const std::string needle("type-parameter-");
@@ -528,23 +552,30 @@ std::string PostProcessType(const clang::Decl* decl, std::string type) {
     auto& context = decl->getASTContext();
     std::vector<std::pair<std::string, std::string>> parent_template_types;
 
-    ForEachParent(decl, [&](const Decl* parent) {
-        // REVISIT (fbrereto) : Gotta do this for FunctionTemplateDecl, and ClassTemplateDecl
-        if (auto* ctpsd = dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(parent)) {
-            for (const auto& parameter_decl : *ctpsd->getTemplateParameters()) {
-                if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
-                    auto depth = template_type->getDepth();
-                    auto index = template_type->getIndex();
-                    auto qualType = context.getTemplateTypeParmType(
-                        depth, index, template_type->isParameterPack(), template_type);
+    const auto iterate_template_params = [&](TemplateParameterList& tpl) {
+        for (const auto& parameter_decl : tpl) {
+            if (auto* template_type = dyn_cast<TemplateTypeParmDecl>(parameter_decl)) {
+                auto depth = template_type->getDepth();
+                auto index = template_type->getIndex();
+                auto qualType = context.getTemplateTypeParmType(
+                    depth, index, template_type->isParameterPack(), template_type);
 
-                    std::string old_type =
-                        needle + std::to_string(depth) + "-" + std::to_string(index);
-                    std::string new_type = hyde::to_string(template_type, qualType);
-                    parent_template_types.emplace_back(
-                        std::make_pair(std::move(old_type), std::move(new_type)));
-                }
+                std::string old_type =
+                    needle + std::to_string(depth) + "-" + std::to_string(index);
+                std::string new_type = hyde::to_string(template_type, qualType);
+                parent_template_types.emplace_back(
+                    std::make_pair(std::move(old_type), std::move(new_type)));
             }
+        }
+    };
+
+    ForEachParent(decl, [&](const Decl* parent) {
+        if (auto* ctpsd = dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(parent)) {
+            iterate_template_params(*ctpsd->getTemplateParameters());
+        } else if (auto* ctd = dyn_cast_or_null<ClassTemplateDecl>(parent)) {
+            iterate_template_params(*ctd->getTemplateParameters());
+        } else if (auto* ftd = dyn_cast_or_null<FunctionTemplateDecl>(parent)) {
+            iterate_template_params(*ftd->getTemplateParameters());
         }
     });
 
@@ -581,6 +612,27 @@ std::string PostProcessType(const clang::Decl* decl, std::string type) {
     }
 
     return type;
+}
+
+/**************************************************************************************************/
+
+std::string PostProcessSpacing(std::string type) {
+    std::string::size_type pos{0};
+
+    while (true) {
+        pos = type.find("> >", pos);
+        if (pos == std::string::npos) return type;
+        type.replace(pos, 3, ">>");
+        pos += 2;
+    }
+}
+
+/**************************************************************************************************/
+
+std::string PostProcessType(const clang::Decl* decl, std::string type) {
+    std::string result = PostProcessTypeParameter(decl, std::move(type));
+    result = PostProcessSpacing(std::move(result));
+    return result;
 }
 
 /**************************************************************************************************/

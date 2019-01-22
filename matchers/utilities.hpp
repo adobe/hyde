@@ -13,6 +13,7 @@ written permission of Adobe.
 
 // boost
 #include "boost/filesystem.hpp"
+#include "boost/optional.hpp"
 
 // clang
 #include "clang/AST/Attr.h"
@@ -37,13 +38,17 @@ json GetParentCXXRecords(const clang::ASTContext* n, const clang::Decl* d);
 
 json GetTemplateParameters(const clang::ASTContext* n, const clang::TemplateDecl* d);
 
-json DetailFunctionDecl(const clang::ASTContext* n, const clang::FunctionDecl* f);
+boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options,
+                                         const clang::FunctionDecl* f);
 
-json DetailCXXRecordDecl(const clang::ASTContext* n, const clang::CXXRecordDecl* cxx);
+boost::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
+                                          const clang::CXXRecordDecl* cxx);
 
 bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clang::ASTContext* n);
 
 bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_access);
+
+bool NamespaceBlacklist(const std::vector<std::string>& blacklist, const json& j);
 
 std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args);
 
@@ -77,7 +82,12 @@ inline std::string to_string(const clang::Decl* decl, clang::QualType type) {
 /**************************************************************************************************/
 
 template <typename DeclarationType>
-json StandardDeclInfo(const clang::ASTContext* n, const DeclarationType* d) {
+boost::optional<json> StandardDeclInfo(const hyde::processing_options& options,
+                                       const DeclarationType* d) {
+    clang::ASTContext* n = &d->getASTContext();
+
+    if (!PathCheck(options._paths, d, n)) return boost::optional<json>();
+
     json info = json::object();
 
     info["name"] = d->getNameAsString();
@@ -85,8 +95,16 @@ json StandardDeclInfo(const clang::ASTContext* n, const DeclarationType* d) {
     info["parents"] = GetParentCXXRecords(n, d);
     info["qualified_name"] = d->getQualifiedNameAsString();
 
-    std::string access(to_string(d->getAccess()));
-    if (access != "none") info["access"] = std::move(access);
+    if (NamespaceBlacklist(options._namespace_blacklist, info)) return boost::optional<json>();
+
+    auto clang_access = d->getAccess();
+
+    if (!AccessCheck(options._access_filter, clang_access)) return boost::optional<json>();
+
+    if (clang_access != clang::AccessSpecifier::AS_none &&
+        clang_access != clang::AccessSpecifier::AS_public)
+        info["access"] = to_string(clang_access);
+
     info["defined-in-file"] = [&] {
         auto beginLoc = d->getBeginLoc();
         auto location = beginLoc.printToString(n->getSourceManager());
