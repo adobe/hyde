@@ -64,15 +64,23 @@ std::string exec(const char* cmd) {
 
 /**************************************************************************************************/
 
+boost::filesystem::path make_absolute(boost::filesystem::path path) {
+    if (path.is_absolute()) return path;
+    static const auto pwd = boost::filesystem::current_path();
+    return canonical(pwd / path);
+}
+
+/**************************************************************************************************/
+
+std::string make_absolute(std::string path_string) {
+    return make_absolute(boost::filesystem::path(std::move(path_string))).string();
+}
+
+/**************************************************************************************************/
+
 std::vector<std::string> make_absolute(std::vector<std::string> paths) {
-    for (auto& path : paths) {
-        boost::filesystem::path bfp(path);
-        if (bfp.is_absolute()) continue;
-        static const std::string pwd = exec("pwd");
-        static const boost::filesystem::path bfspwd(pwd);
-        boost::filesystem::path abs_path(bfspwd / bfp);
-        path = canonical(abs_path).string();
-    }
+    for (auto& path : paths)
+        path = make_absolute(std::move(path));
 
     return paths;
 }
@@ -285,17 +293,15 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     }
 
     if (config.count("hyde-src-root")) {
-        boost::filesystem::path relative_path =
-            static_cast<const std::string&>(config["hyde-src-root"]);
-        boost::filesystem::path absolute_path = canonical(config_dir / relative_path);
-        hyde_flags.emplace_back("-hyde-src-root=" + absolute_path.string());
+        const std::string& path_str = config["hyde-src-root"];
+        std::string abs_path_str = make_absolute(path_str);
+        hyde_flags.emplace_back("-hyde-src-root=" + abs_path_str);
     }
 
     if (config.count("hyde-yaml-dir")) {
-        boost::filesystem::path relative_path =
-            static_cast<const std::string&>(config["hyde-yaml-dir"]);
-        boost::filesystem::path absolute_path = canonical(config_dir / relative_path);
-        hyde_flags.emplace_back("-hyde-yaml-dir=" + absolute_path.string());
+        const std::string& path_str = config["hyde-yaml-dir"];
+        std::string abs_path_str = make_absolute(path_str);
+        hyde_flags.emplace_back("-hyde-yaml-dir=" + abs_path_str);
     }
 
     hyde_flags.insert(hyde_flags.end(), cli_hyde_flags.begin(), cli_hyde_flags.end());
