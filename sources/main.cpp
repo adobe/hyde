@@ -47,23 +47,6 @@ namespace {
 
 /**************************************************************************************************/
 
-std::string exec(const char* cmd) {
-    std::array<char, 128> buffer;
-    std::string result;
-    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) throw std::runtime_error("popen() failed");
-    while (!feof(pipe.get())) {
-        if (fgets(buffer.data(), 128, pipe.get()) != nullptr) result += buffer.data();
-    }
-
-    while (std::isspace(result.back()))
-        result.pop_back();
-
-    return result;
-}
-
-/**************************************************************************************************/
-
 boost::filesystem::path make_absolute(boost::filesystem::path path) {
     if (path.is_absolute()) return path;
     static const auto pwd = boost::filesystem::current_path();
