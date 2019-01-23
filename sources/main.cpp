@@ -134,6 +134,11 @@ static cl::opt<std::string> YamlSrcDir(
     cl::desc("The root path to the header file(s) being analyzed"),
     cl::cat(MyToolCategory));
 
+static cl::opt<std::string> ArgumentResourceDir(
+    "resource-dir",
+    cl::desc("The resource dir(see clang resource dir) for hyde to use."),
+    cl::cat(MyToolCategory));
+
 static cl::list<std::string> NamespaceBlacklist(
     "namespace-blacklist",
     cl::desc("Namespace(s) whose contents should not be processed"),
@@ -163,38 +168,6 @@ static cl::extrahelp HydeHelp(
     "file in your project. The flags sent to Clang should be a in a top-level\n"
     "array under the `clang_flags` key.\n"
     "\n");
-
-/**************************************************************************************************/
-
-boost::filesystem::path clang_path(const boost::filesystem::path& xcode_path) {
-    boost::filesystem::path root_clang_path =
-        xcode_path / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/";
-    boost::filesystem::path last_directory;
-
-    for (const auto& entry :
-         boost::make_iterator_range(boost::filesystem::directory_iterator(root_clang_path), {})) {
-        if (is_directory(entry)) {
-            last_directory = entry;
-        }
-    }
-
-    if (!exists(last_directory)) throw std::runtime_error("could not derive clang directory");
-
-    return last_directory / "include";
-}
-
-/**************************************************************************************************/
-
-boost::filesystem::path get_xcode_path() {
-    // This routine gets us to the "/path/to/Xcode.app/Contents/Developer" folder
-    std::string clang_details = exec("clang++ --version");
-    // This assumes "InstalledDir:" is the last flag in the lineup.
-    const std::string needle("InstalledDir: ");
-    auto installed_dir_pos = clang_details.find(needle);
-    boost::filesystem::path result =
-        clang_details.substr(installed_dir_pos + needle.size(), std::string::npos);
-    return canonical(result / ".." / ".." / ".." / "..");
-}
 
 /**************************************************************************************************/
 
@@ -283,8 +256,7 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     std::tie(config_dir, config) =
         load_hyde_config(cli_hyde_flags.empty() ? "" : cli_hyde_flags.back());
 
-    if (exists(config_dir))
-        current_path(config_dir);
+    if (exists(config_dir)) current_path(config_dir);
 
     if (config.count("clang_flags")) {
         for (const auto& clang_flag : config["clang_flags"]) {
@@ -365,27 +337,35 @@ int main(int argc, const char** argv) try {
     hyde::TypedefInfo typedef_matcher(options);
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
-    // Get the current Xcode toolchain and add its include directories to the tool.
-    const boost::filesystem::path xcode_path = get_xcode_path();
+    clang::tooling::CommandLineArguments arguments;
+    // this may not work on windows, need to investigate using strings
+    boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+#ifdef __APPLE__
+    // in some versions of osx they have stopped using /usr/include and instead shove it here
+    // this doesn't seem to be part of the standard search path for clang so we add it manually
+    boost::filesystem::path include_dir{
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"};
 
-    // Order matters here. The first include path will be looked up first, so should
-    // be the highest priority path.
-    boost::filesystem::path include_directories[] = {
-        clang_path(xcode_path),
-        "/Library/Developer/CommandLineTools/usr/include/c++/v1",
-        xcode_path / "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/",
-    };
-
-    for (const auto& include : include_directories) {
-        if (ToolDiagnostic == ToolDiagnosticVerbose)
-            std::cout << "Including: " << include.string() << '\n';
-        Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster(("-I" + include.string()).c_str()));
+    if (boost::filesystem::exists(include_dir)) {
+        if (ToolDiagnostic == ToolDiagnosticVerbose) {
+            std::cout << "Including: " << include_dir.string() << std::endl;
+        }
+        arguments.emplace_back(("-I" + include_dir.string()).c_str());
+    }
+#endif
+    if (!ArgumentResourceDir.empty()) {
+        resource_dir = boost::filesystem::path{ArgumentResourceDir};
+    }
+    if (ToolDiagnostic == ToolDiagnosticVerbose) {
+        std::cout << "Resource dir: " << resource_dir.string() << std::endl;
     }
 
-    // Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-xc++"));
-    // Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-std=c++17"));
-    Tool.appendArgumentsAdjuster(getInsertArgumentAdjuster("-DADOBE_TOOL_HYDE=1"));
-
+    std::string resource_arg("-resource-dir=");
+    resource_arg += resource_dir.string();
+    arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
+    arguments.emplace_back(resource_arg);
+    Tool.appendArgumentsAdjuster(
+        getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");
 
