@@ -343,8 +343,8 @@ int main(int argc, const char** argv) try {
     boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
 
 #ifdef __APPLE__
-    // in some versions of osx they have stopped using /usr/include and instead shove it here
-    // this doesn't seem to be part of the standard search path for clang so we add it manually
+    // in some versions of osx they have stopped using `/usr/include`; Apple seems to rely
+    // on the isysroot parameter to accomplish this task in the general case, so we add it here.
     boost::filesystem::path include_dir{
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
 
