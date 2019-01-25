@@ -280,7 +280,23 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
 
 /**************************************************************************************************/
 
+std::vector<std::string> source_paths(int argc, const char** argv) {
+    return CommonOptionsParser(argc, argv, MyToolCategory).getSourcePathList();
+}
+
+/**************************************************************************************************/
+
 int main(int argc, const char** argv) try {
+    auto sources = source_paths(argc, argv);
+
+    if (sources.size() == 1) {
+        auto new_parent = make_absolute(boost::filesystem::path(sources.front()));
+        if (!is_directory(new_parent)) {
+            new_parent = new_parent.parent_path();
+        }
+        boost::filesystem::current_path(std::move(new_parent));
+    }
+
     std::vector<std::string> args = integrate_hyde_config(argc, argv);
     int new_argc = static_cast<int>(args.size());
     std::vector<const char*> new_argv(args.size(), nullptr);
@@ -291,10 +307,12 @@ int main(int argc, const char** argv) try {
     CommonOptionsParser OptionsParser(new_argc, &new_argv[0], MyToolCategory);
 
     if (ToolDiagnostic == ToolDiagnosticVerbose) {
-        std::cout << "Args:\n";
+        std::cout << "INFO: Args:\n";
         for (const auto& arg : args) {
-            std::cout << arg << '\n';
+            std::cout << "INFO:     " << arg << '\n';
         }
+        std::cout << "INFO: Working directory: " << boost::filesystem::current_path().string() << '\n';
+
     }
 
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
@@ -323,24 +341,26 @@ int main(int argc, const char** argv) try {
     clang::tooling::CommandLineArguments arguments;
     // this may not work on windows, need to investigate using strings
     boost::filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+
 #ifdef __APPLE__
-    // in some versions of osx they have stopped using /usr/include and instead shove it here
-    // this doesn't seem to be part of the standard search path for clang so we add it manually
+    // in some versions of osx they have stopped using `/usr/include`; Apple seems to rely
+    // on the isysroot parameter to accomplish this task in the general case, so we add it here.
     boost::filesystem::path include_dir{
-        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/"};
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
 
     if (boost::filesystem::exists(include_dir)) {
         if (ToolDiagnostic == ToolDiagnosticVerbose) {
-            std::cout << "Including: " << include_dir.string() << std::endl;
+            std::cout << "INFO: Using isysroot: " << include_dir.string() << std::endl;
         }
-        arguments.emplace_back(("-I" + include_dir.string()).c_str());
+        arguments.emplace_back(("-isysroot" + include_dir.string()).c_str());
     }
 #endif
+
     if (!ArgumentResourceDir.empty()) {
         resource_dir = boost::filesystem::path{ArgumentResourceDir};
     }
     if (ToolDiagnostic == ToolDiagnosticVerbose) {
-        std::cout << "Resource dir: " << resource_dir.string() << std::endl;
+        std::cout << "INFO: Resource dir: " << resource_dir.string() << std::endl;
     }
 
     std::string resource_arg("-resource-dir=");
