@@ -339,14 +339,20 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
         check_notify(filepath, nodepath, key, validate_message, update_message);
     };
 
+    const auto notify_fail = [&](const std::string& message) {
+        check_notify(filepath, nodepath, key, message, message);
+    };
+
     if (!expected_node.count(key)) {
-        throw std::runtime_error("missing expected array?");
+        notify_fail("missing expected array");
+        throw std::runtime_error("Merge object array failure");
     }
 
     const json& expected = expected_node[key];
 
     if (!expected.is_array()) {
-        throw std::runtime_error("expected type mismatch?");
+        notify_fail("expected type mismatch");
+        throw std::runtime_error("Merge object array failure");
     }
 
     json& result = merged_node[key];

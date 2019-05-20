@@ -45,6 +45,9 @@ bool yaml_enum_emitter::do_merge(const std::string& filepath,
 bool yaml_enum_emitter::emit(const json& j) {
     const std::string& name = j["name"];
 
+    // Most likely an enum forward declaration. Nothing to document here.
+    if (j["values"].empty()) return true;
+
     std::string filename;
     for (const auto& ns : j["namespaces"]) {
         filename += static_cast<const std::string&>(ns) + "::";
