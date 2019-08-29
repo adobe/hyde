@@ -426,6 +426,24 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
             break;
     }
 
+	auto visibility = f->getVisibility();
+	switch (visibility) {
+		case Visibility::HiddenVisibility:
+			info["visibility"] = "hidden";
+			break;
+		case Visibility::DefaultVisibility:
+			info["visibility"] = "default";
+			break;
+		case Visibility::ProtectedVisibility:
+			info["visibility"] = "protected";
+			break;
+		default:
+			info["visibility"] = "";
+			break;
+	}
+	LinkageInfo linkage_info = f->getLinkageAndVisibility();
+	info["visibility_explicit"] = linkage_info.isVisibilityExplicit() ? "true" : "false";
+
     if (const auto* method = llvm::dyn_cast_or_null<CXXMethodDecl>(f)) {
         if (method->isConst()) info["const"] = true;
         if (method->isVolatile()) info["volatile"] = true;
