@@ -12,6 +12,7 @@ written permission of Adobe.
 // stdc++
 #include <iomanip>
 #include <iostream>
+#include <unordered_set>
 
 // boost
 #include "boost/filesystem.hpp"
@@ -316,6 +317,12 @@ int main(int argc, const char** argv) try {
     }
 
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
+    // Remove duplicates (CommonOptionsParser is duplicating every single entry)
+    std::unordered_set<std::string> s;
+    for (std::string i : sourcePaths) {
+        s.insert(i);
+    }
+    sourcePaths.assign(s.begin(), s.end());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
     hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist};
