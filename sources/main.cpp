@@ -294,7 +294,6 @@ int main(int argc, const char** argv) try {
         if (!is_directory(new_parent)) {
             new_parent = new_parent.parent_path();
         }
-        boost::filesystem::current_path(std::move(new_parent));
     }
 
     std::vector<std::string> args = integrate_hyde_config(argc, argv);
