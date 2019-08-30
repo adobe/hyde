@@ -24,3 +24,5 @@ plugins:
   - jekyll-redirect-from
 
 theme: jekyll-theme-slate
+
+baseurl: /hyde
