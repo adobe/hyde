@@ -130,23 +130,33 @@ static cl::opt<std::string> ArgumentResourceDir(
 
 static cl::opt<bool> AutoResourceDirectory(
     "auto-resource-dir",
-    cl::desc("Autodetect clang's resource directory"),
+    cl::desc("Autodetect and use clang's resource directory"),
     cl::cat(MyToolCategory),
     cl::ValueDisallowed);
 
 static cl::opt<bool> AutoToolchainIncludes(
     "auto-toolchain-includes",
-    cl::desc("Autodetect and include the toolchain include paths"),
+    cl::desc("Autodetect and use the toolchain include paths"),
     cl::cat(MyToolCategory),
     cl::ValueDisallowed);
 
 #if HYDE_PLATFORM(APPLE)
 static cl::opt<bool> AutoSysrootDirectory(
     "auto-sysroot",
-    cl::desc("Autodetect and specify isysroot"),
+    cl::desc("Autodetect and use isysroot"),
     cl::cat(MyToolCategory),
     cl::ValueDisallowed);
 #endif
+
+static cl::opt<bool> UseSystemClang(
+    "use-system-clang",
+#if HYDE_PLATFORM(APPLE)
+    cl::desc("Synonym for both -auto-resource-dir and -auto-sysroot"),
+#else
+    cl::desc("Synonym for both -auto-resource-dir and -auto-toolchain-includes"),
+#endif
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::list<std::string> NamespaceBlacklist(
     "namespace-blacklist",
@@ -328,6 +338,15 @@ int main(int argc, const char** argv) try {
                    [](const auto& arg) { return arg.c_str(); });
 
     CommonOptionsParser OptionsParser(new_argc, &new_argv[0], MyToolCategory);
+
+    if (UseSystemClang) {
+        AutoResourceDirectory = true;
+#if HYDE_PLATFORM(APPLE)
+        AutoSysrootDirectory = true;
+#else
+        AutoToolchainIncludes = true;
+#endif
+    }
 
     if (IsVerbose()) {
         std::cout << "INFO: Args:\n";

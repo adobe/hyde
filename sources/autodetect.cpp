@@ -118,9 +118,9 @@ std::vector<filesystem::path> autodetect_include_paths() {
         lines.erase(paths_end, end(lines));
         lines.erase(begin(lines), next(paths_begin));
 
-        lines.erase(std::remove_if(begin(lines), end(lines), [](auto& s){
-            return s.find(".sdk/") != std::string::npos;
-        }), end(lines));
+        // lines.erase(std::remove_if(begin(lines), end(lines), [](auto& s){
+        //     return s.find(".sdk/") != std::string::npos;
+        // }), end(lines));
 
         // Some of the paths contain cruft at the end. Filter those out, too.
         std::transform(begin(lines), end(lines), std::back_inserter(result), [](auto s){
