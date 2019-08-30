@@ -11,10 +11,10 @@
 
         function theme(name, next) {
             if (name === "dark") {
-                set("/css/main-dark.css");            
+                set("{{ "/css/main-dark.css" | prepend: site.baseurl }}");            
             }
             else {
-                set("/css/main-light.css");               
+                set("{{ "/css/main-light.css" | prepend: site.baseurl }}");               
             }
 
             store(name);

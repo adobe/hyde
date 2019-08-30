@@ -14,7 +14,7 @@
 {% for p in methods %}
   {% if p.is_ctor %}
     <tr>
-        <td class='decl' colspan='2'><a href='{{p.url}}'>(constructor)</a></td>
+        <td class='decl' colspan='2'><a href='{{p.url | relative_url}}'>(constructor)</a></td>
     </tr>
   {% endif %}
 {% endfor %}
@@ -22,7 +22,7 @@
 {% for p in methods %}
   {% if p.is_dtor %}
     <tr>
-        <td class='decl' colspan='2'><a href='{{p.url}}'>(destructor)</a></td>
+        <td class='decl' colspan='2'><a href='{{p.url | relative_url}}'>(destructor)</a></td>
     </tr>
   {% endif %}
 {% endfor %}
@@ -34,7 +34,7 @@
 
   <tr>
     <td class='decl'>
-      <div><a href="{{p.url}}">{{ p.title | escape }}</a></div>
+      <div><a href="{{p.url | relative_url}}">{{ p.title | escape }}</a></div>
     </td>
     <td class='defn'>
       {% if p.brief %}

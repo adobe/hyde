@@ -8,7 +8,7 @@
   {% for p in enums %}
     <tr>
       <td class='name'>
-      <div><a href="{{p.url}}">{{ p.title | escape }}</a></div>
+      <div><a href="{{p.url | relative_url}}">{{ p.title | escape }}</a></div>
       </td>
       <td class='brief'>
         {% if p.brief %}

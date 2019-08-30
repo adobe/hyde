@@ -17,7 +17,7 @@ $site-menu-border-color: transparent;
 $site-menu-fill-color: $site-grey-color-dark;
 $site-nav-link-color: $hyde-primary;
 
-$header-image: url("/images/site/hyde.svg");
+$header-image: url({{ "/images/site/hyde.svg" | prepend: site.baseurl }});
 $header-background-color: #e4e4e4;
 $header-border-color: transparent;
 

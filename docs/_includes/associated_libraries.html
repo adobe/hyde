@@ -12,7 +12,7 @@
   {% for p in sourcefiles %}
     <tr>
         <td class='name'>
-          <div><a href="{{p.url}}"><code>{{ p.title | escape }}</code></a></div>
+          <div><a href="{{p.url | relative_url}}"><code>{{ p.title | escape }}</code></a></div>
         </td>
         <td class='brief'>
             {% if p.brief %}
@@ -37,7 +37,7 @@
   {% for p in libraries %}
     <tr>
         <td class='name'>
-          <div><a href="{{p.url}}">{{ p.title | escape }}</a></div>
+          <div><a href="{{p.url | relative_url}}">{{ p.title | escape }}</a></div>
         </td>
         <td class='brief'>
             {% if p.brief %}
