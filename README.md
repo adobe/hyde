@@ -49,9 +49,11 @@ There are several modes under which the tool can run:
 - `-hyde-src-root = <path>` - The root path to the header file(s) being analyzed. Affects `defined-in-file` output values by taking out the root path.
 - `-hyde-yaml-dir = <path>` - Root directory for YAML validation / update. Required for either hyde-validate or hyde-update modes.
 
+- `use-system-clang` - Autodetect and use necessary resource directories and include paths
+
 This tool parses the passed header using Clang. To pass arguments to the compiler (e.g., include directories), append them after the `--` token on the command line. For example:
 
-    hyde input_file.hpp -hyde-json -- -x c++ -I/path/to/includes
+    hyde input_file.hpp -hyde-json -use-system-clang -- -x c++ -I/path/to/includes
 
 Alternatively, if you have a compilation database and would like to pass that instead of command-line compiler arguments, you can pass that with `-p`.
 
@@ -60,10 +62,10 @@ While compiling the source file, the non-function macro `ADOBE_TOOL_HYDE` is def
 # Examples:
 
 To output JSON:
-```./hyde ../test_files/classes.cpp --```
+```./hyde -use-system-clang ../test_files/classes.cpp --```
 
 To validate pre-existing YAML:
-```./hyde ../test_files/classes.cpp -hyde-yaml-dir=/path/to/output -hyde-validate```
+```./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-validate ../test_files/classes.cpp```
 
 To output updated YAML:
-```./hyde ../test_files/classes.cpp -hyde-yaml-dir=/path/to/output -hyde-update```
+```./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-update ../test_files/classes.cpp```
