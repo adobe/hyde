@@ -402,7 +402,9 @@ int main(int argc, const char** argv) try {
     filesystem::path include_dir{"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
 
     if (AutoSysrootDirectory) {
-        std::cout << "INFO: Sysroot autodetected\n";
+        if (IsVerbose()) {
+            std::cout << "INFO: Sysroot autodetected\n";
+        }
         include_dir = hyde::autodetect_sysroot_directory();
     }
 
