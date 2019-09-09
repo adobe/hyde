@@ -16,16 +16,10 @@ RUN apt-get -y install libc++-8-dev libc++abi-8-dev
 RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-8 100
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
 
-# install a newer version of cmake than can be found on ubuntu
-RUN cd /usr/local/src \ 
-    && curl -O https://cmake.org/files/v3.13/cmake-3.13.0.tar.gz \
-    && tar xvf cmake-3.13.0.tar.gz \ 
-    && cd cmake-3.13.0 \
-    && ./bootstrap \
-    && make \
-    && make install \
-    && cd .. \
-    && rm -rf cmake*
+ADD https://cmake.org/files/v3.13/cmake-3.13.0-Linux-x86_64.sh /cmake-3.13.0-Linux-x86_64.sh
+RUN mkdir /opt/cmake
+RUN sh /cmake-3.13.0-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
 #install hyde dependencies 
 RUN apt-get -y install libyaml-cpp-dev libboost-system-dev libboost-filesystem-dev

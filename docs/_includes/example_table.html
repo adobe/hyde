@@ -1,7 +1,8 @@
 {% unless examples %}
+    {% assign this_url = page.url | relative_url %}
     {% assign examples = site.pages | where_exp:"p","p.example" %}
-    {% assign examples = examples | where_exp:"p","p.url contains page.url" %}
-    {% assign examples = examples | where_exp:"p","p.url != page.url" %}
+    {% assign examples = examples | where_exp:"p","p.url contains this_url" %}
+    {% assign examples = examples | where_exp:"p","p.url != this_url" %}
     {% assign examples = examples | sort: 'scope' %}
 {% endunless %}
 
