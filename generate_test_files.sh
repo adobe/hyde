@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#very simple for now, look in common locations
+# very simple for now, look in common locations
 find_hyde() {
     BUILD_DIR=$1
     if [ -f $BUILD_DIR/hyde ]
