@@ -1,4 +1,4 @@
-# What is `hyde`
+# What is `hyde`?
 
 `hyde` is a utility that facilitates documenting C++. The tool is unique from existing documentation utilities in the following ways:
 
@@ -14,16 +14,16 @@
 
 # Requirements
 ## OSX
-   - Homebrew
+   - Homebrew:
         - `brew install cmake`
         - `brew install llvm`
         - `brew install yaml-cpp --with-static-lib`
         - `brew install boost`
         - `brew install ninja` (optional)
 ## LINUX
-note only tested on ubuntu bionic so far
+NOTE: This has been tested only on Ubuntu Bionic so far.
 
-- Apt
+- Apt:
     - `sudo apt-get install libboost-system-dev libboost-filesystem-dev`
     - `sudo apt-get install libyaml-cpp-dev`
     - `sudo apt-get install libllvm7 llvm-7 llvm-7-dev`
@@ -31,7 +31,7 @@ note only tested on ubuntu bionic so far
 
 # How to Build
 
-- clone this repo
+- Clone [this repo](https://github.com/adobe/hyde.git).
 - `cd hyde`
 - `mkdir build`
 - `cd build`
