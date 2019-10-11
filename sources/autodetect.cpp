@@ -14,6 +14,7 @@ written permission of Adobe.
 
 // stdc++
 #include <array>
+#include <random>
 
 namespace filesystem = hyde::filesystem;
 
@@ -100,14 +101,16 @@ std::string exec(const char* cmd) {
 /**************************************************************************************************/
 
 std::vector<filesystem::path> autodetect_include_paths() {
+    // Add a random value here so two concurrent instances of hyde don't collide.
+    auto v = std::to_string(std::mt19937(std::random_device()())());
     auto temp_dir = boost::filesystem::temp_directory_path();
-    auto temp_path = temp_dir / "hyde.tmp";
-    auto temp_path_str = temp_path.string();
-    auto command = "echo \"int main() { }\" | clang++ -x c++ -v - 2> " + temp_path_str;
+    auto temp_out = (temp_dir / ("hyde_" + v + ".tmp")).string();
+    auto temp_a_out = (temp_dir / ("deleteme_" + v)).string();
+    auto command = "echo \"int main() { }\" | clang++ -x c++ -v -o " + temp_a_out + " - 2> " + temp_out;
 
     std::system(command.c_str());
 
-    std::vector lines(file_slurp(temp_path));
+    std::vector lines(file_slurp(temp_out));
     static const std::string begin_string("#include <...> search starts here:");
     static const std::string end_string("End of search list.");
     auto paths_begin = std::find(begin(lines), end(lines), begin_string);
