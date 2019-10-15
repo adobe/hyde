@@ -1,6 +1,6 @@
 # What is `hyde`
 
-`hyde` is a utility that facilitates documenting C++. The tool is unique from existing documentation utilities in the following ways:
+**`hyde` is a utility that facilitates documenting C++. The tool is unique from existing documentation utilities in the following ways:**
 
 - **Clang based**: In order to properly document your C++, `hyde` compiles it using Clang's excellent [libTooling](https://clang.llvm.org/docs/LibTooling.html) library. Therefore, as the C++ language evolves, so too will `hyde`.
 - **Out-of-line**: Many tools rely on documentation placed inline within source as long-form comments. While these seem appealing at first blush, they suffer from two big drawbacks. First, there is nothing keeping the comments from falling out of sync from the elements they document. Secondly (and ironically), experienced users of these libraries eventually find inline documentation to be more of a distraction than a help, cluttering code with comments they no longer read.
