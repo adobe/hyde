@@ -69,3 +69,5 @@ To validate pre-existing YAML:
 
 To output updated YAML:
 ```./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-update ../test_files/classes.cpp```
+
+📌 Thanks for Contributing us.
