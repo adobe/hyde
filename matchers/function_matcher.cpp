@@ -38,7 +38,9 @@ void FunctionInfo::run(const MatchFinder::MatchResult& Result) {
     auto function = Result.Nodes.getNodeAs<FunctionDecl>("func");
 
     // Do not process class methods here.
-    if (llvm::dyn_cast_or_null<CXXMethodDecl>(function)) return;
+    if (!_options._process_class_methods) {
+        if (llvm::dyn_cast_or_null<CXXMethodDecl>(function)) return;
+    }
 
     auto info_opt = DetailFunctionDecl(_options, function);
     if (!info_opt) return;

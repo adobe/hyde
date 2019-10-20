@@ -33,6 +33,7 @@ struct processing_options {
     std::vector<std::string> _paths;
     ToolAccessFilter _access_filter;
     std::vector<std::string> _namespace_blacklist;
+    bool _process_class_methods;
 };
 
 /**************************************************************************************************/
