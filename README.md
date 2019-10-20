@@ -17,6 +17,7 @@
    - Homebrew
         - `brew install cmake`
         - `brew install llvm`
+        - `brew install yaml-cpp --with-static-lib`
         - `brew install boost`
         - `brew install ninja` (optional)
 ## LINUX
@@ -25,14 +26,13 @@ note only tested on ubuntu bionic so far
 - Apt
     - `sudo apt-get install libboost-system-dev libboost-filesystem-dev`
     - `sudo apt-get install libyaml-cpp-dev`
-    - `sudo apt-get install libllvm9 llvm-9 llvm-9-dev`
-    - `sudo apt-get install clang-tools-9 libclang-common-9-dev clang-9 libclang-9-dev`
+    - `sudo apt-get install libllvm7 llvm-7 llvm-7-dev`
+    - `sudo apt-get install clang-tools-7 libclang-common-7-dev clang-7 libclang-7-dev`
 
 # How to Build
 
 - clone this repo
 - `cd hyde`
-- `git submodule update --init`
 - `mkdir build`
 - `cd build`
 - `cmake .. -GNinja` (or `-GXcode`, etc.)
