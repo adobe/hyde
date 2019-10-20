@@ -145,11 +145,9 @@ std::string GetSignature(const ASTContext* n,
     }
 
     if (auto ctor_decl = llvm::dyn_cast_or_null<CXXConstructorDecl>(function)) {
-        auto specifier = ctor_decl->getExplicitSpecifier();
-        if (specifier.isExplicit()) signature << "explicit ";
+        if (ctor_decl->isExplicitSpecified()) signature << "explicit ";
     } else if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(function)) {
-        auto specifier = conversion_decl->getExplicitSpecifier();
-        if (specifier.isExplicit()) signature << "explicit ";
+        if (conversion_decl->isExplicitSpecified()) signature << "explicit ";
     }
 
     if (!isa<CXXConstructorDecl>(function) && !isa<CXXDestructorDecl>(function) &&
@@ -459,8 +457,7 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
                 info["is_ctor"] = true;
 
                 if (auto ctor_decl = llvm::dyn_cast_or_null<CXXConstructorDecl>(method)) {
-                    auto specifier = ctor_decl->getExplicitSpecifier();
-                    if (specifier.isExplicit()) info["explicit"] = true;
+                    if (ctor_decl->isExplicitSpecified()) info["explicit"] = true;
                 }
             }
             if (is_dtor) info["is_dtor"] = true;
@@ -469,8 +466,7 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
         }
 
         if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(method)) {
-            auto specifier = conversion_decl->getExplicitSpecifier();
-            if (specifier.isExplicit()) info["explicit"] = true;
+            if (conversion_decl->isExplicitSpecified()) info["explicit"] = true;
         }
     }
 
