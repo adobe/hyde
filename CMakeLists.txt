@@ -40,13 +40,16 @@ endif()
 find_package(Clang REQUIRED clangTooling libClang clangASTMatchers)
 find_package(Clang REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
+find_package(YAML-CPP REQUIRED CONFIG)
 
 set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 
 add_definitions(${Clang_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS})
+add_definitions(${YAML_CPP_DEFINITIONS})
 add_definitions(${Boost_LIB_DIAGNOSTIC_DEFINITIONS})
+
 
 #lets get the clang resource dir so we can set inside hyde
 if(DEFINED USE_APPLE_TOOLCHAIN)
@@ -83,10 +86,8 @@ file(GLOB EMITTER_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/emitters/*
 file(GLOB MATCHER_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/matchers/*.cpp)
 file(GLOB SRC_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sources/*.cpp)
 
-file(GLOB YAML_CPP_SRC_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/src/*.cpp)
-
 #TODO: use target_source
-add_executable(hyde  ${EMITTER_FILES} ${MATCHER_FILES} ${SRC_FILES} ${YAML_CPP_SRC_FILES})
+add_executable(hyde  ${EMITTER_FILES} ${MATCHER_FILES} ${SRC_FILES})
 if (NOT LLVM_ENABLE_RTTI)
     target_compile_options (hyde PRIVATE -fno-rtti)
 endif()
@@ -103,11 +104,12 @@ target_include_directories(hyde PUBLIC ${CLANG_INCLUDE_DIRS})
 target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(hyde PUBLIC ${LLVM_INCLUDE_DIRS})
-target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/include/)
+target_include_directories(hyde PUBLIC ${YAML_CPP_INCLUDE_DIR})
 
-target_compile_options(hyde PUBLIC -Wall  -Werror -DHYDE_FORCE_BOOST_FILESYSTEM=1)
+target_compile_options(hyde PUBLIC -Wall  -Werror)
 
 target_link_libraries(hyde
+                      ${YAML_CPP_LIBRARIES}
                       ${Boost_FILESYSTEM_LIBRARY}
                       ${Boost_SYSTEM_LIBRARY}
                       clangASTMatchers
