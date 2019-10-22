@@ -14,7 +14,6 @@ written permission of Adobe.
 #include <iostream>
 #include <unordered_set>
 #include <sstream>
-#include <unordered_set>
 
 // boost
 #include "boost/range/irange.hpp"
