@@ -20,7 +20,7 @@
         - `brew install boost`
         - `brew install ninja` (optional)
 ## LINUX
-note only tested on ubuntu bionic so far
+Note only tested on Ubuntu Bionic so far
 
 - Apt
     - `sudo apt-get install libboost-system-dev libboost-filesystem-dev`
@@ -30,7 +30,7 @@ note only tested on ubuntu bionic so far
 
 # How to Build
 
-- clone this repo
+- Clone this repo
 - `cd hyde`
 - `git submodule update --init`
 - `mkdir build`
@@ -42,16 +42,16 @@ note only tested on ubuntu bionic so far
 
 There are several modes under which the tool can run:
 
-- `-hyde-json` - (default) Output an analysis dump of the input file as JSON
-- `-hyde-validate` - Validate existing YAML documentation
-- `-hyde-update` - Write updated YAML documentation
+- `-hyde-json` - (default) Output an analysis dump of the input file as JSON.
+- `-hyde-validate` - Validate existing YAML documentation.
+- `-hyde-update` - Write updated YAML documentation.
 
 - `-hyde-src-root = <path>` - The root path to the header file(s) being analyzed. Affects `defined-in-file` output values by taking out the root path.
 - `-hyde-yaml-dir = <path>` - Root directory for YAML validation / update. Required for either hyde-validate or hyde-update modes.
 
-- `use-system-clang` - Autodetect and use necessary resource directories and include paths
+- `use-system-clang` - Autodetect and use necessary resource directories and include paths.
 
-This tool parses the passed header using Clang. To pass arguments to the compiler (e.g., include directories), append them after the `--` token on the command line. For example:
+This tool parses the passed header using Clang. To pass arguments to the compiler (e.g. include directories), append them after the `--` token on the command line. For example:
 
     hyde input_file.hpp -hyde-json -use-system-clang -- -x c++ -I/path/to/includes
 
