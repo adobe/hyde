@@ -439,9 +439,6 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
 		case Visibility::ProtectedVisibility:
 			info["visibility"] = "protected";
 			break;
-		default:
-			info["visibility"] = "";
-			break;
 	}
 	LinkageInfo linkage_info = f->getLinkageAndVisibility();
 	info["visibility_explicit"] = linkage_info.isVisibilityExplicit() ? "true" : "false";
