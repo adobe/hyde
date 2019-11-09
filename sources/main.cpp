@@ -12,6 +12,7 @@ written permission of Adobe.
 // stdc++
 #include <iomanip>
 #include <iostream>
+#include <unordered_set>
 #include <sstream>
 
 // boost
@@ -163,6 +164,12 @@ static cl::list<std::string> NamespaceBlacklist(
     cl::desc("Namespace(s) whose contents should not be processed"),
     cl::cat(MyToolCategory),
     cl::CommaSeparated);
+
+static cl::opt<bool> ProcessClassMethods(
+    "process-class-methods",
+    cl::desc("Process Class Methods"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::extrahelp HydeHelp(
     "\nThis tool parses the header source(s) using Clang. To pass arguments to the\n"
@@ -358,9 +365,15 @@ int main(int argc, const char** argv) try {
     }
 
     auto sourcePaths = make_absolute(OptionsParser.getSourcePathList());
+    // Remove duplicates (CommonOptionsParser is duplicating every single entry)
+    std::unordered_set<std::string> s;
+    for (std::string i : sourcePaths) {
+        s.insert(i);
+    }
+    sourcePaths.assign(s.begin(), s.end());
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
-    hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist};
+    hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist, ProcessClassMethods};
 
     hyde::FunctionInfo function_matcher(options);
     Finder.addMatcher(hyde::FunctionInfo::GetMatcher(), &function_matcher);
@@ -395,7 +408,9 @@ int main(int argc, const char** argv) try {
     filesystem::path include_dir{"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
 
     if (AutoSysrootDirectory) {
-        std::cout << "INFO: Sysroot autodetected\n";
+        if (IsVerbose()) {
+            std::cout << "INFO: Sysroot autodetected\n";
+        }
         include_dir = hyde::autodetect_sysroot_directory();
     }
 
@@ -413,9 +428,13 @@ int main(int argc, const char** argv) try {
     //
     if (AutoToolchainIncludes) {
         std::vector<filesystem::path> includes = hyde::autodetect_toolchain_paths();
-        std::cout << "INFO: Toolchain paths autodetected:\n";
+        if (IsVerbose()) {
+            std::cout << "INFO: Toolchain paths autodetected:\n";
+        }
         for (const auto& arg : includes) {
-            std::cout << "INFO:     " << arg.string() << '\n';
+            if (IsVerbose()) {
+                std::cout << "INFO:     " << arg.string() << '\n';
+            }
 
             arguments.emplace_back("-I" + arg.string());
         }
