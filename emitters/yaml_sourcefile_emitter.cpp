@@ -54,7 +54,7 @@ bool yaml_sourcefile_emitter::do_merge(const std::string& filepath,
 
 bool yaml_sourcefile_emitter::emit(const json& j) {
     const auto sub_path = subcomponent(static_cast<const std::string&>(j["paths"]["src_path"]), _src_root);
-    json node = base_emitter_node("library", sub_path, "sourcefile");
+    json node = base_emitter_node("library", sub_path.string(), "sourcefile");
     node["library-type"] = "sourcefile";
 
     insert_typedefs(j, node);

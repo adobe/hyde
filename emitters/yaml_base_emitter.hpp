@@ -67,14 +67,15 @@ protected:
     std::string defined_in_file(const std::string& src_path,
                                 const boost::filesystem::path& src_root);
 
-    std::string subcomponent(const boost::filesystem::path& src_path,
-                             const boost::filesystem::path& src_root);
+    boost::filesystem::path subcomponent(const boost::filesystem::path& src_path,
+                                         const boost::filesystem::path& src_root);
 
     void maybe_annotate(const json& j, json& node); // make out arg?
 
     std::string format_template_parameters(const json& json, bool with_types);
 
     std::string filename_filter(std::string f);
+    std::string filename_truncate(std::string s);
 
     void insert_typedefs(const json& j, json& node);
 
@@ -120,9 +121,10 @@ private:
 
     boost::filesystem::path dst_path_append(boost::filesystem::path p) { return p; }
 
+    bool create_directory_stub(boost::filesystem::path p);
     bool create_path_directories(boost::filesystem::path p);
 
-    std::string directory_mangle(std::string s);
+    boost::filesystem::path directory_mangle(boost::filesystem::path p);
 
     void check_notify(const std::string& filepath,
                       const std::string& nodepath,
@@ -160,7 +162,8 @@ boost::filesystem::path yaml_base_emitter::dst_path(const json& j, Args&&... arg
 
     if (j.count("parents")) {
         for (const auto& dir : j["parents"]) {
-            result /= directory_mangle(dir);
+            std::string dir_str{dir};
+            result /= directory_mangle(std::move(dir_str));
         }
     }
 

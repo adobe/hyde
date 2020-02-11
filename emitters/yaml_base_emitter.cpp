@@ -177,6 +177,10 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
 
 /**************************************************************************************************/
 
+static const std::string front_matter_delimiter_k("---\n");
+
+/**************************************************************************************************/
+
 } // namespace
 
 /**************************************************************************************************/
@@ -562,38 +566,69 @@ inline std::uint64_t fnv_1a(const std::string& s) {
     }
 
     return result;
-}
+    }
 
 /**************************************************************************************************/
 
-std::string yaml_base_emitter::directory_mangle(std::string s) {
-    // std::string original = s;
-    s = filename_filter(std::move(s));
-    // std::string filtered = s;
+std::string yaml_base_emitter::filename_truncate(std::string s) {
+    if (s.size() <= 32) return s;
 
-    if (s.size() > 32) {
-        // We cannot use std::hash here because the hashing algorithm may give
-        // different results per-platform. Instead we fall back on an old
-        // favorite of mine for this kind of thing: FNV-1a.
-        const auto hash = [& _s = s]() {
-            auto hash = fnv_1a(_s) & 0xFFFFFFFF;
-            std::stringstream stream;
-            stream << std::hex << hash;
-            return stream.str();
-        }();
+    // We cannot use std::hash here because the hashing algorithm may give
+    // different results per-platform. Instead we fall back on an old
+    // favorite of mine for this kind of thing: FNV-1a.
+    const auto hash = [&_s = s]() {
+        auto hash = fnv_1a(_s) & 0xFFFFFFFF;
+        std::stringstream stream;
+        stream << std::hex << hash;
+        return stream.str();
+    }();
 
-        // 23 + 1 + 8 = 32 max characters per directory name
-        s = s.substr(0, 23) + '.' + hash;
-    }
+    // 23 + 1 + 8 = 32 max characters per directory name
+    s = s.substr(0, 23) + '.' + hash;
 
     return s;
 }
 
 /**************************************************************************************************/
 
-bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
-    bool failure{false};
+boost::filesystem::path yaml_base_emitter::directory_mangle(boost::filesystem::path p) {
+    boost::filesystem::path result;
 
+    for (const auto& part : p) {
+        result /= filename_truncate(filename_filter(part.string()));
+    }
+
+    return result;
+}
+
+/**************************************************************************************************/
+
+bool yaml_base_emitter::create_directory_stub(boost::filesystem::path p) {
+    auto stub_name = p / index_filename_k;
+
+    if (exists(stub_name)) return false;
+
+    boost::filesystem::ofstream output(stub_name);
+
+    if (!output) {
+        std::cerr << stub_name.string() << ": could not create directory stub\n";
+        return true;
+    }
+
+    static const auto stub_json_k = json::object_t{
+        {"layout", "directory"},
+    };
+
+    output << front_matter_delimiter_k;
+    output << json_to_yaml_ordered(stub_json_k) << '\n';
+    output << front_matter_delimiter_k;
+
+    return false;
+}
+
+/**************************************************************************************************/
+
+bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
     if (p.has_filename()) p = p.parent_path();
 
     std::vector<boost::filesystem::path> ancestors;
@@ -621,12 +656,16 @@ bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
                 if (!bad_path_map_s.count(bad_path))
                     std::cerr << bad_path << ": directory could not be created (" << ec << ")\n";
                 bad_path_map_s[bad_path] = true;
-                failure = true;
+                return true;
+            }
+
+            if (create_directory_stub(ancestor)) {
+                return true;
             }
         }
     }
 
-    return failure;
+    return false;
 }
 
 /**************************************************************************************************/
@@ -643,7 +682,6 @@ auto load_yaml(const boost::filesystem::path& path) try {
 bool yaml_base_emitter::reconcile(json expected,
                                   boost::filesystem::path root_path,
                                   boost::filesystem::path path) {
-    static const std::string front_matter_delimiter_k("---\n");
     bool failure{false};
 
     /* begin hack */ {
@@ -740,9 +778,9 @@ std::string yaml_base_emitter::defined_in_file(const std::string& src_path,
 
 /**************************************************************************************************/
 
-std::string yaml_base_emitter::subcomponent(const boost::filesystem::path& src_path,
-                                            const boost::filesystem::path& src_root) {
-    return boost::filesystem::relative(src_path, src_root).string();
+boost::filesystem::path yaml_base_emitter::subcomponent(const boost::filesystem::path& src_path,
+                                                        const boost::filesystem::path& src_root) {
+    return boost::filesystem::relative(src_path, src_root);
 }
 
 /**************************************************************************************************/
@@ -803,7 +841,6 @@ std::string yaml_base_emitter::format_template_parameters(const hyde::json& json
 /**************************************************************************************************/
 
 std::string yaml_base_emitter::filename_filter(std::string f) {
-#if 1
     constexpr const char* const uri_equivalent[] = {
         "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "0A", "0B", "0C", "0D", "0E",
         "0F", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "1A", "1B", "1C", "1D",
@@ -831,19 +868,6 @@ std::string yaml_base_emitter::filename_filter(std::string f) {
                   [&](const auto& c) { result += uri_equivalent[static_cast<int>(c)]; });
 
     return result;
-#else
-    // Remove the reserved characters. This causes e.g., operator<< and
-    // operator== to conflict.
-
-    const auto unreserved = [](const auto& c) {
-        return std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~';
-    };
-
-    f.erase(std::remove_if(f.begin(), f.end(), [&](const auto& c) { return !unreserved(c); }),
-            f.end());
-
-    return f;
-#endif
 }
 
 /**************************************************************************************************/

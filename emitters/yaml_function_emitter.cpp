@@ -65,18 +65,19 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
 
 /**************************************************************************************************/
 
-bool yaml_function_emitter::emit(const json& j) {
+bool yaml_function_emitter::emit(const json& jsn) {
     boost::filesystem::path dst;
     std::string name;
     std::string filename;
     std::string defined_path;
-    std::size_t count{0};
+    std::size_t i{0};
     json overloads = json::object();
     bool is_ctor{false};
     bool is_dtor{false};
+    std::size_t count(jsn.size());
 
-    for (const auto& overload : j) {
-        if (!count) {
+    for (const auto& overload : jsn) {
+        if (!i) {
             dst = dst_path(overload);
             // always the unqualified name, as free functions may be defined
             // over different namespaces.
@@ -90,32 +91,33 @@ bool yaml_function_emitter::emit(const json& j) {
 
         const std::string& key = static_cast<const std::string&>(overload["signature"]);
         overloads[key]["signature_with_names"] = overload["signature_with_names"];
-        overloads[key]["description"] = tag_value_missing_k;
+        // description is now optional when there is a singular variant.
+        overloads[key]["description"] = count > 1 ? tag_value_missing_k : tag_value_optional_k;
         overloads[key]["return"] = tag_value_optional_k;
         maybe_annotate(overload, overloads[key]);
 
         if (!overload["arguments"].empty()) {
-            std::size_t count{0};
+            std::size_t j{0};
             auto& args = overloads[key]["arguments"];
             for (const auto& arg : overload["arguments"]) {
-                auto& cur_arg = args[count];
+                auto& cur_arg = args[j];
                 const std::string& name = arg["name"];
                 const bool unnamed = name.empty();
-                cur_arg["name"] = unnamed ? "unnamed-" + std::to_string(count) : name;
+                cur_arg["name"] = unnamed ? "unnamed-" + std::to_string(j) : name;
                 cur_arg["type"] = arg["type"];
                 cur_arg["description"] = tag_value_optional_k;
                 if (unnamed) cur_arg["unnamed"] = true;
-                ++count;
+                ++j;
             }
         }
 
-        ++count;
+        ++i;
     }
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function");
     node["defined-in-file"] = defined_path;
-    maybe_annotate(j, node);
+    maybe_annotate(jsn, node);
     node["overloads"] = std::move(overloads);
     if (is_ctor) node["is_ctor"] = true;
     if (is_dtor) node["is_dtor"] = true;
