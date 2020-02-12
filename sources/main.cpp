@@ -116,9 +116,16 @@ static cl::opt<ToolDiagnostic> ToolDiagnostic(
         clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console"),
         clEnumValN(ToolDiagnosticVeryVerbose, "hyde-very-verbose", "output much more to the console")),
     cl::cat(MyToolCategory));
-static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
-                                       cl::desc("Root directory for YAML validation / update"),
-                                       cl::cat(MyToolCategory));
+static cl::opt<std::string> YamlDstDir(
+    "hyde-yaml-dir",
+    cl::desc("Root directory for YAML validation / update"),
+    cl::cat(MyToolCategory));
+
+static cl::opt<std::string> EmittedJsonPath(
+    "hyde-json-emitted",
+    cl::desc("Path to write validated / updated documentation as JSON"),
+    cl::cat(MyToolCategory));
+
 static cl::opt<std::string> YamlSrcDir(
     "hyde-src-root",
     cl::desc("The root path to the header file(s) being analyzed"),
@@ -500,8 +507,9 @@ int main(int argc, const char** argv) try {
 
         filesystem::path src_root(YamlSrcDir);
         filesystem::path dst_root(YamlDstDir);
+        filesystem::path json_path(EmittedJsonPath);
 
-        output_yaml(std::move(result), std::move(src_root), std::move(dst_root),
+        output_yaml(std::move(result), std::move(src_root), std::move(dst_root), std::move(json_path),
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
                                                        hyde::yaml_mode::update);
     }

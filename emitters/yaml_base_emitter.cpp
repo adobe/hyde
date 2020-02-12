@@ -681,7 +681,8 @@ auto load_yaml(const boost::filesystem::path& path) try {
 
 bool yaml_base_emitter::reconcile(json expected,
                                   boost::filesystem::path root_path,
-                                  boost::filesystem::path path) {
+                                  boost::filesystem::path path,
+                                  json& out_reconciled) {
     bool failure{false};
 
     /* begin hack */ {
@@ -726,6 +727,7 @@ bool yaml_base_emitter::reconcile(json expected,
         json merged;
 
         std::tie(failure, merged) = merge(relative_path, have, expected);
+        out_reconciled = merged;
 
         switch (_mode) {
             case hyde::yaml_mode::validate: {
@@ -745,6 +747,8 @@ bool yaml_base_emitter::reconcile(json expected,
             } break;
         }
     } else { // file does not exist
+        out_reconciled = expected;
+
         switch (_mode) {
             case hyde::yaml_mode::validate: {
                 std::cerr << relative_path << ": required file does not exist\n";

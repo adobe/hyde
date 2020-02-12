@@ -57,12 +57,12 @@ public:
                       yaml_mode mode)
         : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode) {}
 
-    virtual bool emit(const json& json) = 0;
+    virtual bool emit(const json& j, json& out_emitted) = 0;
 
 protected:
     json base_emitter_node(std::string layout, std::string title, std::string tag);
 
-    bool reconcile(json node, boost::filesystem::path root_path, boost::filesystem::path path);
+    bool reconcile(json node, boost::filesystem::path root_path, boost::filesystem::path path, json& out_reconciled);
 
     std::string defined_in_file(const std::string& src_path,
                                 const boost::filesystem::path& src_root);
