@@ -54,8 +54,9 @@ struct yaml_base_emitter {
 public:
     yaml_base_emitter(boost::filesystem::path src_root,
                       boost::filesystem::path dst_root,
-                      yaml_mode mode)
-        : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode) {}
+                      yaml_mode mode,
+                      emit_options options)
+        : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode), _options(std::move(options)) {}
 
     virtual bool emit(const json& j, json& out_emitted) = 0;
 
@@ -145,6 +146,7 @@ protected: // make private?
     const boost::filesystem::path _src_root;
     const boost::filesystem::path _dst_root;
     const yaml_mode _mode;
+    const emit_options _options;
 
     static file_checker checker_s;
 };

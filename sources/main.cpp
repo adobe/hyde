@@ -30,6 +30,7 @@ written permission of Adobe.
 #include "config.hpp"
 #include "json.hpp"
 #include "output_yaml.hpp"
+#include "emitters/yaml_base_emitter_fwd.hpp"
 
 // instead of this, probably have a matcher manager that pushes the json object
 // into the file then does the collation and passes it into jsonAST to do
@@ -125,6 +126,12 @@ static cl::opt<std::string> EmittedJsonPath(
     "hyde-json-emitted",
     cl::desc("Path to write validated / updated documentation as JSON"),
     cl::cat(MyToolCategory));
+
+static cl::opt<bool> EnableTestedBy(
+    "hyde-enable-tested-by",
+    cl::desc("Emit tested_by attributes for applicable documents"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::opt<std::string> YamlSrcDir(
     "hyde-src-root",
@@ -307,6 +314,10 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
         const std::string& path_str = config["hyde-yaml-dir"];
         std::string abs_path_str = make_absolute(path_str);
         hyde_flags.emplace_back("-hyde-yaml-dir=" + abs_path_str);
+    }
+
+    if (config.count("hyde-enable-tested-by") && config["hyde-enable-tested-by"] == "true") {
+        hyde_flags.emplace_back("-hyde-enable-tested-by");
     }
 
     hyde_flags.insert(hyde_flags.end(), cli_hyde_flags.begin(), cli_hyde_flags.end());
@@ -509,9 +520,13 @@ int main(int argc, const char** argv) try {
         filesystem::path dst_root(YamlDstDir);
         filesystem::path json_path(EmittedJsonPath);
 
+        hyde::emit_options emit_options{
+            EnableTestedBy
+        };
+
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), std::move(json_path),
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
-                                                       hyde::yaml_mode::update);
+                                                       hyde::yaml_mode::update, std::move(emit_options));
     }
 } catch (const std::exception& error) {
     std::cerr << "Error: " << error.what() << '\n';

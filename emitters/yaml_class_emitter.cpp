@@ -113,7 +113,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     bool failure = reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
 
     const auto& methods = j["methods"];
-    yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, true);
+    yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, _options, true);
 
     for (auto it = methods.begin(); it != methods.end(); ++it) {
         function_emitter.set_key(it.key());

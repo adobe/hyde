@@ -38,7 +38,9 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "signature_with_names");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "return");
-            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "tested_by");
+            if (_options._enable_tested_by) {
+                failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "tested_by");
+            }
             // failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
             // "annotation");
 
@@ -95,7 +97,9 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
         // description is now optional when there is a singular variant.
         overloads[key]["description"] = count > 1 ? tag_value_missing_k : tag_value_optional_k;
         overloads[key]["return"] = tag_value_optional_k;
-        overloads[key]["tested_by"] = tag_value_optional_k;;
+        if (_options._enable_tested_by) {
+            overloads[key]["tested_by"] = tag_value_optional_k;
+        }
         maybe_annotate(overload, overloads[key]);
 
         if (!overload["arguments"].empty()) {

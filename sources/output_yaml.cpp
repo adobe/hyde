@@ -40,20 +40,21 @@ void output_yaml(json j,
                  const boost::filesystem::path& src_root,
                  const boost::filesystem::path& dst_root,
                  const boost::filesystem::path& json_path,
-                 yaml_mode mode) {
+                 yaml_mode mode,
+                 const emit_options& options) {
     bool failure{false};
     auto library_emitted = hyde::json::object();
 
     // Process top-level library
-    yaml_library_emitter(src_root, dst_root, mode).emit(j, library_emitted);
+    yaml_library_emitter(src_root, dst_root, mode, options).emit(j, library_emitted);
 
     // Process sourcefile
-    yaml_sourcefile_emitter sourcefile_emitter(src_root, dst_root, mode);
+    yaml_sourcefile_emitter sourcefile_emitter(src_root, dst_root, mode, options);
     auto sourcefile_emitted = hyde::json::object();
     sourcefile_emitter.emit(j, sourcefile_emitted);
 
     // Process classes
-    yaml_class_emitter class_emitter(src_root, dst_root, mode);
+    yaml_class_emitter class_emitter(src_root, dst_root, mode, options);
     for (const auto& c : j["classes"]) {
         auto class_emitted = hyde::json::object();
         failure |= class_emitter.emit(c, class_emitted);
@@ -61,7 +62,7 @@ void output_yaml(json j,
     }
 
     // Process enums
-    yaml_enum_emitter enum_emitter(src_root, dst_root, mode);
+    yaml_enum_emitter enum_emitter(src_root, dst_root, mode, options);
     for (const auto& c : j["enums"]) {
         auto enum_emitted = hyde::json::object();
         failure |= enum_emitter.emit(c, enum_emitted);
@@ -69,7 +70,7 @@ void output_yaml(json j,
     }
 
     // Process functions
-    yaml_function_emitter function_emitter(src_root, dst_root, mode, false);
+    yaml_function_emitter function_emitter(src_root, dst_root, mode, options, false);
     const auto& functions = j["functions"];
     for (auto it = functions.begin(); it != functions.end(); ++it) {
         function_emitter.set_key(it.key());
