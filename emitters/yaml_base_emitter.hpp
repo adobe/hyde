@@ -90,6 +90,13 @@ protected:
                       json& out_merged,
                       const std::string& key);
 
+    bool check_scalar_array(const std::string& filepath,
+                            const json& have_node,
+                            const json& expected_node,
+                            const std::string& nodepath,
+                            json& merged_node,
+                            const std::string& key);
+
     using check_proc = std::function<bool(const std::string& filepath,
                                           const json& have,
                                           const json& expected,

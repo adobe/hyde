@@ -11,6 +11,9 @@ written permission of Adobe.
 
 #pragma once
 
+// stdc++
+#include <stdexcept>
+
 /**************************************************************************************************/
 
 namespace hyde {
@@ -24,8 +27,34 @@ static constexpr char const* index_filename_k = "index.md";
 
 /**************************************************************************************************/
 
+enum class attribute_category {
+    disabled,
+    required,
+    optional,
+    deprecated
+};
+
+static constexpr char const* get_tag(attribute_category c) {
+    switch (c) {
+        case attribute_category::required:
+            return tag_value_missing_k;
+        case attribute_category::optional:
+            return tag_value_optional_k;
+        case attribute_category::deprecated:
+            return tag_value_deprecated_k;
+        default:
+            throw std::invalid_argument("unexpected attribute category");
+    }
+}
+
+static inline bool is_tag(const std::string& s) {
+    return s.substr(0, 2) == "__";
+}
+
+/**************************************************************************************************/
+
 struct emit_options {
-    bool _enable_tested_by;
+    attribute_category _tested_by;
 };
 
 /**************************************************************************************************/

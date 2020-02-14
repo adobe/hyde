@@ -127,11 +127,13 @@ static cl::opt<std::string> EmittedJsonPath(
     cl::desc("Path to write validated / updated documentation as JSON"),
     cl::cat(MyToolCategory));
 
-static cl::opt<bool> EnableTestedBy(
-    "hyde-enable-tested-by",
-    cl::desc("Emit tested_by attributes for applicable documents"),
-    cl::cat(MyToolCategory),
-    cl::ValueDisallowed);
+static cl::opt<hyde::attribute_category> TestedBy(
+    "hyde-tested-by",
+    cl::values(
+        clEnumValN(hyde::attribute_category::disabled, "disabled", "Disable tested_by attribute (default)"),
+        clEnumValN(hyde::attribute_category::required, "required", "Require tested_by attribute"),
+        clEnumValN(hyde::attribute_category::optional, "optional", "Enable tested_by attribute with optional value")),
+    cl::cat(MyToolCategory));
 
 static cl::opt<std::string> YamlSrcDir(
     "hyde-src-root",
@@ -316,8 +318,9 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
         hyde_flags.emplace_back("-hyde-yaml-dir=" + abs_path_str);
     }
 
-    if (config.count("hyde-enable-tested-by") && config["hyde-enable-tested-by"] == "true") {
-        hyde_flags.emplace_back("-hyde-enable-tested-by");
+    if (config.count("hyde-tested-by")) {
+        const std::string& tested_by = config["hyde-tested-by"];
+        hyde_flags.emplace_back("-hyde-tested-by=" + tested_by);
     }
 
     hyde_flags.insert(hyde_flags.end(), cli_hyde_flags.begin(), cli_hyde_flags.end());
@@ -520,9 +523,7 @@ int main(int argc, const char** argv) try {
         filesystem::path dst_root(YamlDstDir);
         filesystem::path json_path(EmittedJsonPath);
 
-        hyde::emit_options emit_options{
-            EnableTestedBy
-        };
+        hyde::emit_options emit_options{ TestedBy };
 
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), std::move(json_path),
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
