@@ -822,6 +822,7 @@ bool yaml_base_emitter::reconcile(json expected,
 
         std::tie(failure, merged) = merge(relative_path, have, expected);
         out_reconciled = merged;
+        out_reconciled["documentation_path"] = relative_path;
 
         switch (_mode) {
             case hyde::yaml_mode::validate: {
