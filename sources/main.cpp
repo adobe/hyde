@@ -122,10 +122,11 @@ static cl::opt<std::string> YamlDstDir(
     cl::desc("Root directory for YAML validation / update"),
     cl::cat(MyToolCategory));
 
-static cl::opt<std::string> EmittedJsonPath(
-    "hyde-json-emitted",
-    cl::desc("Path to write validated / updated documentation as JSON"),
-    cl::cat(MyToolCategory));
+static cl::opt<bool> EmitJson(
+    "hyde-emit-json",
+    cl::desc("Output JSON emitted from operation"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::opt<hyde::attribute_category> TestedBy(
     "hyde-tested-by",
@@ -521,13 +522,16 @@ int main(int argc, const char** argv) try {
 
         filesystem::path src_root(YamlSrcDir);
         filesystem::path dst_root(YamlDstDir);
-        filesystem::path json_path(EmittedJsonPath);
 
         hyde::emit_options emit_options{ TestedBy };
-
-        output_yaml(std::move(result), std::move(src_root), std::move(dst_root), std::move(json_path),
+        auto out_emitted = hyde::json::object();
+        output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
                                                        hyde::yaml_mode::update, std::move(emit_options));
+        
+        if (EmitJson) {
+            std::cout << out_emitted << '\n';
+        }
     }
 } catch (const std::exception& error) {
     std::cerr << "Error: " << error.what() << '\n';

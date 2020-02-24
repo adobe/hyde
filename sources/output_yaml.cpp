@@ -39,11 +39,11 @@ namespace hyde {
 void output_yaml(json j,
                  const boost::filesystem::path& src_root,
                  const boost::filesystem::path& dst_root,
-                 const boost::filesystem::path& json_path,
+                 json& out_emitted,
                  yaml_mode mode,
                  const emit_options& options) {
     bool failure{false};
-    auto library_emitted = hyde::json::object();
+    auto& library_emitted = out_emitted;
 
     // Process top-level library
     yaml_library_emitter(src_root, dst_root, mode, options).emit(j, library_emitted);
@@ -80,12 +80,6 @@ void output_yaml(json j,
     }
 
     library_emitted["sourcefiles"].push_back(std::move(sourcefile_emitted));
-
-    // Write emitted json
-    if (!json_path.empty()) {
-        std::ofstream json_file(json_path.string());
-        json_file << library_emitted;
-    }
 
     // Check for extra files. Always do this last.
     failure |= sourcefile_emitter.extraneous_file_check();

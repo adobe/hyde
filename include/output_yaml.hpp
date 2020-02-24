@@ -34,7 +34,7 @@ enum class yaml_mode {
 void output_yaml(json j,
                  const boost::filesystem::path& src_root,
                  const boost::filesystem::path& dst_root,
-                 const boost::filesystem::path& json_path,
+                 json& out_emitted,
                  yaml_mode mode,
                  const emit_options& options);
 
