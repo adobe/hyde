@@ -24,10 +24,11 @@ namespace hyde {
 struct yaml_enum_emitter : public yaml_base_emitter {
     explicit yaml_enum_emitter(boost::filesystem::path src_root,
                                boost::filesystem::path dst_root,
-                               yaml_mode mode)
-        : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode) {}
+                               yaml_mode mode,
+                               emit_options options)
+        : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)) {}
 
-    bool emit(const json& json) override;
+    bool emit(const json& j, json& out_emitted) override;
 
     bool do_merge(const std::string& filepath,
                   const json& have,

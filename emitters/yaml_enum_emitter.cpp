@@ -42,7 +42,7 @@ bool yaml_enum_emitter::do_merge(const std::string& filepath,
 
 /**************************************************************************************************/
 
-bool yaml_enum_emitter::emit(const json& j) {
+bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     const std::string& name = j["name"];
 
     // Most likely an enum forward declaration. Nothing to document here.
@@ -65,7 +65,7 @@ bool yaml_enum_emitter::emit(const json& j) {
         node["values"].push_back(std::move(cur_value));
     }
 
-    return reconcile(std::move(node), _dst_root, dst_path(j) / filename);
+    return reconcile(std::move(node), _dst_root, dst_path(j) / filename, out_emitted);
 }
 
 /**************************************************************************************************/

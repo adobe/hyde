@@ -30,6 +30,7 @@ written permission of Adobe.
 #include "config.hpp"
 #include "json.hpp"
 #include "output_yaml.hpp"
+#include "emitters/yaml_base_emitter_fwd.hpp"
 
 // instead of this, probably have a matcher manager that pushes the json object
 // into the file then does the collation and passes it into jsonAST to do
@@ -116,9 +117,25 @@ static cl::opt<ToolDiagnostic> ToolDiagnostic(
         clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console"),
         clEnumValN(ToolDiagnosticVeryVerbose, "hyde-very-verbose", "output much more to the console")),
     cl::cat(MyToolCategory));
-static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
-                                       cl::desc("Root directory for YAML validation / update"),
-                                       cl::cat(MyToolCategory));
+static cl::opt<std::string> YamlDstDir(
+    "hyde-yaml-dir",
+    cl::desc("Root directory for YAML validation / update"),
+    cl::cat(MyToolCategory));
+
+static cl::opt<bool> EmitJson(
+    "hyde-emit-json",
+    cl::desc("Output JSON emitted from operation"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
+
+static cl::opt<hyde::attribute_category> TestedBy(
+    "hyde-tested-by",
+    cl::values(
+        clEnumValN(hyde::attribute_category::disabled, "disabled", "Disable tested_by attribute (default)"),
+        clEnumValN(hyde::attribute_category::required, "required", "Require tested_by attribute"),
+        clEnumValN(hyde::attribute_category::optional, "optional", "Enable tested_by attribute with optional value")),
+    cl::cat(MyToolCategory));
+
 static cl::opt<std::string> YamlSrcDir(
     "hyde-src-root",
     cl::desc("The root path to the header file(s) being analyzed"),
@@ -300,6 +317,11 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
         const std::string& path_str = config["hyde-yaml-dir"];
         std::string abs_path_str = make_absolute(path_str);
         hyde_flags.emplace_back("-hyde-yaml-dir=" + abs_path_str);
+    }
+
+    if (config.count("hyde-tested-by")) {
+        const std::string& tested_by = config["hyde-tested-by"];
+        hyde_flags.emplace_back("-hyde-tested-by=" + tested_by);
     }
 
     hyde_flags.insert(hyde_flags.end(), cli_hyde_flags.begin(), cli_hyde_flags.end());
@@ -501,9 +523,15 @@ int main(int argc, const char** argv) try {
         filesystem::path src_root(YamlSrcDir);
         filesystem::path dst_root(YamlDstDir);
 
-        output_yaml(std::move(result), std::move(src_root), std::move(dst_root),
+        hyde::emit_options emit_options{ TestedBy };
+        auto out_emitted = hyde::json::object();
+        output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
-                                                       hyde::yaml_mode::update);
+                                                       hyde::yaml_mode::update, std::move(emit_options));
+        
+        if (EmitJson) {
+            std::cout << out_emitted << '\n';
+        }
     }
 } catch (const std::exception& error) {
     std::cerr << "Error: " << error.what() << '\n';

@@ -79,7 +79,7 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
 
 /**************************************************************************************************/
 
-bool yaml_class_emitter::emit(const json& j) {
+bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     json node = base_emitter_node("class", j["name"], "class");
     node["defined-in-file"] = defined_in_file(j["defined-in-file"], _src_root);
     maybe_annotate(j, node);
@@ -110,14 +110,16 @@ bool yaml_class_emitter::emit(const json& j) {
     auto dst = dst_path(j,
                         static_cast<const std::string&>(j["name"]));
 
-    bool failure = reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k);
+    bool failure = reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
 
     const auto& methods = j["methods"];
-    yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, true);
+    yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, _options, true);
 
     for (auto it = methods.begin(); it != methods.end(); ++it) {
         function_emitter.set_key(it.key());
-        failure |= function_emitter.emit(it.value());
+        auto function_emitted = hyde::json::object();
+        failure |= function_emitter.emit(it.value(), function_emitted);
+        out_emitted["methods"].push_back(std::move(function_emitted));
     }
 
     return failure;

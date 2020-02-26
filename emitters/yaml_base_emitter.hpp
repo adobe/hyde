@@ -54,15 +54,16 @@ struct yaml_base_emitter {
 public:
     yaml_base_emitter(boost::filesystem::path src_root,
                       boost::filesystem::path dst_root,
-                      yaml_mode mode)
-        : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode) {}
+                      yaml_mode mode,
+                      emit_options options)
+        : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode), _options(std::move(options)) {}
 
-    virtual bool emit(const json& json) = 0;
+    virtual bool emit(const json& j, json& out_emitted) = 0;
 
 protected:
     json base_emitter_node(std::string layout, std::string title, std::string tag);
 
-    bool reconcile(json node, boost::filesystem::path root_path, boost::filesystem::path path);
+    bool reconcile(json node, boost::filesystem::path root_path, boost::filesystem::path path, json& out_reconciled);
 
     std::string defined_in_file(const std::string& src_path,
                                 const boost::filesystem::path& src_root);
@@ -88,6 +89,13 @@ protected:
                       const std::string& nodepath,
                       json& out_merged,
                       const std::string& key);
+
+    bool check_scalar_array(const std::string& filepath,
+                            const json& have_node,
+                            const json& expected_node,
+                            const std::string& nodepath,
+                            json& merged_node,
+                            const std::string& key);
 
     using check_proc = std::function<bool(const std::string& filepath,
                                           const json& have,
@@ -145,6 +153,7 @@ protected: // make private?
     const boost::filesystem::path _src_root;
     const boost::filesystem::path _dst_root;
     const yaml_mode _mode;
+    const emit_options _options;
 
     static file_checker checker_s;
 };

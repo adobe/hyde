@@ -38,6 +38,9 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "signature_with_names");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "return");
+            if (_options._tested_by != hyde::attribute_category::disabled) {
+                failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "tested_by");
+            }
             // failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
             // "annotation");
 
@@ -65,7 +68,7 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
 
 /**************************************************************************************************/
 
-bool yaml_function_emitter::emit(const json& jsn) {
+bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
     boost::filesystem::path dst;
     std::string name;
     std::string filename;
@@ -94,6 +97,9 @@ bool yaml_function_emitter::emit(const json& jsn) {
         // description is now optional when there is a singular variant.
         overloads[key]["description"] = count > 1 ? tag_value_missing_k : tag_value_optional_k;
         overloads[key]["return"] = tag_value_optional_k;
+        if (_options._tested_by != hyde::attribute_category::disabled) {
+            overloads[key]["tested_by"] = hyde::get_tag(_options._tested_by);
+        }
         maybe_annotate(overload, overloads[key]);
 
         if (!overload["arguments"].empty()) {
@@ -122,7 +128,7 @@ bool yaml_function_emitter::emit(const json& jsn) {
     if (is_ctor) node["is_ctor"] = true;
     if (is_dtor) node["is_dtor"] = true;
 
-    return reconcile(std::move(node), _dst_root, dst / (filename + ".md"));
+    return reconcile(std::move(node), _dst_root, dst / (filename + ".md"), out_emitted);
 }
 
 /**************************************************************************************************/

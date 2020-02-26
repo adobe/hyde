@@ -25,13 +25,14 @@ struct yaml_function_emitter : public yaml_base_emitter {
     explicit yaml_function_emitter(boost::filesystem::path src_root,
                                    boost::filesystem::path dst_root,
                                    yaml_mode mode,
+                                   emit_options options,
                                    bool as_methods)
-        : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode),
+        : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)),
           _as_methods(as_methods) {}
 
     void set_key(std::string key) { _key = std::move(key); }
 
-    bool emit(const json& json) override;
+    bool emit(const json& j, json& out_emitted) override;
 
     bool do_merge(const std::string& filepath,
                   const json& have,

@@ -330,6 +330,100 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
 
 /**************************************************************************************************/
 
+bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
+                                           const json& have_node,
+                                           const json& expected_node,
+                                           const std::string& nodepath,
+                                           json& merged_node,
+                                           const std::string& key) {
+    const auto notify = [&](const std::string& validate_message,
+                            const std::string& update_message) {
+        check_notify(filepath, nodepath, key, validate_message, update_message);
+    };
+
+    const auto notify_fail = [&](const std::string& message) {
+        check_notify(filepath, nodepath, key, message, message);
+    };
+
+    if (!expected_node.count(key)) {
+        throw std::runtime_error("missing expected node?");
+    }
+
+    const json& expected = expected_node[key];
+
+    if (!expected.is_string()) {
+        throw std::runtime_error("expected type mismatch?");
+    }
+
+    const std::string& expected_scalar(expected);
+    json& result = merged_node[key];
+
+    if (!have_node.count(key)) {
+        if (expected_scalar == tag_value_deprecated_k) {
+            // deprecated key not present in have. Do nothing, no error.
+            return false;
+        } else {
+            notify("value missing", "value inserted");
+            result = expected;
+            return true;
+        }
+    }
+
+    const json& have = have_node[key];
+
+    if (have.is_string()) {
+        const std::string& have_scalar(have);
+
+        if (expected_scalar == tag_value_missing_k && have_scalar == tag_value_missing_k) {
+            if (_mode == yaml_mode::validate) {
+                notify("value not documented", "");
+            }
+
+            return true;
+        }
+
+        if (expected_scalar == tag_value_deprecated_k) {
+            notify("key is deprecated", "deprecated key removed");
+            return true;
+        }
+
+        if (expected_scalar == tag_value_optional_k && have_scalar == tag_value_optional_k) {
+            return false;
+        }
+
+        if (hyde::is_tag(have_scalar)) {
+            notify("value is unexpected tag", 
+                   "value updated from `" + have_scalar + "` to `" + expected_scalar + "`");
+            result = expected; // Replace unexpected tag
+            return true;
+        }
+    }
+
+    if (!have.is_array()) {
+        notify_fail("value not an array; expected an array of scalar values");
+        return true;
+    }
+
+    result = have;
+
+    // We have an array; make sure its elements are scalar
+    std::size_t index{0};
+    bool failure{false};
+    for (const auto& have_element : have) {
+        if (!have_element.is_string()) {
+            failure = true;
+            notify_fail("non-scalar array element at index " + std::to_string(index));
+        } else if (hyde::is_tag(have_element)) {
+            failure = true;
+            notify_fail("invalid value at index " + std::to_string(index));
+        }
+    }
+
+    return failure;
+}
+
+/**************************************************************************************************/
+
 bool yaml_base_emitter::check_object_array(const std::string& filepath,
                                            const json& have_node,
                                            const json& expected_node,
@@ -404,7 +498,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
         if (have_elements.count(object_key) == 0) {
             std::string count_str(std::to_string(count));
             std::string message("object at index " + count_str + " has no key");
-            notify(message + "; skipped", message);
+            notify(message, message + "; skipped");
             // preserve object indices for merging below. Name is irrelevant as
             // long as it's unique. Prefix with '.' to prevent actual key
             // conflicts.
@@ -430,16 +524,16 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
             have_found_iter != have_map.end() && have_found_iter->first == expected_key;
         std::string index_str(std::to_string(index));
         if (!have_found) {
-            notify("required object inserted at index " + index_str,
-                   "missing required object at index " + index_str);
+            notify("missing required object at index " + index_str,
+                   "required object inserted at index " + index_str);
             result_array.push_back(expected_object);
             failure = true;
         } else {
             std::size_t have_index = have_found_iter->second;
             if (have_index != index) {
                 std::string have_index_str(std::to_string(have_index));
-                notify("moved item at index " + have_index_str + " to index " + index_str,
-                       "bad item location; have: " + have_index_str + ", expected: " + index_str);
+                notify("bad item location; have: " + have_index_str + ", expected: " + index_str,
+                       "moved item at index " + have_index_str + " to index " + index_str);
                 failure = true;
             }
             std::string nodepath = "['" + key + "'][" + index_str + "]";
@@ -455,7 +549,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
         std::string expected_size(std::to_string(expected.size()));
         std::string message =
             "sequence size mismatch; have " + have_size + ", expected " + expected_size;
-        notify(message + "; fixed", message);
+        notify(message, message + "; fixed");
         failure = true;
     }
 
@@ -681,7 +775,8 @@ auto load_yaml(const boost::filesystem::path& path) try {
 
 bool yaml_base_emitter::reconcile(json expected,
                                   boost::filesystem::path root_path,
-                                  boost::filesystem::path path) {
+                                  boost::filesystem::path path,
+                                  json& out_reconciled) {
     bool failure{false};
 
     /* begin hack */ {
@@ -726,6 +821,8 @@ bool yaml_base_emitter::reconcile(json expected,
         json merged;
 
         std::tie(failure, merged) = merge(relative_path, have, expected);
+        out_reconciled = merged;
+        out_reconciled["documentation_path"] = relative_path;
 
         switch (_mode) {
             case hyde::yaml_mode::validate: {
@@ -745,6 +842,8 @@ bool yaml_base_emitter::reconcile(json expected,
             } break;
         }
     } else { // file does not exist
+        out_reconciled = expected;
+
         switch (_mode) {
             case hyde::yaml_mode::validate: {
                 std::cerr << relative_path << ": required file does not exist\n";

@@ -39,35 +39,47 @@ namespace hyde {
 void output_yaml(json j,
                  const boost::filesystem::path& src_root,
                  const boost::filesystem::path& dst_root,
-                 yaml_mode mode) {
+                 json& out_emitted,
+                 yaml_mode mode,
+                 const emit_options& options) {
     bool failure{false};
+    auto& library_emitted = out_emitted;
 
     // Process top-level library
-    yaml_library_emitter(src_root, dst_root, mode).emit(j);
+    yaml_library_emitter(src_root, dst_root, mode, options).emit(j, library_emitted);
 
     // Process sourcefile
-    yaml_sourcefile_emitter sourcefile_emitter(src_root, dst_root, mode);
-    sourcefile_emitter.emit(j);
+    yaml_sourcefile_emitter sourcefile_emitter(src_root, dst_root, mode, options);
+    auto sourcefile_emitted = hyde::json::object();
+    sourcefile_emitter.emit(j, sourcefile_emitted);
 
     // Process classes
-    yaml_class_emitter class_emitter(src_root, dst_root, mode);
+    yaml_class_emitter class_emitter(src_root, dst_root, mode, options);
     for (const auto& c : j["classes"]) {
-        failure |= class_emitter.emit(c);
+        auto class_emitted = hyde::json::object();
+        failure |= class_emitter.emit(c, class_emitted);
+        sourcefile_emitted["classes"].push_back(std::move(class_emitted));
     }
 
     // Process enums
-    yaml_enum_emitter enum_emitter(src_root, dst_root, mode);
+    yaml_enum_emitter enum_emitter(src_root, dst_root, mode, options);
     for (const auto& c : j["enums"]) {
-        failure |= enum_emitter.emit(c);
+        auto enum_emitted = hyde::json::object();
+        failure |= enum_emitter.emit(c, enum_emitted);
+        sourcefile_emitted["enums"].push_back(std::move(enum_emitted));
     }
 
     // Process functions
-    yaml_function_emitter function_emitter(src_root, dst_root, mode, false);
+    yaml_function_emitter function_emitter(src_root, dst_root, mode, options, false);
     const auto& functions = j["functions"];
     for (auto it = functions.begin(); it != functions.end(); ++it) {
         function_emitter.set_key(it.key());
-        failure |= function_emitter.emit(it.value());
+        auto function_emitted = hyde::json::object();
+        failure |= function_emitter.emit(it.value(), function_emitted);
+        sourcefile_emitted["functions"].push_back(std::move(function_emitted));
     }
+
+    library_emitted["sourcefiles"].push_back(std::move(sourcefile_emitted));
 
     // Check for extra files. Always do this last.
     failure |= sourcefile_emitter.extraneous_file_check();

@@ -16,6 +16,7 @@ written permission of Adobe.
 
 // application
 #include "json_fwd.hpp"
+#include "emitters/yaml_base_emitter_fwd.hpp"
 
 /**************************************************************************************************/
 
@@ -33,7 +34,9 @@ enum class yaml_mode {
 void output_yaml(json j,
                  const boost::filesystem::path& src_root,
                  const boost::filesystem::path& dst_root,
-                 yaml_mode mode);
+                 json& out_emitted,
+                 yaml_mode mode,
+                 const emit_options& options);
 
 /**************************************************************************************************/
 
