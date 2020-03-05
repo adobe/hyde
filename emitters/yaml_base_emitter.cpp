@@ -1070,12 +1070,8 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
 
     if (j.count("default") && j["default"])
         node["annotation"].push_back("default");
-    else if (j.count("compiler-default") && j["compiler-default"])
-        node["annotation"].push_back("compiler-default");
     else if (j.count("delete") && j["delete"])
         node["annotation"].push_back("delete");
-    else if (j.count("compiler-delete") && j["compiler-delete"])
-        node["annotation"].push_back("compiler-delete");
 
     if (j.count("deprecated") && j["deprecated"]) {
         std::string deprecated("deprecated");
