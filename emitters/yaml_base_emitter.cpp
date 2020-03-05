@@ -791,6 +791,8 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
                                                const json& expected) {
     bool failure{false};
     
+    // Create a temporary object with the json to merge as a value so we can use `check_map`
+    // to make sure removed keys are handled
     static const auto root_key = "<root>";
     json merged_root = hyde::json::object();
     json have_root = hyde::json::object();
