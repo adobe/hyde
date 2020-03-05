@@ -30,49 +30,40 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
                                   json& out_merged) {
     bool failure{false};
 
-    failure |= check_scalar(filepath, have, expected, "", out_merged, "defined-in-file");
-    // failure |= check_scalar(filepath, have, expected, "", out_merged, "annotation");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "defined_in_file");
+    failure |= check_scalar_array(filepath, have, expected, "", out_merged, "annotation");
     failure |= check_scalar(filepath, have, expected, "", out_merged, "declaration");
     // failure |= check_array(filepath, have, expected, "", out_merged, "namespace");
-    if (expected.count("ctor"))
-        failure |= check_scalar(filepath, have, expected, "", out_merged, "ctor");
-    if (expected.count("dtor"))
-        failure |= check_scalar(filepath, have, expected, "", out_merged, "dtor");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "ctor");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "dtor");
+    failure |= check_map(
+        filepath, have, expected, "", out_merged, "fields",
+        [this](const std::string& filepath, const json& have, const json& expected,
+               const std::string& nodepath, json& out_merged) {
+            bool failure{false};
 
-    if (expected.count("fields")) {
-        failure |= check_map(
-            filepath, have, expected, "", out_merged, "fields",
-            [this](const std::string& filepath, const json& have, const json& expected,
-                   const std::string& nodepath, json& out_merged) {
-                bool failure{false};
+            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "type");
+            failure |=
+                check_scalar(filepath, have, expected, nodepath, out_merged, "description");
+            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
-                failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "type");
-                failure |=
-                    check_scalar(filepath, have, expected, nodepath, out_merged, "description");
-                // failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
-                // "annotation");
+            return failure;
+        });
 
-                return failure;
-            });
-    }
+    failure |= check_map(
+        filepath, have, expected, "", out_merged, "typedefs",
+        [this](const std::string& filepath, const json& have, const json& expected,
+               const std::string& nodepath, json& out_merged) {
+            bool failure{false};
 
-    if (expected.count("typedefs")) {
-        failure |= check_map(
-            filepath, have, expected, "", out_merged, "typedefs",
-            [this](const std::string& filepath, const json& have, const json& expected,
-                   const std::string& nodepath, json& out_merged) {
-                bool failure{false};
+            failure |=
+                check_scalar(filepath, have, expected, nodepath, out_merged, "definition");
+            failure |=
+                check_scalar(filepath, have, expected, nodepath, out_merged, "description");
+            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
-                failure |=
-                    check_scalar(filepath, have, expected, nodepath, out_merged, "definition");
-                failure |=
-                    check_scalar(filepath, have, expected, nodepath, out_merged, "description");
-                // failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
-                // "annotation");
-
-                return failure;
-            });
-    }
+            return failure;
+        });
 
     return failure;
 }
@@ -81,7 +72,7 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
 
 bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     json node = base_emitter_node("class", j["name"], "class");
-    node["defined-in-file"] = defined_in_file(j["defined-in-file"], _src_root);
+    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
     maybe_annotate(j, node);
 
     std::string declaration = format_template_parameters(j, true) + '\n' +

@@ -27,8 +27,8 @@ bool yaml_enum_emitter::do_merge(const std::string& filepath,
                                  json& out_merged) {
     bool failure{false};
 
-    failure |= check_scalar(filepath, have, expected, "", out_merged, "defined-in-file");
-    // failure |= check_scalar(filepath, have, expected, "", out_merged, "annotation");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "defined_in_file");
+    failure |= check_scalar_array(filepath, have, expected, "", out_merged, "annotation");
 
     failure |= check_object_array(
         filepath, have, expected, "", out_merged, "values", "name",
@@ -55,7 +55,7 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     filename = filename_filter(std::move(filename) + name) + ".md";
 
     json node = base_emitter_node("enumeration", j["name"], "enumeration");
-    node["defined-in-file"] = defined_in_file(j["defined-in-file"], _src_root);
+    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
     maybe_annotate(j, node);
 
     for (const auto& value : j["values"]) {

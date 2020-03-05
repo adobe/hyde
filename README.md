@@ -46,7 +46,7 @@ There are several modes under which the tool can run:
 - `-hyde-validate` - Validate existing YAML documentation
 - `-hyde-update` - Write updated YAML documentation
 
-- `-hyde-src-root = <path>` - The root path to the header file(s) being analyzed. Affects `defined-in-file` output values by taking out the root path.
+- `-hyde-src-root = <path>` - The root path to the header file(s) being analyzed. Affects `defined_in_file` output values by taking out the root path.
 - `-hyde-yaml-dir = <path>` - Root directory for YAML validation / update. Required for either hyde-validate or hyde-update modes.
 
 - `use-system-clang` - Autodetect and use necessary resource directories and include paths

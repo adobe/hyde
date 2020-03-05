@@ -27,8 +27,7 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
                                      json& out_merged) {
     bool failure{false};
 
-    failure |= check_scalar(filepath, have, expected, "", out_merged, "defined-in-file");
-    // failure |= check_scalar(filepath, have, expected, "", out_merged, "annotation");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "defined_in_file");
     failure |= check_map(
         filepath, have, expected, "", out_merged, "overloads",
         [this](const std::string& filepath, const json& have, const json& expected,
@@ -39,26 +38,24 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "signature_with_names");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "return");
             if (_options._tested_by != hyde::attribute_category::disabled) {
-                failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "tested_by");
+                failure |= check_ungenerated_scalar_array(filepath, have, expected, nodepath, out_merged, "tested_by");
             }
-            // failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
-            // "annotation");
+            
+            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
-            if (expected.count("arguments")) {
-                failure |= check_object_array(
-                    filepath, have, expected, nodepath, out_merged, "arguments", "name",
-                    [this](const std::string& filepath, const json& have, const json& expected,
-                           const std::string& nodepath, json& out_merged) {
-                        bool failure{false};
+            failure |= check_object_array(
+                filepath, have, expected, nodepath, out_merged, "arguments", "name",
+                [this](const std::string& filepath, const json& have, const json& expected,
+                       const std::string& nodepath, json& out_merged) {
+                    bool failure{false};
 
-                        failure |=
-                            check_scalar(filepath, have, expected, nodepath, out_merged, "type");
-                        failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
-                                                "description");
+                    failure |=
+                        check_scalar(filepath, have, expected, nodepath, out_merged, "type");
+                    failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
+                                            "description");
 
-                        return failure;
-                    });
-            }
+                    return failure;
+                });
 
             return failure;
         });
@@ -87,7 +84,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
             name = overload["short_name"];
             // prefix to keep free-function from colliding with class member (e.g., `swap`)
             filename = (_as_methods ? "m_" : "f_") + filename_filter(name);
-            defined_path = defined_in_file(overload["defined-in-file"], _src_root);
+            defined_path = defined_in_file(overload["defined_in_file"], _src_root);
             if (overload.count("is_ctor") && overload["is_ctor"]) is_ctor = true;
             if (overload.count("is_dtor") && overload["is_dtor"]) is_dtor = true;
         }
@@ -122,7 +119,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function");
-    node["defined-in-file"] = defined_path;
+    node["defined_in_file"] = defined_path;
     maybe_annotate(jsn, node);
     node["overloads"] = std::move(overloads);
     if (is_ctor) node["is_ctor"] = true;

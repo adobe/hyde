@@ -462,7 +462,15 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
             }
             if (is_dtor) info["is_dtor"] = true;
             if (method->isDeletedAsWritten()) info["delete"] = true;
+            if (method->isDeleted() && !method->isDeletedAsWritten()) {
+                // Method implicitly deleted by compiler (vs. an explicit ` = delete` declaration)
+                info["compiler-delete"] = true;
+            }
             if (method->isExplicitlyDefaulted()) info["default"] = true;
+            if (method->isDefaulted() && !method->isExplicitlyDefaulted()) {
+                // Method implicitly added by compiler (vs. an explicit ` = default` declaration)
+                info["compiler-default"] = true;
+            }
         }
 
         if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(method)) {
