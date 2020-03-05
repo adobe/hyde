@@ -33,7 +33,7 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
     failure |= check_scalar(filepath, have, expected, "", out_merged, "defined_in_file");
     failure |= check_scalar_array(filepath, have, expected, "", out_merged, "annotation");
     failure |= check_scalar(filepath, have, expected, "", out_merged, "declaration");
-    // failure |= check_array(filepath, have, expected, "", out_merged, "namespace");
+    failure |= check_scalar_array(filepath, have, expected, "", out_merged, "namespace");
     failure |= check_scalar(filepath, have, expected, "", out_merged, "ctor");
     failure |= check_scalar(filepath, have, expected, "", out_merged, "dtor");
     failure |= check_map(

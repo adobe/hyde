@@ -28,6 +28,7 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
     bool failure{false};
 
     failure |= check_scalar(filepath, have, expected, "", out_merged, "defined_in_file");
+    failure |= check_scalar_array(filepath, have, expected, "", out_merged, "namespace");
     failure |= check_map(
         filepath, have, expected, "", out_merged, "overloads",
         [this](const std::string& filepath, const json& have, const json& expected,
@@ -120,7 +121,13 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function");
     node["defined_in_file"] = defined_path;
-    maybe_annotate(jsn, node);
+    
+    if (!_as_methods && jsn.size() > 0) {
+        // All overloads will have the same namespace
+        for (const auto& ns : jsn.front()["namespaces"])
+            node["namespace"].push_back(static_cast<const std::string&>(ns));
+    }
+    
     node["overloads"] = std::move(overloads);
     if (is_ctor) node["is_ctor"] = true;
     if (is_dtor) node["is_dtor"] = true;
