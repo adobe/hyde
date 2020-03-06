@@ -780,6 +780,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
             json merged;
             failure |= proc(filepath, have[have_index], expected_object, nodepath, merged);
             result_array.push_back(std::move(merged));
+            have_map.erase(have_found_iter);
         }
         ++index;
     }
