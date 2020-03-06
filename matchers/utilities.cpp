@@ -635,15 +635,19 @@ std::string PostProcessTypeParameter(const clang::Decl* decl, std::string type) 
 
 /**************************************************************************************************/
 
-std::string PostProcessSpacing(std::string type) {
+std::string ReplaceAll(std::string str, const std::string& substr, const std::string& replacement) {
     std::string::size_type pos{0};
 
     while (true) {
-        pos = type.find("> >", pos);
-        if (pos == std::string::npos) return type;
-        type.replace(pos, 3, ">>");
-        pos += 2;
+        pos = str.find(substr, pos);
+        if (pos == std::string::npos) return str;
+        str.replace(pos, substr.size(), replacement);
+        pos += replacement.size();
     }
+}
+
+std::string PostProcessSpacing(std::string type) {
+    return ReplaceAll(type, "> >", ">>");
 }
 
 /**************************************************************************************************/

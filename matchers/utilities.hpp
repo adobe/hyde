@@ -52,6 +52,8 @@ bool NamespaceBlacklist(const std::vector<std::string>& blacklist, const json& j
 
 std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args);
 
+std::string ReplaceAll(std::string str, const std::string& substr, const std::string& replacement);
+
 // type-parameter-N-M filtering.
 std::string PostProcessType(const clang::Decl* decl, std::string type);
 

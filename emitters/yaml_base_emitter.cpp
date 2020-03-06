@@ -24,6 +24,7 @@ written permission of Adobe.
 // application
 #include "emitters/yaml_base_emitter_fwd.hpp"
 #include "json.hpp"
+#include "matchers/utilities.hpp"
 
 /**************************************************************************************************/
 
@@ -257,13 +258,16 @@ void yaml_base_emitter::check_notify(const std::string& filepath,
                                      const std::string& key,
                                      const std::string& validate_message,
                                      const std::string& update_message) {
+    std::string escaped_nodepath = hyde::ReplaceAll(nodepath, "\n", "\\n");
+    std::string escaped_key = hyde::ReplaceAll(key, "\n", "\\n");
+    
     switch (_mode) {
         case yaml_mode::validate: {
-            std::cerr << filepath << "@" << nodepath << "['" << key << "']: " << validate_message
+            std::cerr << filepath << "@" << escaped_nodepath << "['" << escaped_key << "']: " << validate_message
                       << "\n";
         } break;
         case yaml_mode::update: {
-            std::cout << filepath << "@" << nodepath << "['" << key << "']: " << update_message
+            std::cout << filepath << "@" << escaped_nodepath << "['" << escaped_key << "']: " << update_message
                       << "\n";
         } break;
     }
