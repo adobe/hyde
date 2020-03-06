@@ -35,7 +35,13 @@ bool yaml_enum_emitter::do_merge(const std::string& filepath,
         filepath, have, expected, "", out_merged, "values", "name",
         [this](const std::string& filepath, const json& have, const json& expected,
                const std::string& nodepath, json& out_merged) {
-            return check_scalar(filepath, have, expected, nodepath, out_merged, "description");
+            bool failure{false};
+            
+            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "name");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
+            failure |= check_scalar_array(filepath, have, expected, "", out_merged, "values");
+            
+            return failure;
         });
 
     return failure;
@@ -49,15 +55,17 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     // Most likely an enum forward declaration. Nothing to document here.
     if (j["values"].empty()) return true;
 
-    std::string filename;
-    for (const auto& ns : j["namespaces"]) {
-        filename += static_cast<const std::string&>(ns) + "::";
-    }
-    filename = filename_filter(std::move(filename) + name) + ".md";
-
     json node = base_emitter_node("enumeration", j["name"], "enumeration");
     node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
     maybe_annotate(j, node);
+    
+    std::string filename;
+    for (const auto& ns : j["namespaces"]) {
+        const std::string& namespace_str = ns;
+        node["namespace"].push_back(namespace_str);
+        filename += namespace_str + "::";
+    }
+    filename = filename_filter(std::move(filename) + name) + ".md";
 
     for (const auto& value : j["values"]) {
         json cur_value;

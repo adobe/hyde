@@ -29,7 +29,7 @@ bool yaml_library_emitter::do_merge(const std::string& filepath,
 
     failure |= check_scalar(filepath, have, expected, "", out_merged, "library-type");
     failure |= check_scalar(filepath, have, expected, "", out_merged, "icon");
-    failure |= check_scalar(filepath, have, expected, "", out_merged, "tab");
+    failure |= check_editable_scalar(filepath, have, expected, "", out_merged, "tab");
 
     return failure;
 }

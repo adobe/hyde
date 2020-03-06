@@ -80,6 +80,12 @@ protected:
 
     void insert_typedefs(const json& j, json& node);
 
+    bool check_typedefs(const std::string& filepath,
+                        const json& have_node,
+                        const json& expected_node,
+                        const std::string& nodepath,
+                        json& merged_node);
+
     template <typename... Args>
     boost::filesystem::path dst_path(const json& j, Args&&... args);
 
@@ -90,12 +96,19 @@ protected:
                       json& out_merged,
                       const std::string& key);
 
-    bool check_ungenerated_scalar_array(const std::string& filepath,
-                                        const json& have_node,
-                                        const json& expected_node,
-                                        const std::string& nodepath,
-                                        json& merged_node,
-                                        const std::string& key);
+    bool check_editable_scalar(const std::string& filepath,
+                               const json& have,
+                               const json& expected,
+                               const std::string& nodepath,
+                               json& out_merged,
+                               const std::string& key);
+
+    bool check_editable_scalar_array(const std::string& filepath,
+                                     const json& have_node,
+                                     const json& expected_node,
+                                     const std::string& nodepath,
+                                     json& merged_node,
+                                     const std::string& key);
 
     bool check_scalar_array(const std::string& filepath,
                             const json& have_node,

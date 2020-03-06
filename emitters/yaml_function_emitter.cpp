@@ -29,17 +29,19 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
 
     failure |= check_scalar(filepath, have, expected, "", out_merged, "defined_in_file");
     failure |= check_scalar_array(filepath, have, expected, "", out_merged, "namespace");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "is_ctor");
+    failure |= check_scalar(filepath, have, expected, "", out_merged, "is_dtor");
     failure |= check_map(
         filepath, have, expected, "", out_merged, "overloads",
         [this](const std::string& filepath, const json& have, const json& expected,
                const std::string& nodepath, json& out_merged) {
             bool failure{false};
 
-            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "description");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "signature_with_names");
-            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "return");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "return");
             if (_options._tested_by != hyde::attribute_category::disabled) {
-                failure |= check_ungenerated_scalar_array(filepath, have, expected, nodepath, out_merged, "tested_by");
+                failure |= check_editable_scalar_array(filepath, have, expected, nodepath, out_merged, "tested_by");
             }
             
             failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
@@ -50,10 +52,10 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
                        const std::string& nodepath, json& out_merged) {
                     bool failure{false};
 
-                    failure |=
-                        check_scalar(filepath, have, expected, nodepath, out_merged, "type");
-                    failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
-                                            "description");
+                    failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "name");
+                    failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "type");
+                    failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
+                    failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "unnamed");
 
                     return failure;
                 });
