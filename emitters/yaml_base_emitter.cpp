@@ -275,6 +275,21 @@ void yaml_base_emitter::check_notify(const std::string& filepath,
 
 /**************************************************************************************************/
 
+bool yaml_base_emitter::check_removed(const std::string& filepath,
+                                      const json& have_node,
+                                      const std::string& nodepath,
+                                      const std::string& key) {
+    if (!have_node.count(key)) {
+        // Removed key not present in have. Do nothing, no error.
+        return false;
+    } else {
+        check_notify(filepath, nodepath, key, "value present for removed key", "value removed");
+        return true;
+    }
+}
+
+/**************************************************************************************************/
+
 bool yaml_base_emitter::check_scalar(const std::string& filepath,
                                      const json& have_node,
                                      const json& expected_node,
@@ -287,13 +302,7 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        if (!have_node.count(key)) {
-            // Removed key not present in have. Do nothing, no error.
-            return false;
-        } else {
-            notify("value present for removed key", "value removed");
-            return true;
-        }
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -333,8 +342,6 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
 
 /**************************************************************************************************/
 
-/**************************************************************************************************/
-
 bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
                                               const json& have_node,
                                               const json& expected_node,
@@ -347,13 +354,7 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        if (!have_node.count(key)) {
-            // Removed key not present in have. Do nothing, no error.
-            return false;
-        } else {
-            notify("value present for removed key", "value removed");
-            return true;
-        }
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -441,13 +442,7 @@ bool yaml_base_emitter::check_editable_scalar_array(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        if (!have_node.count(key)) {
-            // Removed key not present in have. Do nothing, no error.
-            return false;
-        } else {
-            notify("value present for removed key", "value removed");
-            return true;
-        }
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -675,13 +670,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        if (!have_node.count(key)) {
-            // Removed key not present in have. Do nothing, no error.
-            return false;
-        } else {
-            notify("value present for removed key", "value removed");
-            return true;
-        }
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -817,13 +806,7 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        if (!have_node.count(key)) {
-            // Removed key not present in have. Do nothing, no error.
-            return false;
-        } else {
-            notify("value present for removed key", "value removed");
-            return true;
-        }
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];

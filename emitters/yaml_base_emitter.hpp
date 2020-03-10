@@ -89,16 +89,21 @@ protected:
     template <typename... Args>
     boost::filesystem::path dst_path(const json& j, Args&&... args);
 
+    bool check_removed(const std::string& filepath,
+                       const json& have_node,
+                       const std::string& nodepath,
+                       const std::string& key);
+
     bool check_scalar(const std::string& filepath,
-                      const json& have,
-                      const json& expected,
+                      const json& have_node,
+                      const json& expected_node,
                       const std::string& nodepath,
                       json& out_merged,
                       const std::string& key);
 
     bool check_editable_scalar(const std::string& filepath,
-                               const json& have,
-                               const json& expected,
+                               const json& have_node,
+                               const json& expected_node,
                                const std::string& nodepath,
                                json& out_merged,
                                const std::string& key);
