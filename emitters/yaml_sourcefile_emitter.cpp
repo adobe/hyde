@@ -31,21 +31,7 @@ bool yaml_sourcefile_emitter::do_merge(const std::string& filepath,
     bool failure{false};
 
     failure |= check_scalar(filepath, have, expected, "", out_merged, "library-type");
-
-    if (expected.count("typedefs")) {
-        failure |= check_map(
-            filepath, have, expected, "", out_merged, "typedefs",
-            [this](const std::string& filepath, const json& have, const json& expected,
-                   const std::string& nodepath, json& out_merged) {
-                bool failure{false};
-
-                failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "definition");
-                failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "description");
-                // failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "annotation");
-
-                return failure;
-            });
-    }
+    failure |= check_typedefs(filepath, have, expected, "", out_merged);
 
     return failure;
 }

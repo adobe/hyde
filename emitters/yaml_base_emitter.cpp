@@ -24,6 +24,7 @@ written permission of Adobe.
 // application
 #include "emitters/yaml_base_emitter_fwd.hpp"
 #include "json.hpp"
+#include "matchers/utilities.hpp"
 
 /**************************************************************************************************/
 
@@ -153,7 +154,7 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
     move_key("brief");
     move_key("tags");
     move_key("library-type");
-    move_key("defined-in-file");
+    move_key("defined_in_file");
     move_key("declaration");
     move_key("annotation");
 
@@ -231,20 +232,59 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
 
 /**************************************************************************************************/
 
+bool yaml_base_emitter::check_typedefs(const std::string& filepath,
+                                       const json& have_node,
+                                       const json& expected_node,
+                                       const std::string& nodepath,
+                                       json& merged_node) {
+    return check_map(filepath, have_node, expected_node, nodepath, merged_node, "typedefs",
+        [this](const std::string& filepath, const json& have, const json& expected,
+               const std::string& nodepath, json& out_merged) {
+            bool failure{false};
+
+            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "name");
+            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "definition");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
+            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+
+            return failure;
+        });
+}
+
+/**************************************************************************************************/
+
 void yaml_base_emitter::check_notify(const std::string& filepath,
                                      const std::string& nodepath,
                                      const std::string& key,
                                      const std::string& validate_message,
                                      const std::string& update_message) {
+    std::string escaped_nodepath = hyde::ReplaceAll(nodepath, "\n", "\\n");
+    std::string escaped_key = hyde::ReplaceAll(key, "\n", "\\n");
+    
     switch (_mode) {
         case yaml_mode::validate: {
-            std::cerr << filepath << "@" << nodepath << "['" << key << "']: " << validate_message
+            std::cerr << filepath << "@" << escaped_nodepath << "['" << escaped_key << "']: " << validate_message
                       << "\n";
         } break;
         case yaml_mode::update: {
-            std::cout << filepath << "@" << nodepath << "['" << key << "']: " << update_message
+            std::cout << filepath << "@" << escaped_nodepath << "['" << escaped_key << "']: " << update_message
                       << "\n";
         } break;
+    }
+}
+
+/**************************************************************************************************/
+
+bool yaml_base_emitter::check_removed(const std::string& filepath,
+                                      const json& have_node,
+                                      const std::string& nodepath,
+                                      const std::string& key) {
+    if (!have_node.count(key)) {
+        // Removed key not present in have. Do nothing, no error.
+        return false;
+    } else {
+        check_notify(filepath, nodepath, key, "value present for removed key", "value removed");
+        return true;
     }
 }
 
@@ -262,7 +302,59 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        throw std::runtime_error("missing expected scalar?");
+        return check_removed(filepath, have_node, nodepath, key);
+    }
+
+    const json& expected = expected_node[key];
+
+    if (!expected.is_primitive()) {
+        throw std::runtime_error("expected type mismatch?");
+    }
+
+    json& result = merged_node[key];
+
+    if (!have_node.count(key)) {
+        notify("value missing", "value inserted");
+        result = expected;
+        return true;
+    }
+    
+    const json& have = have_node[key];
+
+    if (have != expected) {
+        result = expected;
+        
+        // Since yaml <-> json type conversions aren't perfect (at least with the libraries we are
+        // currently using), we will only report a failure if the yaml-serialized value is different
+        auto have_yaml = json_to_yaml(have).as<std::string>();
+        auto expected_yaml = json_to_yaml(expected).as<std::string>();
+        if (have_yaml != expected_yaml) {
+            notify("value mismatch; have `" + have.dump() + "`, expected `" + expected.dump() + "`",
+                   "value updated from `" + have.dump() + "` to `" + expected.dump() + "`");
+            return true;
+        }
+    }
+
+    // both have and expected are both scalar and are the same value
+    result = have;
+    return false;
+}
+
+/**************************************************************************************************/
+
+bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
+                                              const json& have_node,
+                                              const json& expected_node,
+                                              const std::string& nodepath,
+                                              json& merged_node,
+                                              const std::string& key) {
+    const auto notify = [&](const std::string& validate_message,
+                            const std::string& update_message) {
+        check_notify(filepath, nodepath, key, validate_message, update_message);
+    };
+
+    if (!expected_node.count(key)) {
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -284,13 +376,14 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
             return true;
         }
     }
+    
+    const json& have = have_node[key];
 
     if (expected_scalar == tag_value_optional_k) {
         // Value is optional, and the docs have *something*, so we're good.
+        result = have;
         return false;
     }
-
-    const json& have = have_node[key];
 
     if (!have.is_string()) {
         notify("value not scalar; expected `" + expected_scalar + "`",
@@ -302,6 +395,8 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
     const std::string& have_scalar(have);
 
     if (expected_scalar == tag_value_missing_k) {
+        result = have;
+        
         if (have_scalar != tag_value_missing_k)
             return false;
 
@@ -325,17 +420,18 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
     }
 
     // both have and expected are both scalar and are the same value
+    result = have;
     return false;
 }
 
 /**************************************************************************************************/
 
-bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
-                                           const json& have_node,
-                                           const json& expected_node,
-                                           const std::string& nodepath,
-                                           json& merged_node,
-                                           const std::string& key) {
+bool yaml_base_emitter::check_editable_scalar_array(const std::string& filepath,
+                                                    const json& have_node,
+                                                    const json& expected_node,
+                                                    const std::string& nodepath,
+                                                    json& merged_node,
+                                                    const std::string& key) {
     const auto notify = [&](const std::string& validate_message,
                             const std::string& update_message) {
         check_notify(filepath, nodepath, key, validate_message, update_message);
@@ -346,7 +442,7 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        throw std::runtime_error("missing expected node?");
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -375,6 +471,7 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
         const std::string& have_scalar(have);
 
         if (expected_scalar == tag_value_missing_k && have_scalar == tag_value_missing_k) {
+            result = have;
             if (_mode == yaml_mode::validate) {
                 notify("value not documented", "");
             }
@@ -388,6 +485,7 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
         }
 
         if (expected_scalar == tag_value_optional_k && have_scalar == tag_value_optional_k) {
+            result = have;
             return false;
         }
 
@@ -401,6 +499,7 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
 
     if (!have.is_array()) {
         notify_fail("value not an array; expected an array of scalar values");
+        result = have;
         return true;
     }
 
@@ -418,6 +517,135 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
             notify_fail("invalid value at index " + std::to_string(index));
         }
     }
+
+    return failure;
+}
+
+/**************************************************************************************************/
+
+bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
+                                           const json& have_node,
+                                           const json& expected_node,
+                                           const std::string& nodepath,
+                                           json& merged_node,
+                                           const std::string& key) {
+    const auto notify = [&](const std::string& validate_message,
+                            const std::string& update_message) {
+        check_notify(filepath, nodepath, key, validate_message, update_message);
+    };
+
+    const auto notify_fail = [&](const std::string& message) {
+        check_notify(filepath, nodepath, key, message, message);
+    };
+
+    if (!expected_node.count(key)) {
+        if (!have_node.count(key)) {
+            // Removed key not present in have. Do nothing, no error.
+            return false;
+        } else {
+            notify("value present for removed key", "value removed");
+            return true;
+        }
+    }
+
+    const json& expected = expected_node[key];
+
+    if (!expected.is_array()) {
+        notify_fail("expected type mismatch");
+        throw std::runtime_error("Merge scalar array failure");
+    }
+
+    json& result = merged_node[key];
+    
+    if (!have_node.count(key)) {
+        notify("value missing", "value inserted");
+        result = expected;
+        return true;
+    }
+    
+    if (!have_node[key].is_array()) {
+        notify("value not an array", "non-array value replaced");
+        result = expected;
+        return true;
+    }
+
+    const json& have = have_node[key];
+
+    // How does one merge an array of scalars? The solution is to use scalar value
+    // as the "key", and treat the array like a dictionary. This does create the
+    // possibility that multiple objects will resolve to the same key, and/or the
+    // key value may not be a string, so we establish those requirements as function
+    // preconditions.
+    //
+    // As for the actual merge, we have a `have` array, and an `expected` array.
+    // The resulting merge will be built up in a resulting array, then moved
+    // into `result.`
+    //
+    // First we build up a sorted vector of key/position pairs of the `have`
+    // array. This will let us find elements in that array in log(N) time.
+    //
+    // Then we iterate the expected array from first to last. We pull out the
+    // expected key and search for it in the have array. If it is missing, copy
+    // the expected element into the result array, and move on. If it is found,
+    // make sure they are in the same index in both arrays, otherwise it's a
+    // validation error. The result array is then moved into the resulting json.
+    //
+    // If `have` has extraneous keys, they will be skipped during the iteration
+    // of `expected` and subsequently dropped.
+    //
+    // The entire merge process should be O(N log N) time, bounded on the sort
+    // of the have key vector. Thanks to Jared Wyles for the tip on how to solve
+    // this one.
+
+    std::vector<std::pair<std::string, std::size_t>> have_map;
+    std::size_t count{0};
+    bool failure{false};
+    for (const auto& have_element : have) {
+        const std::string& have_str = have_element;
+        have_map.push_back(std::make_pair(have_str, count++));
+    }
+
+    std::sort(have_map.begin(), have_map.end());
+
+    // Now go one by one through the expected list, and reorganize.
+    std::size_t index{0};
+    json result_array;
+    for (const auto& expected_element : expected) {
+        const std::string& expected_str = expected_element;
+        const auto have_found_iter =
+            std::lower_bound(have_map.begin(), have_map.end(), expected_str,
+                             [](const auto& a, const auto& b) { return a.first < b; });
+        bool have_found =
+            have_found_iter != have_map.end() && have_found_iter->first == expected_str;
+        std::string index_str(std::to_string(index));
+        if (!have_found) {
+            notify("missing required string at index " + index_str,
+                   "required string inserted at index " + index_str);
+            result_array.push_back(expected_str);
+            failure = true;
+        } else {
+            std::size_t have_index = have_found_iter->second;
+            if (have_index != index) {
+                std::string have_index_str(std::to_string(have_index));
+                notify("bad item location for item `" + expected_str + "`; have: " + have_index_str + ", expected: " + index_str,
+                       "moved item `" + expected_str + "` at index " + have_index_str + " to index " + index_str);
+                failure = true;
+            }
+            result_array.push_back(expected_str);
+            have_map.erase(have_found_iter);
+        }
+        ++index;
+    }
+
+    for (const auto& have_iter : have_map) {
+        const std::string& have_str = have_iter.first;
+        std::string have_index_str(std::to_string(have_iter.second));
+        auto message = "extraneous item `" + have_str + "` at index `" + have_index_str + "`";
+        notify(message, "removed " + message);
+        failure = true;
+    }
+
+    result = std::move(result_array);
 
     return failure;
 }
@@ -442,8 +670,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        notify_fail("missing expected array");
-        throw std::runtime_error("Merge object array failure");
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -454,8 +681,14 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
     }
 
     json& result = merged_node[key];
+    
+    if (!have_node.count(key)) {
+        notify("value missing", "value inserted");
+        result = expected;
+        return true;
+    }
 
-    if (!have_node.count(key) || !have_node[key].is_array()) {
+    if (!have_node[key].is_array()) {
         notify("value not an array", "non-array value replaced");
         result = expected;
         return true;
@@ -480,7 +713,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
     // expected key and search for it in the have array. If it is missing, copy
     // the expected element into the result array, and move on. If it is found,
     // make sure they are in the same index in both arrays, otherwise it's a
-    // validation error. Once that is done, merge the two objects together will
+    // validation error. Once that is done, merge the two objects together with
     // the user callback. The merged result is then pushed onto the back of the
     // result array. The result array is then moved into the resulting json.
     //
@@ -532,24 +765,24 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
             std::size_t have_index = have_found_iter->second;
             if (have_index != index) {
                 std::string have_index_str(std::to_string(have_index));
-                notify("bad item location; have: " + have_index_str + ", expected: " + index_str,
-                       "moved item at index " + have_index_str + " to index " + index_str);
+                notify("bad item location for key `" + expected_key + "`; have: " + have_index_str + ", expected: " + index_str,
+                       "moved item with key `" + expected_key + "` at index " + have_index_str + " to index " + index_str);
                 failure = true;
             }
             std::string nodepath = "['" + key + "'][" + index_str + "]";
-            json merged = have[have_index];
+            json merged;
             failure |= proc(filepath, have[have_index], expected_object, nodepath, merged);
             result_array.push_back(std::move(merged));
+            have_map.erase(have_found_iter);
         }
         ++index;
     }
 
-    if (have.size() != expected.size()) {
-        std::string have_size(std::to_string(have.size()));
-        std::string expected_size(std::to_string(expected.size()));
-        std::string message =
-            "sequence size mismatch; have " + have_size + ", expected " + expected_size;
-        notify(message, message + "; fixed");
+    for (const auto& have_iter : have_map) {
+        const std::string& have_key = have_iter.first;
+        std::string have_index_str(std::to_string(have_iter.second));
+        auto message = "extraneous item with key `" + have_key + "` at index `" + have_index_str + "`";
+        notify(message, "removed " + message);
         failure = true;
     }
 
@@ -573,7 +806,7 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
     };
 
     if (!expected_node.count(key)) {
-        throw std::runtime_error("missing expected map?");
+        return check_removed(filepath, have_node, nodepath, key);
     }
 
     const json& expected = expected_node[key];
@@ -605,22 +838,24 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
     keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
 
     bool failure{false};
-
+    
+    json result_map;
     for (const auto& subkey : keys) {
         std::string curnodepath = nodepath + "['" + subkey + "']";
 
         if (!expected.count(subkey)) {
             notify("extraneous map key: `" + subkey + "`", "map key removed: `" + subkey + "`");
-            result.erase(subkey);
             failure = true;
         } else if (!have.count(subkey)) {
             notify("map key missing: `" + subkey + "`", "map key inserted: `" + subkey + "`");
-            result[subkey] = expected[subkey];
+            result_map[subkey] = expected[subkey];
             failure = true;
         } else {
-            failure |= proc(filepath, have[subkey], expected[subkey], curnodepath, result[subkey]);
+            failure |= proc(filepath, have[subkey], expected[subkey], curnodepath, result_map[subkey]);
         }
     }
+    
+    result = std::move(result_map);
 
     return failure;
 }
@@ -631,21 +866,35 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
                                                const json& have,
                                                const json& expected) {
     bool failure{false};
-    json merged = have; // we can probably get rid of `have` in the check
-                        // routines; I don't think we can keep it from being an
-                        // out-arg, though, because we need to preserve the
-                        // values in `have` that are not managed by the
-                        // `expected` schema.
+    
+    // Create a temporary object with the json to merge as a value so we can use `check_map`
+    // to make sure removed keys are handled
+    static const auto root_key = "<root>";
+    json have_root;
+    have_root[root_key] = have;
+    json expected_root;
+    expected_root[root_key] = expected;
+    json merged_root;
+    failure |= check_map(filepath, have_root, expected_root, "", merged_root, root_key,
+        [](const std::string& filepath, const json& have, const json& expected,
+            const std::string& nodepath, json& out_merged) { return false; });
+    json& merged = merged_root[root_key];
+    
+    // we can probably get rid of `have` in the check
+    // routines; I don't think we can keep it from being an
+    // out-arg, though, because we need to preserve the
+    // values in `have` that are not managed by the
+    // `expected` schema.
 
     failure |= check_scalar(filepath, have, expected, "", merged, "layout");
-    failure |= check_scalar(filepath, have, expected, "", merged, "title");
-    failure |= check_scalar(filepath, have, expected, "", merged, "owner");
-    failure |= check_scalar(filepath, have, expected, "", merged, "brief");
-    // failure |= check_array(filepath, have, expected, "", merged, "tags");
+    failure |= check_editable_scalar(filepath, have, expected, "", merged, "title");
+    failure |= check_editable_scalar(filepath, have, expected, "", merged, "owner");
+    failure |= check_editable_scalar(filepath, have, expected, "", merged, "brief");
+    failure |= check_scalar_array(filepath, have, expected, "", merged, "tags");
 
     failure |= do_merge(filepath, have, expected, merged);
 
-    return std::make_pair(failure, merged);
+    return std::make_pair(failure, std::move(merged));
 }
 
 /**************************************************************************************************/
@@ -903,9 +1152,12 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
     if (j.count("deprecated") && j["deprecated"]) {
         std::string deprecated("deprecated");
         if (j.count("deprecated_message")) {
-            deprecated = deprecated.append(" (")
-                             .append(static_cast<const std::string&>(j["deprecated_message"]))
-                             .append(")");
+            const std::string& message_str = j["deprecated_message"];
+            if (!message_str.empty()) {
+                deprecated = deprecated.append(" (")
+                                 .append(message_str)
+                                 .append(")");
+            }
         }
         node["annotation"].push_back(deprecated);
     }

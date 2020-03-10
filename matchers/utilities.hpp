@@ -52,6 +52,8 @@ bool NamespaceBlacklist(const std::vector<std::string>& blacklist, const json& j
 
 std::string GetArgumentList(const llvm::ArrayRef<clang::NamedDecl*> args);
 
+std::string ReplaceAll(std::string str, const std::string& substr, const std::string& replacement);
+
 // type-parameter-N-M filtering.
 std::string PostProcessType(const clang::Decl* decl, std::string type);
 
@@ -101,11 +103,10 @@ boost::optional<json> StandardDeclInfo(const hyde::processing_options& options,
 
     if (!AccessCheck(options._access_filter, clang_access)) return boost::optional<json>();
 
-    if (clang_access != clang::AccessSpecifier::AS_none &&
-        clang_access != clang::AccessSpecifier::AS_public)
+    if (clang_access != clang::AccessSpecifier::AS_none)
         info["access"] = to_string(clang_access);
 
-    info["defined-in-file"] = [&] {
+    info["defined_in_file"] = [&] {
         auto beginLoc = d->getBeginLoc();
         auto location = beginLoc.printToString(n->getSourceManager());
         return location.substr(0, location.find(':'));
