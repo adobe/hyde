@@ -447,6 +447,8 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
         if (method->isConst()) info["const"] = true;
         if (method->isVolatile()) info["volatile"] = true;
         if (method->isStatic()) info["static"] = true;
+        if (method->isDeletedAsWritten()) info["delete"] = true;
+        if (method->isExplicitlyDefaulted()) info["default"] = true;
 
         bool is_ctor = isa<CXXConstructorDecl>(method);
         bool is_dtor = isa<CXXDestructorDecl>(method);
@@ -461,8 +463,6 @@ boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options
                 }
             }
             if (is_dtor) info["is_dtor"] = true;
-            if (method->isDeletedAsWritten()) info["delete"] = true;
-            if (method->isExplicitlyDefaulted()) info["default"] = true;
         }
 
         if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(method)) {
