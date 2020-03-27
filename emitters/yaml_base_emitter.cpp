@@ -378,13 +378,7 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
     }
     
     const json& have = have_node[key];
-
-    if (expected_scalar == tag_value_optional_k) {
-        // Value is optional, and the docs have *something*, so we're good.
-        result = have;
-        return false;
-    }
-
+    
     if (!have.is_string()) {
         notify("value not scalar; expected `" + expected_scalar + "`",
                "value not scalar; updated to `" + expected_scalar + "`");
@@ -394,12 +388,8 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
 
     const std::string& have_scalar(have);
 
-    if (expected_scalar == tag_value_missing_k) {
+    if (expected_scalar == tag_value_missing_k && have_scalar == tag_value_missing_k) {
         result = have;
-        
-        if (have_scalar != tag_value_missing_k)
-            return false;
-
         if (_mode == yaml_mode::validate) {
             notify("value not documented", "");
         }
@@ -412,14 +402,19 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
         return true;
     }
 
-    if (expected_scalar != have_scalar) {
-        notify("value mismatch; have `" + have_scalar + "`, expected `" + expected_scalar + "`",
+    if (expected_scalar == tag_value_optional_k && have_scalar == tag_value_optional_k) {
+        result = have;
+        return false;
+    }
+
+    if (hyde::is_tag(have_scalar)) {
+        notify("value is unexpected tag `" + have_scalar + "`",
                "value updated from `" + have_scalar + "` to `" + expected_scalar + "`");
-        result = expected;
+        result = expected; // Replace unexpected tag
         return true;
     }
 
-    // both have and expected are both scalar and are the same value
+    // The docs have *something*, so we're good.
     result = have;
     return false;
 }
@@ -490,7 +485,7 @@ bool yaml_base_emitter::check_editable_scalar_array(const std::string& filepath,
         }
 
         if (hyde::is_tag(have_scalar)) {
-            notify("value is unexpected tag", 
+            notify("value is unexpected tag `" + have_scalar + "`",
                    "value updated from `" + have_scalar + "` to `" + expected_scalar + "`");
             result = expected; // Replace unexpected tag
             return true;
