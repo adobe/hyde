@@ -187,6 +187,12 @@ static cl::opt<bool> ProcessClassMethods(
     cl::desc("Process Class Methods"),
     cl::cat(MyToolCategory),
     cl::ValueDisallowed);
+    
+static cl::opt<bool> IgnoreExtraneousFiles(
+    "ignore-extraneous-files",
+    cl::desc("Ignore extraneous files while validating"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::extrahelp HydeHelp(
     "\nThis tool parses the header source(s) using Clang. To pass arguments to the\n"
@@ -523,7 +529,10 @@ int main(int argc, const char** argv) try {
         filesystem::path src_root(YamlSrcDir);
         filesystem::path dst_root(YamlDstDir);
 
-        hyde::emit_options emit_options{ TestedBy };
+        hyde::emit_options emit_options;
+        emit_options._tested_by = TestedBy;
+        emit_options._ignore_extraneous_files = IgnoreExtraneousFiles;
+        
         auto out_emitted = hyde::json::object();
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
