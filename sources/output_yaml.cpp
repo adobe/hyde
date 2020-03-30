@@ -82,7 +82,9 @@ void output_yaml(json j,
     library_emitted["sourcefiles"].push_back(std::move(sourcefile_emitted));
 
     // Check for extra files. Always do this last.
-    failure |= sourcefile_emitter.extraneous_file_check();
+    if (!options._ignore_extraneous_files) {
+        failure |= sourcefile_emitter.extraneous_file_check();
+    }
 
     if (failure && mode == yaml_mode::validate)
         throw std::runtime_error("YAML documentation failed to validate.");
