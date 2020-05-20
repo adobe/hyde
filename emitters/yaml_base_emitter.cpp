@@ -955,6 +955,7 @@ bool yaml_base_emitter::create_directory_stub(boost::filesystem::path p) {
 
     static const auto stub_json_k = json::object_t{
         {"layout", "directory"},
+        {"title", p.filename().string()},
     };
 
     output << front_matter_delimiter_k;
