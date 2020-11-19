@@ -51,7 +51,7 @@ void output_yaml(json j,
     // Process sourcefile
     yaml_sourcefile_emitter sourcefile_emitter(src_root, dst_root, mode, options);
     auto sourcefile_emitted = hyde::json::object();
-    sourcefile_emitter.emit(j, sourcefile_emitted);
+    failure |= sourcefile_emitter.emit(j, sourcefile_emitted);
 
     // Process classes
     yaml_class_emitter class_emitter(src_root, dst_root, mode, options);
