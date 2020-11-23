@@ -885,7 +885,11 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     // `expected` schema.
 
     failure |= check_scalar(filepath, have, expected, "", merged, "layout");
-    failure |= check_editable_scalar(filepath, have, expected, "", merged, "title");
+    if (_editable_title) {
+        failure |= check_editable_scalar(filepath, have, expected, "", merged, "title");
+    } else {
+        failure |= check_scalar(filepath, have, expected, "", merged, "title");
+    }
     failure |= check_editable_scalar(filepath, have, expected, "", merged, "owner");
     failure |= check_editable_scalar(filepath, have, expected, "", merged, "brief");
     failure |= check_scalar_array(filepath, have, expected, "", merged, "tags");

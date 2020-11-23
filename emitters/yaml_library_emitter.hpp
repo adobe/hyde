@@ -27,7 +27,7 @@ struct yaml_library_emitter : public yaml_base_emitter {
                                   boost::filesystem::path dst_root,
                                   yaml_mode mode,
                                   emit_options options)
-        : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)) {}
+        : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options), true) {}
 
     bool emit(const json& j, json& out_emitted) override;
 
