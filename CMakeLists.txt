@@ -7,15 +7,12 @@
 # then your use, modification, or distribution of it requires the prior
 # written permission of Adobe. 
 
-
-cmake_minimum_required(VERSION 3.12)
-
+cmake_minimum_required(VERSION 3.18)
 
 project(hyde)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 
 if(APPLE)
     # for now we are assuming the user has installed with homebrew.
@@ -91,12 +88,9 @@ if (NOT LLVM_ENABLE_RTTI)
     target_compile_options (hyde PRIVATE -fno-rtti)
 endif()
 
-target_compile_definitions(hyde PRIVATE
- CLANG_RESOURCE_DIR="${CLANG_RESOURCE_DIR}"
-)
-target_compile_definitions(hyde PRIVATE
- LLVM_INCLUDE_DIR="${LLVM_INCLUDE_DIR}"
-)
+target_compile_definitions(hyde PRIVATE CLANG_RESOURCE_DIR="${CLANG_RESOURCE_DIR}" )
+
+target_compile_definitions(hyde PRIVATE LLVM_INCLUDE_DIR="${LLVM_INCLUDE_DIR}" )
 
 target_include_directories(hyde PUBLIC ${Boost_INCLUDE_DIRS})
 target_include_directories(hyde PUBLIC ${CLANG_INCLUDE_DIRS})
@@ -104,8 +98,9 @@ target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(hyde PUBLIC ${LLVM_INCLUDE_DIRS})
 target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/include/)
+target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/json/include/)
 
-target_compile_options(hyde PUBLIC -Wall  -Werror -DHYDE_FORCE_BOOST_FILESYSTEM=1)
+target_compile_options(hyde PUBLIC -Wall -Werror -Wno-range-loop-analysis -DHYDE_FORCE_BOOST_FILESYSTEM=1)
 
 target_link_libraries(hyde
                       ${Boost_FILESYSTEM_LIBRARY}

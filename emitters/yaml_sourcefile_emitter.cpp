@@ -60,10 +60,11 @@ bool yaml_sourcefile_emitter::extraneous_file_check_internal(const boost::filesy
          boost::make_iterator_range(boost::filesystem::directory_iterator(path), {})) {
         if (!checker_s.checked(entry)) {
             boost::filesystem::path entry_path(entry);
-            // We need better validation here against the existence of example (cpp) files.
-            if (entry_path.extension() != ".cpp") {
-                std::string bad_path = boost::filesystem::path(entry).string();
-                std::cerr << bad_path << ": extraneous file\n";
+            if (entry_path.filename() == ".DS_Store") {
+                std::cerr << entry_path.string() << ": Unintended OS file (not a failure)\n";
+            } else if (entry_path.extension() != ".cpp") {
+                // We need better validation here against the existence of example (cpp) files.
+                std::cerr << entry_path.string() << ": extraneous file\n";
                 failure = true;
             }
         }
