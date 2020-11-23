@@ -125,8 +125,11 @@ YAML::Node json_to_yaml(const hyde::json& json) {
         case hyde::json::value_t::number_float: {
             return YAML::Node(json.get<float>());
         } break;
+        case hyde::json::value_t::binary: {
+            throw std::runtime_error("Binary JSON value unsupported");
+        } break;
         case hyde::json::value_t::discarded: {
-            throw std::runtime_error("JSON value discarded!");
+            throw std::runtime_error("Discarded JSON value");
         } break;
     }
 }
