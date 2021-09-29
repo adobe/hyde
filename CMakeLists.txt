@@ -100,7 +100,7 @@ target_include_directories(hyde PUBLIC ${LLVM_INCLUDE_DIRS})
 target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/include/)
 target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/json/include/)
 
-target_compile_options(hyde PUBLIC -Wall -Werror -Wno-range-loop-analysis -DHYDE_FORCE_BOOST_FILESYSTEM=1)
+target_compile_options(hyde PUBLIC -Wall -Wno-comment -Werror -Wno-range-loop-analysis -DHYDE_FORCE_BOOST_FILESYSTEM=1)
 
 target_link_libraries(hyde
                       ${Boost_FILESYSTEM_LIBRARY}

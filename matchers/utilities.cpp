@@ -554,6 +554,8 @@ bool AccessCheck(ToolAccessFilter hyde_filter, clang::AccessSpecifier clang_acce
                     return false;
             }
     }
+
+    return false;
 }
 
 /**************************************************************************************************/
