@@ -87,6 +87,7 @@ hyde::json yaml_to_json(const YAML::Node& yaml) {
             throw std::runtime_error("YAML is not defined!");
         } break;
     }
+    return hyde::json();
 }
 
 /**************************************************************************************************/
@@ -132,6 +133,7 @@ YAML::Node json_to_yaml(const hyde::json& json) {
             throw std::runtime_error("Discarded JSON value");
         } break;
     }
+    return YAML::Node();
 }
 
 /**************************************************************************************************/
