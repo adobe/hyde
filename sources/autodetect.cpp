@@ -16,6 +16,9 @@ written permission of Adobe.
 #include <array>
 #include <random>
 
+// boost
+#include "boost/filesystem/fstream.hpp"
+
 namespace filesystem = hyde::filesystem;
 
 /**************************************************************************************************/

@@ -16,7 +16,7 @@ written permission of Adobe.
 #include <iostream>
 
 // boost
-#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
 
 // yaml-cpp
 #include "yaml-cpp/yaml.h"

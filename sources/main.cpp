@@ -17,6 +17,7 @@ written permission of Adobe.
 
 // boost
 #include "boost/range/irange.hpp"
+#include "boost/filesystem/fstream.hpp"
 
 // clang/llvm
 #include "clang/Frontend/FrontendActions.h"
