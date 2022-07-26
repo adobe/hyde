@@ -16,22 +16,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(APPLE)
     # for now we are assuming the user has installed with homebrew.
-    # homebrew installs into /usr/local/Cellar/llvm/{version}
-    # CMAKE_PREFIX_PATH isn't recursive so it isn't possible to find it :(
-    # this attempts to find out what the user intended
-    # future improvments:
-    # allow a variable to set the version
-    # check a variable to use non homebrew installs
-    # this code also assumes the user hasn't added anything them selves into the homebrew llvm directory
-    FILE(GLOB llvm_version_dir relative "/usr/local/Cellar/llvm/*")
-    LIST(SORT llvm_version_dir)
-    #reverse it so we can get the most recent at index 0 (no need to find the length)
-    LIST(REVERSE llvm_version_dir)
-    LIST(GET llvm_version_dir 0 llvm_to_use)
+    # we detect the install location with brew --prefix llvm
+    execute_process(
+        COMMAND brew --prefix llvm
+        OUTPUT_VARIABLE llvm_to_use
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
     message(STATUS "using this version of llvm: ${llvm_to_use}")
 
     set(Clang_DIR ${llvm_to_use}/lib/cmake/clang/)
+    message(STATUS "Clang_DIR set to ${Clang_DIR}")
+
     set(LLVM_DIR ${llvm_to_use}/lib/cmake/llvm/)
+    message(STATUS "LLVM_DIR set to ${LLVM_DIR}")
 endif()
 
 find_package(Clang REQUIRED clangTooling libClang clangASTMatchers)
