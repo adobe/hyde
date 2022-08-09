@@ -1,24 +1,24 @@
 
-FROM ubuntu:latest
+FROM --platform=linux/x86_64 ubuntu:latest
 RUN apt-get -y update && apt-get install -y
 
 RUN apt-get -y install curl gnupg2 software-properties-common ninja-build  apt-utils make
 
-# install clang/llvm 8 
-RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-RUN apt-add-repository "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-8 main"
-RUN apt-get -y update && apt-get install -y
-RUN apt-get -y install libllvm8 llvm-8 llvm-8-dev
-RUN apt-get -y install clang-8 clang-tools-8 libclang-common-8-dev libclang-8-dev libclang1-8
-RUN apt-get -y install libc++-8-dev libc++abi-8-dev
+RUN apt-get -y install wget
 
-#set clang 8 to be the version of clang we use when clang/clang++ is invoked
-RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-8 100
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-8 100
+# Install llvm/clang 13
 
-ADD https://cmake.org/files/v3.13/cmake-3.13.0-Linux-x86_64.sh /cmake-3.13.0-Linux-x86_64.sh
+RUN wget https://apt.llvm.org/llvm.sh
+RUN chmod +x llvm.sh
+RUN ./llvm.sh 13 all
+
+# set clang 13 to be the version of clang we use when clang/clang++ is invoked
+RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-13 100
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 100
+
+ADD https://cmake.org/files/v3.18/cmake-3.18.0-Linux-x86_64.sh /cmake-3.18.0-Linux-x86_64.sh
 RUN mkdir /opt/cmake
-RUN sh /cmake-3.13.0-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+RUN sh /cmake-3.18.0-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
 RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
 #install hyde dependencies 
@@ -33,5 +33,8 @@ RUN mkdir -p build \
     && rm -rf *  \
     && cmake .. -GNinja \
     && ninja 
-WORKDIR /usr/src/hyde
+
+# install hyde
+RUN cp ./build/hyde /usr/bin
+
 CMD ["./generate_test_files.sh"]

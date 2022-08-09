@@ -17,6 +17,7 @@ written permission of Adobe.
 
 // boost
 #include "boost/range/irange.hpp"
+#include "boost/filesystem/fstream.hpp"
 
 // clang/llvm
 #include "clang/Frontend/FrontendActions.h"
@@ -220,6 +221,12 @@ static cl::extrahelp HydeHelp(
 
 /**************************************************************************************************/
 
+bool IsVerbose() {
+    return ToolDiagnostic == ToolDiagnosticVerbose || ToolDiagnostic == ToolDiagnosticVeryVerbose;
+}
+
+/**************************************************************************************************/
+
 std::pair<filesystem::path, hyde::json> load_hyde_config(
     filesystem::path src_file) try {
     bool found{false};
@@ -257,6 +264,14 @@ std::pair<filesystem::path, hyde::json> load_hyde_config(
         directory_walk(src_file);
     }
 
+    if (IsVerbose()) {
+        if (found) {
+            std::cout << "INFO: hyde-config file: " << hyde_config_path.string() << '\n';
+        } else {
+            std::cout << "INFO: hyde-config file: not found\n";
+        }
+    }
+
     return found ?
                std::make_pair(hyde_config_path.parent_path(),
                               hyde::json::parse(filesystem::ifstream(hyde_config_path))) :
@@ -267,7 +282,12 @@ std::pair<filesystem::path, hyde::json> load_hyde_config(
 
 /**************************************************************************************************/
 
-std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
+struct command_line_args {
+    std::vector<std::string> _hyde;
+    std::vector<std::string> _clang;
+};
+
+command_line_args integrate_hyde_config(int argc, const char** argv) {
     auto cmdline_first = &argv[1];
     auto cmdline_last = &argv[argc];
     auto cmdline_mid = std::find_if(cmdline_first, cmdline_last,
@@ -305,6 +325,8 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     std::tie(config_dir, config) =
         load_hyde_config(cli_hyde_flags.empty() ? "" : cli_hyde_flags.back());
 
+    hyde_flags.push_back(argv[0]);
+
     if (exists(config_dir)) current_path(config_dir);
 
     if (config.count("clang_flags")) {
@@ -333,46 +355,52 @@ std::vector<std::string> integrate_hyde_config(int argc, const char** argv) {
     hyde_flags.insert(hyde_flags.end(), cli_hyde_flags.begin(), cli_hyde_flags.end());
     clang_flags.insert(clang_flags.end(), cli_clang_flags.begin(), cli_clang_flags.end());
 
-    std::vector<std::string> result;
+    hyde_flags.push_back("--");
 
-    result.emplace_back(argv[0]);
+    command_line_args result;
 
-    result.insert(result.end(), hyde_flags.begin(), hyde_flags.end());
-
-    result.emplace_back("--");
-
-    if (!clang_flags.empty()) {
-        // it'd be nice if we could move these into place.
-        result.insert(result.end(), clang_flags.begin(), clang_flags.end());
-    }
+    result._hyde = std::move(hyde_flags);
+    result._clang = std::move(clang_flags);
 
     return result;
 }
 
 /**************************************************************************************************/
 
-std::vector<std::string> source_paths(int argc, const char** argv) {
-    return CommonOptionsParser(argc, argv, MyToolCategory).getSourcePathList();
+namespace {
+
+/**************************************************************************************************/
+
+CommonOptionsParser MakeOptionsParser(int argc, const char** argv) {
+    auto MaybeOptionsParser = CommonOptionsParser::create(argc, argv, MyToolCategory);
+    if (!MaybeOptionsParser) {
+        throw MaybeOptionsParser.takeError();
+    }
+    return std::move(*MaybeOptionsParser);
 }
 
 /**************************************************************************************************/
 
-bool IsVerbose() {
-    return ToolDiagnostic == ToolDiagnosticVerbose || ToolDiagnostic == ToolDiagnosticVeryVerbose;
+} // namespace
+
+/**************************************************************************************************/
+
+std::vector<std::string> source_paths(int argc, const char** argv) {
+    return MakeOptionsParser(argc, argv).getSourcePathList();
 }
 
 /**************************************************************************************************/
 
 int main(int argc, const char** argv) try {
     auto sources = source_paths(argc, argv);
-    std::vector<std::string> args = integrate_hyde_config(argc, argv);
-    int new_argc = static_cast<int>(args.size());
-    std::vector<const char*> new_argv(args.size(), nullptr);
+    command_line_args args = integrate_hyde_config(argc, argv);
+    int new_argc = static_cast<int>(args._hyde.size());
+    std::vector<const char*> new_argv(args._hyde.size(), nullptr);
 
-    std::transform(args.begin(), args.end(), new_argv.begin(),
+    std::transform(args._hyde.begin(), args._hyde.end(), new_argv.begin(),
                    [](const auto& arg) { return arg.c_str(); });
 
-    CommonOptionsParser OptionsParser(new_argc, &new_argv[0], MyToolCategory);
+    CommonOptionsParser OptionsParser(MakeOptionsParser(new_argc, &new_argv[0]));
 
     if (UseSystemClang) {
         AutoResourceDirectory = true;
@@ -385,7 +413,12 @@ int main(int argc, const char** argv) try {
 
     if (IsVerbose()) {
         std::cout << "INFO: Args:\n";
-        for (const auto& arg : args) {
+        std::cout << "INFO:   (hyde)\n";
+        for (const auto& arg : args._hyde) {
+            std::cout << "INFO:     " << arg << '\n';
+        }
+        std::cout << "INFO:   (clang)\n";
+        for (const auto& arg : args._clang) {
             std::cout << "INFO:     " << arg << '\n';
         }
         std::cout << "INFO: Working directory: " << filesystem::current_path().string()
@@ -399,7 +432,6 @@ int main(int argc, const char** argv) try {
         s.insert(i);
     }
     sourcePaths.assign(s.begin(), s.end());
-    ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
     MatchFinder Finder;
     hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist, ProcessClassMethods};
 
@@ -422,6 +454,11 @@ int main(int argc, const char** argv) try {
     Finder.addMatcher(hyde::TypedefInfo::GetMatcher(), &typedef_matcher);
 
     clang::tooling::CommandLineArguments arguments;
+
+    // start by appending the command line clang args.
+    for (auto& arg : args._clang) {
+        arguments.emplace_back(std::move(arg));
+    }
 
     if (ToolDiagnostic == ToolDiagnosticVeryVerbose) {
         arguments.emplace_back("-v");
@@ -491,16 +528,34 @@ int main(int argc, const char** argv) try {
         arguments.emplace_back("-resource-dir=" + resource_dir.string());
     }
 
-    //
     // Specify the hyde preprocessor macro
-    // 
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
+
+    //
+    // Spin up the tool and run it.
+    //
+
+    ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
+
+    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
+        return arguments;
+    });
+
+    Tool.appendArgumentsAdjuster(OptionsParser.getArgumentsAdjuster());
 
     Tool.appendArgumentsAdjuster(
         getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
 
+    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
+        return arguments;
+    });
+
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");
+
+    //
+    // Take the results of the tool and process them.
+    //
 
     hyde::json paths = hyde::json::object();
     paths["src_root"] = YamlSrcDir;
@@ -543,10 +598,16 @@ int main(int argc, const char** argv) try {
         }
     }
 } catch (const std::exception& error) {
-    std::cerr << "Error: " << error.what() << '\n';
+    std::cerr << "Fatal error: " << error.what() << '\n';
+    return EXIT_FAILURE;
+} catch (const Error& error) {
+    std::string description;
+    raw_string_ostream stream(description);
+    stream << error;
+    std::cerr << "Fatal error: " << stream.str() << '\n';
     return EXIT_FAILURE;
 } catch (...) {
-    std::cerr << "Error: unknown\n";
+    std::cerr << "Fatal error: unknown\n";
     return EXIT_FAILURE;
 }
 

@@ -38,6 +38,17 @@ note only tested on ubuntu bionic so far
 - `cmake .. -GNinja` (or `-GXcode`, etc.)
 - `ninja` (or whatever your IDE does)
 
+# Using Docker
+
+```
+VOLUME="hyde"
+docker build --tag $VOLUME .
+
+docker run --platform linux/x86_64 --mount type=bind,source="$(pwd)",target=/mnt/host \
+    --tty --interactive \
+    hyde bash
+```
+
 # Parameters and Flags
 
 There are several modes under which the tool can run:

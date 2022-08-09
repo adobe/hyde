@@ -234,7 +234,7 @@ std::string GetSignature(const ASTContext* n,
         return signature.str();
     }
 
-    if (!isTrailing) {
+    if (!isTrailing && functionT) {
         if (functionT->isConst()) signature << " const";
         if (functionT->isVolatile()) signature << " volatile";
         if (functionT->isRestrict()) signature << " restrict";
