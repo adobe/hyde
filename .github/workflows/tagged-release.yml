@@ -19,17 +19,17 @@ jobs:
           git submodule update --init
           mkdir build
           cd build
-          cmake --log-level=WARNING -DORC_BUILD_EXAMPLES=0 -GXcode ..
-      - name: 🛠️ Build ORC
+          cmake --log-level=WARNING -GXcode ..
+      - name: 🛠️ Build Hyde
         run: |
           xcodebuild -json -project ./build/hyde.xcodeproj -scheme hyde -configuration Release -hideShellScriptEnvironment
       - name: 🗜️ Create archive
         run: |
           cd build/Release
-          tar -zcvf hyde-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz orc
+          tar -zcvf hyde-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz hyde
       - name: ✍️ Post archive
         uses: softprops/action-gh-release@v1
         with:
           generate_release_notes: true
           files:
-            build/Release/orc-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz
+            build/Release/hyde-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz
