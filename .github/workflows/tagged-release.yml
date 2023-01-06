@@ -50,7 +50,7 @@ jobs:
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          make -j
+          make -j -l 0.9
           ls -alF
       - name: 🗜️ Create archive
         run: |

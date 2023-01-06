@@ -111,7 +111,8 @@ std::vector<filesystem::path> autodetect_include_paths() {
     auto temp_a_out = (temp_dir / ("deleteme_" + v)).string();
     auto command = "echo \"int main() { }\" | clang++ -x c++ -v -o " + temp_a_out + " - 2> " + temp_out;
 
-    (void)std::system(command.c_str());
+    auto command_result = std::system(command.c_str());
+    (void)command_result;
 
     std::vector lines(file_slurp(temp_out));
     static const std::string begin_string("#include <...> search starts here:");
