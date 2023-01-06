@@ -34,6 +34,7 @@ jobs:
             build/Release/hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz
   release-linux:
     runs-on: ubuntu-latest
+    steps:
       - name: ⬇️ Checkout sources
         uses: actions/checkout@v3
       - name: 🏗️ Setup project files
