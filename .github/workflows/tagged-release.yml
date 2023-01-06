@@ -41,7 +41,7 @@ jobs:
         run: |
           sudo apt-get install libboost-system-dev libboost-filesystem-dev
           sudo apt-get install libyaml-cpp-dev
-          sudo apt-get install libllvm9 llvm-12 llvm-12-dev
+          sudo apt-get install libllvm12 llvm-12 llvm-12-dev
           sudo apt-get install clang-tools-12 libclang-common-12-dev clang-12 libclang-12-dev
           git submodule update --init
           mkdir build
