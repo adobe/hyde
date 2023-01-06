@@ -6,14 +6,13 @@ on:
 permissions:
   contents: write
 jobs:
-  release:
+  release-mac:
     runs-on: macos-latest
     steps:
       - name: ⬇️ Checkout sources
         uses: actions/checkout@v3
       - name: 🏗️ Setup project files
         run: |
-          brew install cmake
           brew install llvm
           brew install boost
           git submodule update --init
@@ -26,10 +25,39 @@ jobs:
       - name: 🗜️ Create archive
         run: |
           cd build/Release
-          tar -zcvf hyde-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz hyde
+          tar -zcvf hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz hyde
       - name: ✍️ Post archive
         uses: softprops/action-gh-release@v1
         with:
           generate_release_notes: true
           files:
-            build/Release/hyde-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz
+            build/Release/hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz
+  release-linux:
+    runs-on: ubuntu-latest
+      - name: ⬇️ Checkout sources
+        uses: actions/checkout@v3
+      - name: 🏗️ Setup project files
+        run: |
+          sudo apt-get install libboost-system-dev libboost-filesystem-dev
+          sudo apt-get install libyaml-cpp-dev
+          sudo apt-get install libllvm9 llvm-9 llvm-9-dev
+          sudo apt-get install clang-tools-9 libclang-common-9-dev clang-9 libclang-9-dev
+          git submodule update --init
+          mkdir build
+          cd build
+          cmake --log-level=WARNING -DCMAKE_BUILD_TYPE=Release ..
+      - name: 🛠️ Build Hyde
+        run: |
+          cd build
+          make
+          ls -alF
+      - name: 🗜️ Create archive
+        run: |
+          cd build/Release
+          tar -zcvf hyde-${{github.ref_name}}-linux-${{runner.arch}}.tgz hyde
+      - name: ✍️ Post archive
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          files:
+            build/Release/hyde-${{github.ref_name}}-linux-${{runner.arch}}.tgz
