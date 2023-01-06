@@ -1,0 +1,35 @@
+name: Tagged Release
+on:
+  push:
+    tags:
+      - "v*.*.*"
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: ⬇️ Checkout sources
+        uses: actions/checkout@v3
+      - name: 🏗️ Setup project files
+        run: |
+          brew install cmake
+          brew install llvm
+          brew install boost
+          git submodule update --init
+          mkdir build
+          cd build
+          cmake --log-level=WARNING -DORC_BUILD_EXAMPLES=0 -GXcode ..
+      - name: 🛠️ Build ORC
+        run: |
+          xcodebuild -json -project ./build/hyde.xcodeproj -scheme hyde -configuration Release -hideShellScriptEnvironment
+      - name: 🗜️ Create archive
+        run: |
+          cd build/Release
+          tar -zcvf hyde-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz orc
+      - name: ✍️ Post archive
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          files:
+            build/Release/orc-${{github.ref_name}}-${{runner.os}}-${{runner.arch}}.tgz
