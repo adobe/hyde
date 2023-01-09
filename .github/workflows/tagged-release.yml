@@ -25,6 +25,7 @@ jobs:
       - name: 🗜️ Create archive
         run: |
           cd build/Release
+          xattr -d com.apple.quarantine hyde
           tar -zcvf hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz hyde
       - name: ✍️ Post archive
         uses: softprops/action-gh-release@v1
