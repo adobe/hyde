@@ -16,9 +16,9 @@ RUN ./llvm.sh 13 all
 RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-13 100
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 100
 
-ADD https://cmake.org/files/v3.18/cmake-3.18.0-Linux-x86_64.sh /cmake-3.18.0-Linux-x86_64.sh
+ADD https://cmake.org/files/v3.24/cmake-3.24.0-linux-x86_64.sh /cmake-3.24.0-linux-x86_64.sh
 RUN mkdir /opt/cmake
-RUN sh /cmake-3.18.0-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+RUN sh /cmake-3.24.0-linux-x86_64.sh --prefix=/opt/cmake --skip-license
 RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
 #install hyde dependencies 
