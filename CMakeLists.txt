@@ -95,8 +95,11 @@ endif()
 
 target_link_libraries(hyde
     clang
+    clangAST
     clangASTMatchers
     clangBasic
+    clangFrontend
+    clangLex
     clangTooling
 )
 
