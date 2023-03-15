@@ -52,7 +52,6 @@ bool yaml_sourcefile_emitter::emit(const json& j, json& out_emitted) {
 bool yaml_sourcefile_emitter::extraneous_file_check_internal(const std::filesystem::path& root,
                                                              const std::filesystem::path& path) {
     bool failure{false};
-
     std::filesystem::directory_iterator first(path);
     std::filesystem::directory_iterator last;
 
