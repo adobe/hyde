@@ -114,7 +114,7 @@ std::vector<filesystem::path> autodetect_include_paths() {
     auto command_result = std::system(command.c_str());
     (void)command_result; // TODO: handle me
 
-    std::vector lines(file_slurp(temp_out));
+    std::vector<std::string> lines(file_slurp(temp_out));
     static const std::string begin_string("#include <...> search starts here:");
     static const std::string end_string("End of search list.");
     auto paths_begin = std::find(begin(lines), end(lines), begin_string);
