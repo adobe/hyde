@@ -509,7 +509,7 @@ int main(int argc, const char** argv) try {
     // Specify the resource directory to the driver
     // 
     // this may not work on windows, need to investigate using strings
-    filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+    filesystem::path resource_dir;
 
     if (AutoResourceDirectory) {
         if (IsVerbose()) {
