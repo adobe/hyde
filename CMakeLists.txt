@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.23)
 
 include(FetchContent)
 
-set(CMAKE_OSX_ARCHITECTURES x86_64) # Only build x86 for now
+set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
 
 project(hyde)
 
@@ -33,18 +33,10 @@ if (NOT TARGET llvm::llvm)
 
     set(LLVM_ENABLE_PROJECTS clang)
     set(LLVM_TARGETS_TO_BUILD X86)
+    set(LLVM_ENABLE_ZSTD OFF)
 
     FetchContent_MakeAvailable(llvm)
 endif()
-
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_ALL_NO_LIB ON)
-
-find_package(Boost
-    COMPONENTS
-        system
-    REQUIRED
-)
 
 # Let's get the clang resource dir so we can set inside hyde
 if(DEFINED USE_APPLE_TOOLCHAIN)
@@ -102,7 +94,6 @@ if (NOT LLVM_ENABLE_RTTI)
 endif()
 
 target_link_libraries(hyde
-    Boost::system
     clang
     clangASTMatchers
     clangBasic

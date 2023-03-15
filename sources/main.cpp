@@ -17,9 +17,6 @@ written permission of Adobe.
 #include <unordered_set>
 #include <sstream>
 
-// boost
-#include "boost/range/irange.hpp"
-
 // clang/llvm
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"

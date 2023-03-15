@@ -15,9 +15,6 @@ written permission of Adobe.
 // stdc++
 #include <iostream>
 
-// boost
-#include "boost/range/irange.hpp"
-
 /**************************************************************************************************/
 
 namespace hyde {
@@ -56,8 +53,12 @@ bool yaml_sourcefile_emitter::extraneous_file_check_internal(const std::filesyst
                                                              const std::filesystem::path& path) {
     bool failure{false};
 
-    for (const auto& entry :
-         boost::make_iterator_range(std::filesystem::directory_iterator(path), {})) {
+    std::filesystem::directory_iterator first(path);
+    std::filesystem::directory_iterator last;
+
+    while (first != last) {
+        const auto& entry = *first;
+
         if (!checker_s.checked(entry)) {
             std::filesystem::path entry_path(entry);
             if (entry_path.filename() == ".DS_Store") {
@@ -72,6 +73,8 @@ bool yaml_sourcefile_emitter::extraneous_file_check_internal(const std::filesyst
         if (is_directory(entry)) {
             failure |= extraneous_file_check_internal(root, entry);
         }
+
+        ++first;
     }
 
     return failure;
