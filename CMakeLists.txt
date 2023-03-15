@@ -5,44 +5,51 @@
 # accordance with the terms of the Adobe license agreement accompanying
 # it. If you have received this file from a source other than Adobe,
 # then your use, modification, or distribution of it requires the prior
-# written permission of Adobe. 
+# written permission of Adobe.
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.23)
+
+include(FetchContent)
+
+set(CMAKE_OSX_ARCHITECTURES x86_64) # Only build x86 for now
 
 project(hyde)
+
+if (NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 20)
+endif ()
+
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_XCODE_GENERATE_SCHEME OFF)
 
-if(APPLE)
-    # for now we are assuming the user has installed with homebrew.
-    # we detect the install location with brew --prefix llvm
-    execute_process(
-        COMMAND brew --prefix llvm
-        OUTPUT_VARIABLE llvm_to_use
-        OUTPUT_STRIP_TRAILING_WHITESPACE
+if (NOT TARGET llvm::llvm)
+    message(STATUS "Hyde third-party: creating target 'llvm::llvm'...")
+
+    FetchContent_Declare(
+        llvm
+        GIT_REPOSITORY https://github.com/llvm/llvm-project.git
+        GIT_TAG 8dfdcc7b7bf66834a761bd8de445840ef68e4d1a # llvmorg-15.0.7
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR llvm
     )
-    message(STATUS "using this version of llvm: ${llvm_to_use}")
 
-    set(Clang_DIR ${llvm_to_use}/lib/cmake/clang/)
-    message(STATUS "Clang_DIR set to ${Clang_DIR}")
+    set(LLVM_ENABLE_PROJECTS clang)
+    set(LLVM_TARGETS_TO_BUILD X86)
 
-    set(LLVM_DIR ${llvm_to_use}/lib/cmake/llvm/)
-    message(STATUS "LLVM_DIR set to ${LLVM_DIR}")
+    FetchContent_MakeAvailable(llvm)
 endif()
 
-find_package(Clang REQUIRED clangTooling libClang clangASTMatchers)
-find_package(Clang REQUIRED CONFIG)
-find_package(LLVM REQUIRED CONFIG)
-
 set(Boost_USE_STATIC_LIBS ON)
-find_package(Boost COMPONENTS system filesystem REQUIRED)
 
-add_definitions(${Clang_DEFINITIONS})
-add_definitions(${LLVM_DEFINITIONS})
-add_definitions(${Boost_LIB_DIAGNOSTIC_DEFINITIONS})
+find_package(Boost
+    COMPONENTS
+        system
+        filesystem
+    REQUIRED
+)
 
-#lets get the clang resource dir so we can set inside hyde
+# Let's get the clang resource dir so we can set inside hyde
 if(DEFINED USE_APPLE_TOOLCHAIN)
     execute_process(COMMAND "xcode-select" -p
         RESULT_VARIABLE XCODE_SELECT_RESULT
@@ -60,49 +67,71 @@ else()
     set (CLANG_BIN ${CLANG_INSTALL_PREFIX}/bin/clang++)
 endif()
 
-execute_process(COMMAND ${CLANG_BIN} -print-resource-dir
-    RESULT_VARIABLE CLANG_RESOURCE_DIR_RESULT
-    OUTPUT_VARIABLE CLANG_RESOURCE_DIR
-    ERROR_VARIABLE  CLANG_RESOURCE_DIR_ERROR
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-if(CLANG_RESOURCE_DIR_RESULT)
-    message(FATAL_ERROR "Could not locate the resource dir for clang we are going to link against")
-    message(FATAL_ERROR ${CLANG_RESOURCE_DIR_ERROR})
-endif()
+# execute_process(COMMAND ${CLANG_BIN} -print-resource-dir
+#     RESULT_VARIABLE CLANG_RESOURCE_DIR_RESULT
+#     OUTPUT_VARIABLE CLANG_RESOURCE_DIR
+#     ERROR_VARIABLE  CLANG_RESOURCE_DIR_ERROR
+#     OUTPUT_STRIP_TRAILING_WHITESPACE)
+# 
+# if(CLANG_RESOURCE_DIR_RESULT)
+#     message(FATAL_ERROR "Could not locate the resource dir for clang we are going to link against")
+#     message(FATAL_ERROR ${CLANG_RESOURCE_DIR_ERROR})
+# endif()
 
 message(STATUS "Using the following resource dir for clang: ${CLANG_RESOURCE_DIR}")
 
 file(GLOB EMITTER_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/emitters/*.cpp)
 file(GLOB MATCHER_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/matchers/*.cpp)
 file(GLOB SRC_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sources/*.cpp)
-
 file(GLOB YAML_CPP_SRC_FILES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/src/*.cpp)
 
 #TODO: use target_source
-add_executable(hyde  ${EMITTER_FILES} ${MATCHER_FILES} ${SRC_FILES} ${YAML_CPP_SRC_FILES})
+add_executable(hyde
+    ${EMITTER_FILES}
+    ${MATCHER_FILES}
+    ${SRC_FILES}
+    ${YAML_CPP_SRC_FILES}
+)
+
+target_compile_definitions(hyde
+    PRIVATE
+        CLANG_RESOURCE_DIR="${CLANG_RESOURCE_DIR}"
+        LLVM_INCLUDE_DIR="${llvm_INCLUDE_DIR}"
+)
+
+target_include_directories(hyde
+    PUBLIC
+        ${Boost_INCLUDE_DIRS}
+        ${CLANG_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${LLVM_INCLUDE_DIRS}
+        ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/include/
+        ${PROJECT_SOURCE_DIR}/submodules/json/include/
+)
+
+target_compile_options(hyde
+    PUBLIC
+        -Wall
+        -Wno-comment
+        -Werror
+        -Wno-range-loop-analysis
+        -DHYDE_FORCE_BOOST_FILESYSTEM=1
+)
+
 if (NOT LLVM_ENABLE_RTTI)
-    target_compile_options (hyde PRIVATE -fno-rtti)
+    target_compile_options(hyde PRIVATE -fno-rtti)
 endif()
 
-target_compile_definitions(hyde PRIVATE CLANG_RESOURCE_DIR="${CLANG_RESOURCE_DIR}" )
-
-target_compile_definitions(hyde PRIVATE LLVM_INCLUDE_DIR="${LLVM_INCLUDE_DIR}" )
-
-target_include_directories(hyde PUBLIC ${Boost_INCLUDE_DIRS})
-target_include_directories(hyde PUBLIC ${CLANG_INCLUDE_DIRS})
-target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(hyde PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(hyde PUBLIC ${LLVM_INCLUDE_DIRS})
-target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/include/)
-target_include_directories(hyde PUBLIC ${PROJECT_SOURCE_DIR}/submodules/json/include/)
-
-target_compile_options(hyde PUBLIC -Wall -Wno-comment -Werror -Wno-range-loop-analysis -DHYDE_FORCE_BOOST_FILESYSTEM=1)
-
 target_link_libraries(hyde
-                      ${Boost_FILESYSTEM_LIBRARY}
-                      ${Boost_SYSTEM_LIBRARY}
-                      clangASTMatchers
-                      clangBasic
-                      clangTooling
-                      )
+    ${Boost_FILESYSTEM_LIBRARY}
+    ${Boost_SYSTEM_LIBRARY}
+    clang
+    clangASTMatchers
+    clangBasic
+    clangTooling
+)
+
+if (PROJECT_IS_TOP_LEVEL)
+    set_target_properties(hyde PROPERTIES XCODE_GENERATE_SCHEME ON)
+endif()
