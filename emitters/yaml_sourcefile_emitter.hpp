@@ -22,8 +22,8 @@ namespace hyde {
 /**************************************************************************************************/
 
 struct yaml_sourcefile_emitter : public yaml_base_emitter {
-    explicit yaml_sourcefile_emitter(boost::filesystem::path src_root,
-                                     boost::filesystem::path dst_root,
+    explicit yaml_sourcefile_emitter(std::filesystem::path src_root,
+                                     std::filesystem::path dst_root,
                                      yaml_mode mode,
                                      emit_options options)
         : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)) {}
@@ -38,10 +38,10 @@ struct yaml_sourcefile_emitter : public yaml_base_emitter {
     bool extraneous_file_check();
 
 private:
-    bool extraneous_file_check_internal(const boost::filesystem::path& root,
-                                        const boost::filesystem::path& path);
+    bool extraneous_file_check_internal(const std::filesystem::path& root,
+                                        const std::filesystem::path& path);
 
-    boost::filesystem::path _sub_dst;
+    std::filesystem::path _sub_dst;
 };
 
 /**************************************************************************************************/

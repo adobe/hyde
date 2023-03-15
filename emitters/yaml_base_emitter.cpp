@@ -13,10 +13,8 @@ written permission of Adobe.
 #include "yaml_base_emitter.hpp"
 
 // stdc++
+#include <fstream>
 #include <iostream>
-
-// boost
-#include "boost/filesystem/fstream.hpp"
 
 // yaml-cpp
 #include "yaml-cpp/yaml.h"
@@ -938,8 +936,8 @@ std::string yaml_base_emitter::filename_truncate(std::string s) {
 
 /**************************************************************************************************/
 
-boost::filesystem::path yaml_base_emitter::directory_mangle(boost::filesystem::path p) {
-    boost::filesystem::path result;
+std::filesystem::path yaml_base_emitter::directory_mangle(std::filesystem::path p) {
+    std::filesystem::path result;
 
     for (const auto& part : p) {
         result /= filename_truncate(filename_filter(part.string()));
@@ -950,12 +948,12 @@ boost::filesystem::path yaml_base_emitter::directory_mangle(boost::filesystem::p
 
 /**************************************************************************************************/
 
-bool yaml_base_emitter::create_directory_stub(boost::filesystem::path p) {
+bool yaml_base_emitter::create_directory_stub(std::filesystem::path p) {
     auto stub_name = p / index_filename_k;
 
     if (exists(stub_name)) return false;
 
-    boost::filesystem::ofstream output(stub_name);
+    std::ofstream output(stub_name);
 
     if (!output) {
         std::cerr << stub_name.string() << ": could not create directory stub\n";
@@ -976,10 +974,10 @@ bool yaml_base_emitter::create_directory_stub(boost::filesystem::path p) {
 
 /**************************************************************************************************/
 
-bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
+bool yaml_base_emitter::create_path_directories(std::filesystem::path p) {
     if (p.has_filename()) p = p.parent_path();
 
-    std::vector<boost::filesystem::path> ancestors;
+    std::vector<std::filesystem::path> ancestors;
 
     while (true) {
         ancestors.push_back(p);
@@ -995,7 +993,7 @@ bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
         if (_mode == yaml_mode::validate) {
             return true;
         } else {
-            boost::system::error_code ec;
+            std::error_code ec;
             create_directory(ancestor, ec);
 
             if (ec) {
@@ -1018,7 +1016,7 @@ bool yaml_base_emitter::create_path_directories(boost::filesystem::path p) {
 
 /**************************************************************************************************/
 
-auto load_yaml(const boost::filesystem::path& path) try {
+auto load_yaml(const std::filesystem::path& path) try {
     return YAML::LoadFile(path.c_str());
 } catch (...) {
     std::cerr << "YAML File: " << path.string() << '\n';
@@ -1028,8 +1026,8 @@ auto load_yaml(const boost::filesystem::path& path) try {
 /**************************************************************************************************/
 
 bool yaml_base_emitter::reconcile(json expected,
-                                  boost::filesystem::path root_path,
-                                  boost::filesystem::path path,
+                                  std::filesystem::path root_path,
+                                  std::filesystem::path path,
                                   json& out_reconciled) {
     bool failure{false};
 
@@ -1047,7 +1045,7 @@ bool yaml_base_emitter::reconcile(json expected,
             p_str.replace(pos, needle.size(), "");
         }
         if (found) {
-            path = boost::filesystem::path(p_str);
+            path = std::filesystem::path(p_str);
         }
     }
 
@@ -1060,7 +1058,7 @@ bool yaml_base_emitter::reconcile(json expected,
         // front-matter ends and any other relevant documentation begins. We
         // need to do this for the boilerpolate step to keep it from blasting
         // out any extra documentation that's already been added.
-        boost::filesystem::ifstream have_file(path);
+        std::ifstream have_file(path);
         std::stringstream have_contents_stream;
         have_contents_stream << have_file.rdbuf();
         std::string have_contents = have_contents_stream.str();
@@ -1083,7 +1081,7 @@ bool yaml_base_emitter::reconcile(json expected,
                 // do nothing
             } break;
             case hyde::yaml_mode::update: {
-                boost::filesystem::ofstream output(path);
+                std::ofstream output(path);
                 if (!output) {
                     std::cerr << "./" << path.string() << ": could not open file for output\n";
                     failure = true;
@@ -1105,7 +1103,7 @@ bool yaml_base_emitter::reconcile(json expected,
             } break;
             case hyde::yaml_mode::update: {
                 // Add update. No remainder yet, as above.
-                boost::filesystem::ofstream output(path);
+                std::ofstream output(path);
                 if (!output) {
                     std::cerr << "./" << path.string() << ": could not open file for output\n";
                     failure = true;
@@ -1125,15 +1123,15 @@ bool yaml_base_emitter::reconcile(json expected,
 /**************************************************************************************************/
 
 std::string yaml_base_emitter::defined_in_file(const std::string& src_path,
-                                               const boost::filesystem::path& src_root) {
-    return relative(boost::filesystem::path(src_path), src_root).string();
+                                               const std::filesystem::path& src_root) {
+    return relative(std::filesystem::path(src_path), src_root).string();
 }
 
 /**************************************************************************************************/
 
-boost::filesystem::path yaml_base_emitter::subcomponent(const boost::filesystem::path& src_path,
-                                                        const boost::filesystem::path& src_root) {
-    return boost::filesystem::relative(src_path, src_root);
+std::filesystem::path yaml_base_emitter::subcomponent(const std::filesystem::path& src_path,
+                                                        const std::filesystem::path& src_root) {
+    return std::filesystem::relative(src_path, src_root);
 }
 
 /**************************************************************************************************/

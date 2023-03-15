@@ -15,11 +15,7 @@ written permission of Adobe.
 // stdc++
 #include <array>
 #include <random>
-
-// boost
-#include "boost/filesystem/fstream.hpp"
-
-namespace filesystem = hyde::filesystem;
+#include <fstream>
 
 /**************************************************************************************************/
 
@@ -43,8 +39,8 @@ std::vector<std::string> split(const char* p, std::size_t n) {
 
 /**************************************************************************************************/
 
-std::vector<std::string> file_slurp(boost::filesystem::path p) {
-    boost::filesystem::ifstream s(p);
+std::vector<std::string> file_slurp(std::filesystem::path p) {
+    std::ifstream s(p);
     s.seekg(0, std::ios::end);
     std::size_t size = s.tellg();
     auto buffer{std::make_unique<char[]>(size)};
@@ -103,10 +99,10 @@ std::string exec(const char* cmd) {
 
 /**************************************************************************************************/
 
-std::vector<filesystem::path> autodetect_include_paths() {
+std::vector<std::filesystem::path> autodetect_include_paths() {
     // Add a random value here so two concurrent instances of hyde don't collide.
     auto v = std::to_string(std::mt19937(std::random_device()())());
-    auto temp_dir = boost::filesystem::temp_directory_path();
+    auto temp_dir = std::filesystem::temp_directory_path();
     auto temp_out = (temp_dir / ("hyde_" + v + ".tmp")).string();
     auto temp_a_out = (temp_dir / ("deleteme_" + v)).string();
     auto command = "echo \"int main() { }\" | clang++ -x c++ -v -o " + temp_a_out + " - 2> " + temp_out;
@@ -119,7 +115,7 @@ std::vector<filesystem::path> autodetect_include_paths() {
     static const std::string end_string("End of search list.");
     auto paths_begin = std::find(begin(lines), end(lines), begin_string);
     auto paths_end = std::find(begin(lines), end(lines), end_string);
-    std::vector<filesystem::path> result;
+    std::vector<std::filesystem::path> result;
 
     if (paths_begin != end(lines) && paths_end != end(lines)) {
         lines.erase(paths_end, end(lines));
@@ -136,7 +132,7 @@ std::vector<filesystem::path> autodetect_include_paths() {
             if (needle_pos != std::string::npos) {
                 s.erase(needle_pos);
             }
-            return filesystem::path(chomp(std::move(s)));
+            return std::filesystem::path(chomp(std::move(s)));
         });
     }
 
@@ -153,20 +149,20 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::vector<filesystem::path> autodetect_toolchain_paths() {
+std::vector<std::filesystem::path> autodetect_toolchain_paths() {
     return autodetect_include_paths();
 }
 
 /**************************************************************************************************/
 
-boost::filesystem::path autodetect_resource_directory() {
-    return boost::filesystem::path{exec("clang++ -print-resource-dir")};
+std::filesystem::path autodetect_resource_directory() {
+    return std::filesystem::path{exec("clang++ -print-resource-dir")};
 }
 
 /**************************************************************************************************/
 #if HYDE_PLATFORM(APPLE)
-boost::filesystem::path autodetect_sysroot_directory() {
-    return boost::filesystem::path{exec("xcode-select -p")} /
+std::filesystem::path autodetect_sysroot_directory() {
+    return std::filesystem::path{exec("xcode-select -p")} /
            "Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk";
 }
 #endif // HYDE_PLATFORM(APPLE)

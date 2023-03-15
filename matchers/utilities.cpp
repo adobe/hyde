@@ -16,9 +16,6 @@ written permission of Adobe.
 #include <iostream>
 #include <sstream>
 
-// boost
-#include "boost/filesystem.hpp"
-
 // clang
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -342,7 +339,7 @@ json GetParentCXXRecords(const ASTContext* n, const Decl* d) {
 
 /**************************************************************************************************/
 
-boost::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
+std::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
                                           const clang::CXXRecordDecl* cxx) {
     auto info_opt = StandardDeclInfo(options, cxx);
     if (!info_opt) return info_opt;
@@ -399,7 +396,7 @@ json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
 
 /**************************************************************************************************/
 
-boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options, const FunctionDecl* f) {
+std::optional<json> DetailFunctionDecl(const hyde::processing_options& options, const FunctionDecl* f) {
     auto info_opt = StandardDeclInfo(options, f);
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);

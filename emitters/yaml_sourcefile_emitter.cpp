@@ -52,14 +52,14 @@ bool yaml_sourcefile_emitter::emit(const json& j, json& out_emitted) {
 
 /**************************************************************************************************/
 
-bool yaml_sourcefile_emitter::extraneous_file_check_internal(const boost::filesystem::path& root,
-                                                             const boost::filesystem::path& path) {
+bool yaml_sourcefile_emitter::extraneous_file_check_internal(const std::filesystem::path& root,
+                                                             const std::filesystem::path& path) {
     bool failure{false};
 
     for (const auto& entry :
-         boost::make_iterator_range(boost::filesystem::directory_iterator(path), {})) {
+         boost::make_iterator_range(std::filesystem::directory_iterator(path), {})) {
         if (!checker_s.checked(entry)) {
-            boost::filesystem::path entry_path(entry);
+            std::filesystem::path entry_path(entry);
             if (entry_path.filename() == ".DS_Store") {
                 std::cerr << entry_path.string() << ": Unintended OS file (not a failure)\n";
             } else if (entry_path.extension() != ".cpp") {

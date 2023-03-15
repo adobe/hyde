@@ -11,9 +11,6 @@ written permission of Adobe.
 
 #pragma once
 
-// boost
-#include "boost/filesystem.hpp"
-
 // application
 #include "emitters/yaml_base_emitter_fwd.hpp"
 #include "json.hpp"
@@ -26,13 +23,13 @@ namespace hyde {
 /**************************************************************************************************/
 
 struct file_checker {
-    bool exists(boost::filesystem::path p) {
+    bool exists(std::filesystem::path p) {
         _files.emplace_back(std::move(p));
         _sorted = false;
-        return boost::filesystem::exists(_files.back());
+        return std::filesystem::exists(_files.back());
     }
 
-    bool checked(const boost::filesystem::path& p) {
+    bool checked(const std::filesystem::path& p) {
         if (!_sorted) {
             std::sort(_files.begin(), _files.end());
             _files.erase(std::unique(_files.begin(), _files.end()), _files.end());
@@ -44,7 +41,7 @@ struct file_checker {
     }
 
 private:
-    std::vector<boost::filesystem::path> _files;
+    std::vector<std::filesystem::path> _files;
     bool _sorted{false};
 };
 
@@ -52,8 +49,8 @@ private:
 
 struct yaml_base_emitter {
 public:
-    yaml_base_emitter(boost::filesystem::path src_root,
-                      boost::filesystem::path dst_root,
+    yaml_base_emitter(std::filesystem::path src_root,
+                      std::filesystem::path dst_root,
                       yaml_mode mode,
                       emit_options options,
                       bool editable_title = false)
@@ -64,13 +61,13 @@ public:
 protected:
     json base_emitter_node(std::string layout, std::string title, std::string tag);
 
-    bool reconcile(json node, boost::filesystem::path root_path, boost::filesystem::path path, json& out_reconciled);
+    bool reconcile(json node, std::filesystem::path root_path, std::filesystem::path path, json& out_reconciled);
 
     std::string defined_in_file(const std::string& src_path,
-                                const boost::filesystem::path& src_root);
+                                const std::filesystem::path& src_root);
 
-    boost::filesystem::path subcomponent(const boost::filesystem::path& src_path,
-                                         const boost::filesystem::path& src_root);
+    std::filesystem::path subcomponent(const std::filesystem::path& src_path,
+                                         const std::filesystem::path& src_root);
 
     void maybe_annotate(const json& j, json& node); // make out arg?
 
@@ -88,7 +85,7 @@ protected:
                         json& merged_node);
 
     template <typename... Args>
-    boost::filesystem::path dst_path(const json& j, Args&&... args);
+    std::filesystem::path dst_path(const json& j, Args&&... args);
 
     bool check_removed(const std::string& filepath,
                        const json& have_node,
@@ -148,17 +145,17 @@ protected:
 
 private:
     template <typename Arg, typename... Args>
-    boost::filesystem::path dst_path_append(boost::filesystem::path p, Arg&& arg, Args&&... args);
+    std::filesystem::path dst_path_append(std::filesystem::path p, Arg&& arg, Args&&... args);
 
     template <typename Arg>
-    boost::filesystem::path dst_path_append(boost::filesystem::path, Arg&& arg);
+    std::filesystem::path dst_path_append(std::filesystem::path, Arg&& arg);
 
-    boost::filesystem::path dst_path_append(boost::filesystem::path p) { return p; }
+    std::filesystem::path dst_path_append(std::filesystem::path p) { return p; }
 
-    bool create_directory_stub(boost::filesystem::path p);
-    bool create_path_directories(boost::filesystem::path p);
+    bool create_directory_stub(std::filesystem::path p);
+    bool create_path_directories(std::filesystem::path p);
 
-    boost::filesystem::path directory_mangle(boost::filesystem::path p);
+    std::filesystem::path directory_mangle(std::filesystem::path p);
 
     void check_notify(const std::string& filepath,
                       const std::string& nodepath,
@@ -176,8 +173,8 @@ private:
                           json& out_merged) = 0;
 
 protected: // make private?
-    const boost::filesystem::path _src_root;
-    const boost::filesystem::path _dst_root;
+    const std::filesystem::path _src_root;
+    const std::filesystem::path _dst_root;
     const yaml_mode _mode;
     const emit_options _options;
     const bool _editable_title{false};
@@ -188,8 +185,8 @@ protected: // make private?
 /**************************************************************************************************/
 
 template <typename... Args>
-boost::filesystem::path yaml_base_emitter::dst_path(const json& j, Args&&... args) {
-    boost::filesystem::path result(_dst_root);
+std::filesystem::path yaml_base_emitter::dst_path(const json& j, Args&&... args) {
+    std::filesystem::path result(_dst_root);
 
     if (j.count("defined_in_file")) {
         const std::string& defined_in_file = j["defined_in_file"];
@@ -209,14 +206,14 @@ boost::filesystem::path yaml_base_emitter::dst_path(const json& j, Args&&... arg
 /**************************************************************************************************/
 
 template <typename Arg, typename... Args>
-boost::filesystem::path yaml_base_emitter::dst_path_append(boost::filesystem::path p, Arg&& arg, Args&&... args) {
+std::filesystem::path yaml_base_emitter::dst_path_append(std::filesystem::path p, Arg&& arg, Args&&... args) {
     return dst_path_append(dst_path_append(std::move(p), arg), std::forward<Args>(args)...);
 }
 
 /**************************************************************************************************/
 
 template <typename Arg>
-boost::filesystem::path yaml_base_emitter::dst_path_append(boost::filesystem::path p, Arg&& arg) {
+std::filesystem::path yaml_base_emitter::dst_path_append(std::filesystem::path p, Arg&& arg) {
     p /= directory_mangle(arg);
     return p;
 }

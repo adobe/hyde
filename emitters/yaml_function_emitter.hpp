@@ -22,8 +22,8 @@ namespace hyde {
 /**************************************************************************************************/
 
 struct yaml_function_emitter : public yaml_base_emitter {
-    explicit yaml_function_emitter(boost::filesystem::path src_root,
-                                   boost::filesystem::path dst_root,
+    explicit yaml_function_emitter(std::filesystem::path src_root,
+                                   std::filesystem::path dst_root,
                                    yaml_mode mode,
                                    emit_options options,
                                    bool as_methods)

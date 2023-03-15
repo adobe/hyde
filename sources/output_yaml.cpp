@@ -15,10 +15,6 @@ written permission of Adobe.
 // stdc++
 #include <iostream>
 
-// boost
-#include "boost/filesystem.hpp"
-#include "boost/filesystem/fstream.hpp"
-
 // yaml-cpp
 #include "yaml-cpp/yaml.h"
 
@@ -37,8 +33,8 @@ namespace hyde {
 /**************************************************************************************************/
 
 void output_yaml(json j,
-                 const boost::filesystem::path& src_root,
-                 const boost::filesystem::path& dst_root,
+                 const std::filesystem::path& src_root,
+                 const std::filesystem::path& dst_root,
                  json& out_emitted,
                  yaml_mode mode,
                  const emit_options& options) {
