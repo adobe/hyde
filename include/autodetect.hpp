@@ -12,12 +12,12 @@ written permission of Adobe.
 #pragma once
 
 // stdc++
+#include <filesystem>
 #include <string>
 #include <vector>
 
 // application
 #include "config.hpp"
-#include "filesystem.hpp"
 
 /**************************************************************************************************/
 
@@ -25,12 +25,12 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-std::vector<filesystem::path> autodetect_toolchain_paths();
+std::vector<std::filesystem::path> autodetect_toolchain_paths();
 
-filesystem::path autodetect_resource_directory();
+std::filesystem::path autodetect_resource_directory();
 
 #if HYDE_PLATFORM(APPLE)
-filesystem::path autodetect_sysroot_directory();
+std::filesystem::path autodetect_sysroot_directory();
 #endif // HYDE_PLATFORM(APPLE)
 
 /**************************************************************************************************/

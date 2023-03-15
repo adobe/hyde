@@ -15,10 +15,7 @@ set(CMAKE_OSX_ARCHITECTURES x86_64) # Only build x86 for now
 
 project(hyde)
 
-if (NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 20)
-endif ()
-
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_XCODE_GENERATE_SCHEME OFF)
@@ -41,11 +38,11 @@ if (NOT TARGET llvm::llvm)
 endif()
 
 set(Boost_USE_STATIC_LIBS ON)
+set(Boost_ALL_NO_LIB ON)
 
 find_package(Boost
     COMPONENTS
         system
-        filesystem
     REQUIRED
 )
 
@@ -82,7 +79,6 @@ add_executable(hyde
 
 target_include_directories(hyde
     PUBLIC
-        ${Boost_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/include/
@@ -99,7 +95,6 @@ target_compile_options(hyde
         -Wno-comment
         -Werror
         -Wno-range-loop-analysis
-        -DHYDE_FORCE_BOOST_FILESYSTEM=1
 )
 
 if (NOT LLVM_ENABLE_RTTI)
@@ -107,8 +102,7 @@ if (NOT LLVM_ENABLE_RTTI)
 endif()
 
 target_link_libraries(hyde
-    ${Boost_FILESYSTEM_LIBRARY}
-    ${Boost_SYSTEM_LIBRARY}
+    Boost::system
     clang
     clangASTMatchers
     clangBasic
