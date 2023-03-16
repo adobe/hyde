@@ -44,6 +44,9 @@ message(STATUS "INFO: LLVM binary dir: ${llvm_BINARY_DIR}")
 
 add_executable(hyde)
 
+# Make this explicit; for some reason it's not implicit in GitHub Actions
+add_dependencies(hyde clang-tablegen-targets)
+
 set(SRC_SOURCES
     ${PROJECT_SOURCE_DIR}/sources/autodetect.cpp
     ${PROJECT_SOURCE_DIR}/sources/main.cpp
