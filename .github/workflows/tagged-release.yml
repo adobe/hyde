@@ -22,7 +22,8 @@ jobs:
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          xcodebuild -target clang-tablegen-targets -configuration Release
+          xcodebuild -list
+          # xcodebuild -target clang-tablegen-targets -configuration Release
           xcodebuild -target hyde -configuration Release
       - name: 🗜️ Create archive
         run: |
@@ -42,15 +43,15 @@ jobs:
         uses: actions/checkout@v3
       - name: 🏗️ Setup project files
         run: |
-          sudo apt-get install libyaml-cpp-dev
+          sudo apt-get install ninja-build
           git submodule update --init
           mkdir build
           cd build
-          cmake --log-level=VERBOSE -DCMAKE_BUILD_TYPE=Release ..
+          cmake --log-level=VERBOSE -DCMAKE_BUILD_TYPE=Release -GNinja ..
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          cmake --build .
+          ninja
       - name: 🗜️ Create archive
         run: |
           cd build

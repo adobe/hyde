@@ -11,6 +11,8 @@ cmake_minimum_required(VERSION 3.23)
 
 include(FetchContent)
 
+set(FETCHCONTENT_QUIET FALSE)
+
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
 
 project(hyde)
@@ -27,6 +29,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/llvm/llvm-project.git
     GIT_TAG 8dfdcc7b7bf66834a761bd8de445840ef68e4d1a # llvmorg-15.0.7
     GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
     SOURCE_SUBDIR llvm
 )
 
