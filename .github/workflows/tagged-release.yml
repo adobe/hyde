@@ -16,7 +16,7 @@ jobs:
           git submodule update --init
           mkdir build
           cd build
-          cmake --log-level=WARNING -GXcode ..
+          cmake --log-level=VERBOSE -GXcode ..
       - name: 🛠️ Build Hyde
         run: |
           xcodebuild -json -project ./build/hyde.xcodeproj -scheme hyde -configuration Release -hideShellScriptEnvironment
@@ -42,7 +42,7 @@ jobs:
           git submodule update --init
           mkdir build
           cd build
-          cmake --log-level=WARNING -DCMAKE_BUILD_TYPE=Release ..
+          cmake --log-level=VERBOSE -DCMAKE_BUILD_TYPE=Release ..
       - name: 🛠️ Build Hyde
         run: |
           cd build
