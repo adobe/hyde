@@ -19,7 +19,8 @@ jobs:
           cmake --log-level=VERBOSE -GXcode ..
       - name: 🛠️ Build Hyde
         run: |
-          xcodebuild -json -project ./build/hyde.xcodeproj -scheme hyde -configuration Release -hideShellScriptEnvironment
+          cd build
+          cmake --build .
       - name: 🗜️ Create archive
         run: |
           cd build/Release
@@ -46,8 +47,7 @@ jobs:
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          make -j -l 0.9
-          ls -alF
+          cmake --build .
       - name: 🗜️ Create archive
         run: |
           cd build
