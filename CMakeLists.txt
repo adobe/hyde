@@ -31,7 +31,7 @@ FetchContent_Declare(
 )
 
 set(LLVM_ENABLE_PROJECTS clang)
-set(LLVM_TARGETS_TO_BUILD X86)
+set(LLVM_TARGETS_TO_BUILD "X86;AArch64")
 set(LLVM_ENABLE_ZSTD OFF)
 
 FetchContent_MakeAvailable(llvm)
