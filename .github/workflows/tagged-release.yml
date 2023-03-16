@@ -1,8 +1,6 @@
 name: Tagged Release
 on:
   push:
-    branches:
-      - master
     tags:
       - "v*.*.*"
 permissions:
@@ -18,11 +16,10 @@ jobs:
           git submodule update --init
           mkdir build
           cd build
-          cmake --log-level=VERBOSE -GXcode ..
+          cmake -GXcode ..
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          xcodebuild -list
           xcodebuild -target hyde -configuration Release
       - name: 🗜️ Create archive
         run: |
@@ -46,7 +43,7 @@ jobs:
           git submodule update --init
           mkdir build
           cd build
-          cmake --log-level=VERBOSE -DCMAKE_BUILD_TYPE=Release -GNinja ..
+          cmake -DCMAKE_BUILD_TYPE=Release -GNinja ..
       - name: 🛠️ Build Hyde
         run: |
           cd build
