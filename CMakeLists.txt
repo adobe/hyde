@@ -36,6 +36,9 @@ set(LLVM_ENABLE_ZSTD OFF)
 
 FetchContent_MakeAvailable(llvm)
 
+message(STATUS "INFO: LLVM source dir: ${llvm_SOURCE_DIR}")
+message(STATUS "INFO: LLVM binary dir: ${llvm_BINARY_DIR}")
+
 add_executable(hyde)
 
 set(SRC_SOURCES
