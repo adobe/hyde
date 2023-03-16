@@ -222,54 +222,64 @@ bool IsVerbose() {
 
 /**************************************************************************************************/
 
-std::pair<std::filesystem::path, hyde::json> load_hyde_config(
-    std::filesystem::path src_file) try {
-    bool found{false};
-    std::filesystem::path hyde_config_path;
+using optional_path_t = std::optional<std::filesystem::path>;
 
-    if (exists(src_file)) {
-        const std::filesystem::path pwd_k = std::filesystem::current_path();
+/**************************************************************************************************/
 
-        if (src_file.is_relative()) {
-            src_file = canonical(pwd_k / src_file);
-        }
-
-        if (!is_directory(src_file)) {
-            src_file = src_file.parent_path();
-        }
-
-        const auto hyde_config_check = [&](std::filesystem::path path) {
-            found = exists(path);
-            if (found) {
-                hyde_config_path = std::move(path);
-            }
-            return found;
-        };
-
-        const auto directory_walk = [hyde_config_check](std::filesystem::path directory) {
-            while (true) {
-                if (!exists(directory)) break;
-                if (hyde_config_check(directory / ".hyde-config")) break;
-                if (hyde_config_check(directory / "_hyde-config")) break;
-                directory = directory.parent_path();
-            }
-        };
-
-        // walk up the directory tree starting from the source file being processed.
-        directory_walk(src_file);
+optional_path_t find_hyde_config(std::filesystem::path src_file) {
+    if (!exists(src_file)) {
+        return std::nullopt;
     }
 
+    if (src_file.is_relative()) {
+        const std::filesystem::path pwd_k = std::filesystem::current_path();
+
+        src_file = std::filesystem::canonical(pwd_k / src_file);
+    }
+
+    if (!is_directory(src_file)) {
+        src_file = src_file.parent_path();
+    }
+
+    const auto hyde_config_check = [](std::filesystem::path path) -> optional_path_t {
+        if (std::filesystem::exists(path)) {
+            return std::move(path);
+        }
+
+        return std::nullopt;
+    };
+
+    while (true) {
+        if (!exists(src_file)) return std::nullopt;
+        if (auto path = hyde_config_check(src_file / ".hyde-config")) {
+            return path;
+        }
+        if (auto path = hyde_config_check(src_file / "_hyde-config")) {
+            return path;
+        }
+        auto new_parent = src_file.parent_path();
+        if (src_file == new_parent) return std::nullopt;
+        src_file = std::move(new_parent);
+    }
+}
+
+/**************************************************************************************************/
+
+std::pair<std::filesystem::path, hyde::json> load_hyde_config(
+    std::filesystem::path src_file) try {
+    optional_path_t hyde_config_path(find_hyde_config(src_file));
+
     if (IsVerbose()) {
-        if (found) {
-            std::cout << "INFO: hyde-config file: " << hyde_config_path.string() << '\n';
+        if (hyde_config_path) {
+            std::cout << "INFO: hyde-config file: " << hyde_config_path->string() << '\n';
         } else {
             std::cout << "INFO: hyde-config file: not found\n";
         }
     }
 
-    return found ?
-               std::make_pair(hyde_config_path.parent_path(),
-                              hyde::json::parse(std::ifstream(hyde_config_path))) :
+    return hyde_config_path ?
+               std::make_pair(hyde_config_path->parent_path(),
+                              hyde::json::parse(std::ifstream(*hyde_config_path))) :
                std::make_pair(std::filesystem::path(), hyde::json());
 } catch (...) {
     throw std::runtime_error("failed to parse the hyde-config file");
