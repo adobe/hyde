@@ -9,6 +9,9 @@
 
 cmake_minimum_required(VERSION 3.23)
 
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # Avoid overriding normal variables with option()
+set(CMAKE_POLICY_DEFAULT_CMP0126 NEW) # Avoid overriding normal variables with set(CACHE)
+
 include(FetchContent)
 
 set(FETCHCONTENT_QUIET FALSE)

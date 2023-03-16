@@ -19,7 +19,6 @@ jobs:
           mkdir build
           cd build
           cmake --log-level=VERBOSE -GXcode ..
-          ls -alF ./_deps/llvm-src/
       - name: 🛠️ Build Hyde
         run: |
           cd build
@@ -48,7 +47,6 @@ jobs:
           mkdir build
           cd build
           cmake --log-level=VERBOSE -DCMAKE_BUILD_TYPE=Release -GNinja ..
-          ls -alF ./_deps/llvm-src/
       - name: 🛠️ Build Hyde
         run: |
           cd build
