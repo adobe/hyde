@@ -13,16 +13,18 @@
 `hyde` produces intermediate documentation files that the developer then fills in with additional details as necessary. The files are then fed through a static site generation tool (like Jekyll) to produce [output like this](http://stlab.cc/libraries/stlab2Fcopy_on_write.hpp/copy_on_write3CT3E/).
 
 # Requirements
-## OSX
-   - Homebrew
-        - `brew install cmake`
-        - `brew install boost`
-        - `brew install ninja` (optional)
-## LINUX
-note only tested on ubuntu bionic so far
+
+## macOS
+
+- Homebrew
+    - `brew install cmake`
+    - `brew install ninja` (optional)
+
+## Linux
+
+(Note: only tested on ubuntu bionic so far)
 
 - Apt
-    - `sudo apt-get install libboost-system-dev libboost-filesystem-dev`
     - `sudo apt-get install libyaml-cpp-dev`
 
 # How to Build
