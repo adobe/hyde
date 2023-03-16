@@ -1,6 +1,8 @@
 name: Tagged Release
 on:
   push:
+    branches:
+      - master
     tags:
       - "v*.*.*"
 permissions:
@@ -20,7 +22,8 @@ jobs:
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          xcodebuild -configuration Release
+          xcodebuild -target clang-tablegen-targets -configuration Release
+          xcodebuild -target hyde -configuration Release
       - name: 🗜️ Create archive
         run: |
           cd build/Release
