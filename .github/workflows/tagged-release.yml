@@ -20,7 +20,7 @@ jobs:
       - name: 🛠️ Build Hyde
         run: |
           cd build
-          cmake --build .
+          xcodebuild -configuration Release
       - name: 🗜️ Create archive
         run: |
           cd build/Release
