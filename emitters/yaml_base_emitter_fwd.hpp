@@ -13,6 +13,7 @@ written permission of Adobe.
 
 // stdc++
 #include <stdexcept>
+#include <string>
 
 /**************************************************************************************************/
 

@@ -22,8 +22,8 @@ namespace hyde {
 /**************************************************************************************************/
 
 struct yaml_class_emitter : public yaml_base_emitter {
-    explicit yaml_class_emitter(boost::filesystem::path src_root,
-                                boost::filesystem::path dst_root,
+    explicit yaml_class_emitter(std::filesystem::path src_root,
+                                std::filesystem::path dst_root,
                                 yaml_mode mode,
                                 emit_options options)
         : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)) {}

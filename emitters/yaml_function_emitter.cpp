@@ -69,7 +69,7 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
 /**************************************************************************************************/
 
 bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
-    boost::filesystem::path dst;
+    std::filesystem::path dst;
     std::string name;
     std::string filename;
     std::string defined_path;

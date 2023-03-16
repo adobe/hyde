@@ -10,14 +10,12 @@ written permission of Adobe.
 */
 
 // stdc++
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <unordered_set>
 #include <sstream>
-
-// boost
-#include "boost/range/irange.hpp"
-#include "boost/filesystem/fstream.hpp"
 
 // clang/llvm
 #include "clang/Frontend/FrontendActions.h"
@@ -27,7 +25,6 @@ written permission of Adobe.
 
 // application
 #include "autodetect.hpp"
-#include "filesystem.hpp"
 #include "config.hpp"
 #include "json.hpp"
 #include "output_yaml.hpp"
@@ -47,24 +44,22 @@ written permission of Adobe.
 using namespace clang::tooling;
 using namespace llvm;
 
-namespace filesystem = hyde::filesystem;
-
 /**************************************************************************************************/
 
 namespace {
 
 /**************************************************************************************************/
 
-filesystem::path make_absolute(filesystem::path path) {
+std::filesystem::path make_absolute(std::filesystem::path path) {
     if (path.is_absolute()) return path;
-    static const auto pwd = filesystem::current_path();
+    static const auto pwd = std::filesystem::current_path();
     return canonical(pwd / path);
 }
 
 /**************************************************************************************************/
 
 std::string make_absolute(std::string path_string) {
-    return make_absolute(filesystem::path(std::move(path_string))).string();
+    return make_absolute(std::filesystem::path(std::move(path_string))).string();
 }
 
 /**************************************************************************************************/
@@ -227,13 +222,13 @@ bool IsVerbose() {
 
 /**************************************************************************************************/
 
-std::pair<filesystem::path, hyde::json> load_hyde_config(
-    filesystem::path src_file) try {
+std::pair<std::filesystem::path, hyde::json> load_hyde_config(
+    std::filesystem::path src_file) try {
     bool found{false};
-    filesystem::path hyde_config_path;
+    std::filesystem::path hyde_config_path;
 
     if (exists(src_file)) {
-        const filesystem::path pwd_k = filesystem::current_path();
+        const std::filesystem::path pwd_k = std::filesystem::current_path();
 
         if (src_file.is_relative()) {
             src_file = canonical(pwd_k / src_file);
@@ -243,7 +238,7 @@ std::pair<filesystem::path, hyde::json> load_hyde_config(
             src_file = src_file.parent_path();
         }
 
-        const auto hyde_config_check = [&](filesystem::path path) {
+        const auto hyde_config_check = [&](std::filesystem::path path) {
             found = exists(path);
             if (found) {
                 hyde_config_path = std::move(path);
@@ -251,7 +246,7 @@ std::pair<filesystem::path, hyde::json> load_hyde_config(
             return found;
         };
 
-        const auto directory_walk = [hyde_config_check](filesystem::path directory) {
+        const auto directory_walk = [hyde_config_check](std::filesystem::path directory) {
             while (true) {
                 if (!exists(directory)) break;
                 if (hyde_config_check(directory / ".hyde-config")) break;
@@ -274,8 +269,8 @@ std::pair<filesystem::path, hyde::json> load_hyde_config(
 
     return found ?
                std::make_pair(hyde_config_path.parent_path(),
-                              hyde::json::parse(filesystem::ifstream(hyde_config_path))) :
-               std::make_pair(filesystem::path(), hyde::json());
+                              hyde::json::parse(std::ifstream(hyde_config_path))) :
+               std::make_pair(std::filesystem::path(), hyde::json());
 } catch (...) {
     throw std::runtime_error("failed to parse the hyde-config file");
 }
@@ -320,7 +315,7 @@ command_line_args integrate_hyde_config(int argc, const char** argv) {
 
     std::vector<std::string> hyde_flags;
     std::vector<std::string> clang_flags;
-    filesystem::path config_dir;
+    std::filesystem::path config_dir;
     hyde::json config;
     std::tie(config_dir, config) =
         load_hyde_config(cli_hyde_flags.empty() ? "" : cli_hyde_flags.back());
@@ -421,7 +416,7 @@ int main(int argc, const char** argv) try {
         for (const auto& arg : args._clang) {
             std::cout << "INFO:     " << arg << '\n';
         }
-        std::cout << "INFO: Working directory: " << filesystem::current_path().string()
+        std::cout << "INFO: Working directory: " << std::filesystem::current_path().string()
                   << '\n';
     }
 
@@ -470,7 +465,7 @@ int main(int argc, const char** argv) try {
     // 
     // in some versions of osx they have stopped using `/usr/include`; Apple seems to rely
     // on the isysroot parameter to accomplish this task in the general case, so we add it here.
-    filesystem::path include_dir{"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
+    std::filesystem::path include_dir{"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
 
     if (AutoSysrootDirectory) {
         if (IsVerbose()) {
@@ -479,7 +474,7 @@ int main(int argc, const char** argv) try {
         include_dir = hyde::autodetect_sysroot_directory();
     }
 
-    if (filesystem::exists(include_dir)) {
+    if (std::filesystem::exists(include_dir)) {
         if (IsVerbose()) {
             std::cout << "INFO: Using isysroot: " << include_dir.string() << std::endl;
         }
@@ -492,7 +487,7 @@ int main(int argc, const char** argv) try {
     // Specify toolchain includes to the driver
     //
     if (AutoToolchainIncludes) {
-        std::vector<filesystem::path> includes = hyde::autodetect_toolchain_paths();
+        std::vector<std::filesystem::path> includes = hyde::autodetect_toolchain_paths();
         if (IsVerbose()) {
             std::cout << "INFO: Toolchain paths autodetected:\n";
         }
@@ -509,7 +504,7 @@ int main(int argc, const char** argv) try {
     // Specify the resource directory to the driver
     // 
     // this may not work on windows, need to investigate using strings
-    filesystem::path resource_dir{CLANG_RESOURCE_DIR};
+    std::filesystem::path resource_dir;
 
     if (AutoResourceDirectory) {
         if (IsVerbose()) {
@@ -518,10 +513,10 @@ int main(int argc, const char** argv) try {
 
         resource_dir = hyde::autodetect_resource_directory();
     } else if (!ArgumentResourceDir.empty()) {
-        resource_dir = filesystem::path{ArgumentResourceDir};
+        resource_dir = std::filesystem::path(ArgumentResourceDir.getValue());
     }
 
-    if (filesystem::exists(resource_dir)) {
+    if (std::filesystem::exists(resource_dir)) {
         if (IsVerbose()) {
             std::cout << "INFO: Using resource-dir: " << resource_dir.string() << std::endl;
         }
@@ -581,8 +576,8 @@ int main(int argc, const char** argv) try {
         if (YamlDstDir.empty())
             throw std::runtime_error("no YAML output directory specified (-hyde-yaml-dir)");
 
-        filesystem::path src_root(YamlSrcDir);
-        filesystem::path dst_root(YamlDstDir);
+        std::filesystem::path src_root(YamlSrcDir.getValue());
+        std::filesystem::path dst_root(YamlDstDir.getValue());
 
         hyde::emit_options emit_options;
         emit_options._tested_by = TestedBy;

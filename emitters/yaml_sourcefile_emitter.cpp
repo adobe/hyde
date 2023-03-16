@@ -15,9 +15,6 @@ written permission of Adobe.
 // stdc++
 #include <iostream>
 
-// boost
-#include "boost/range/irange.hpp"
-
 /**************************************************************************************************/
 
 namespace hyde {
@@ -52,14 +49,17 @@ bool yaml_sourcefile_emitter::emit(const json& j, json& out_emitted) {
 
 /**************************************************************************************************/
 
-bool yaml_sourcefile_emitter::extraneous_file_check_internal(const boost::filesystem::path& root,
-                                                             const boost::filesystem::path& path) {
+bool yaml_sourcefile_emitter::extraneous_file_check_internal(const std::filesystem::path& root,
+                                                             const std::filesystem::path& path) {
     bool failure{false};
+    std::filesystem::directory_iterator first(path);
+    std::filesystem::directory_iterator last;
 
-    for (const auto& entry :
-         boost::make_iterator_range(boost::filesystem::directory_iterator(path), {})) {
+    while (first != last) {
+        const auto& entry = *first;
+
         if (!checker_s.checked(entry)) {
-            boost::filesystem::path entry_path(entry);
+            std::filesystem::path entry_path(entry);
             if (entry_path.filename() == ".DS_Store") {
                 std::cerr << entry_path.string() << ": Unintended OS file (not a failure)\n";
             } else if (entry_path.extension() != ".cpp") {
@@ -72,6 +72,8 @@ bool yaml_sourcefile_emitter::extraneous_file_check_internal(const boost::filesy
         if (is_directory(entry)) {
             failure |= extraneous_file_check_internal(root, entry);
         }
+
+        ++first;
     }
 
     return failure;

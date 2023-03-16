@@ -11,9 +11,8 @@ written permission of Adobe.
 
 #pragma once
 
-// boost
-#include "boost/filesystem.hpp"
-#include "boost/optional.hpp"
+// stdc++
+#include <optional>
 
 // clang
 #include "clang/AST/Attr.h"
@@ -38,11 +37,11 @@ json GetParentCXXRecords(const clang::ASTContext* n, const clang::Decl* d);
 
 json GetTemplateParameters(const clang::ASTContext* n, const clang::TemplateDecl* d);
 
-boost::optional<json> DetailFunctionDecl(const hyde::processing_options& options,
-                                         const clang::FunctionDecl* f);
+std::optional<json> DetailFunctionDecl(const hyde::processing_options& options,
+                                       const clang::FunctionDecl* f);
 
-boost::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
-                                          const clang::CXXRecordDecl* cxx);
+std::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
+                                        const clang::CXXRecordDecl* cxx);
 
 bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clang::ASTContext* n);
 
@@ -85,11 +84,11 @@ inline std::string to_string(const clang::Decl* decl, clang::QualType type) {
 /**************************************************************************************************/
 
 template <typename DeclarationType>
-boost::optional<json> StandardDeclInfo(const hyde::processing_options& options,
+std::optional<json> StandardDeclInfo(const hyde::processing_options& options,
                                        const DeclarationType* d) {
     clang::ASTContext* n = &d->getASTContext();
 
-    if (!PathCheck(options._paths, d, n)) return boost::optional<json>();
+    if (!PathCheck(options._paths, d, n)) return std::optional<json>();
 
     json info = json::object();
 
@@ -98,11 +97,11 @@ boost::optional<json> StandardDeclInfo(const hyde::processing_options& options,
     info["parents"] = GetParentCXXRecords(n, d);
     info["qualified_name"] = d->getQualifiedNameAsString();
 
-    if (NamespaceBlacklist(options._namespace_blacklist, info)) return boost::optional<json>();
+    if (NamespaceBlacklist(options._namespace_blacklist, info)) return std::optional<json>();
 
     auto clang_access = d->getAccess();
 
-    if (!AccessCheck(options._access_filter, clang_access)) return boost::optional<json>();
+    if (!AccessCheck(options._access_filter, clang_access)) return std::optional<json>();
 
     if (clang_access != clang::AccessSpecifier::AS_none)
         info["access"] = to_string(clang_access);
