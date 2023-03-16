@@ -33,7 +33,7 @@ FetchContent_Declare(
     SOURCE_SUBDIR llvm
 )
 
-set(LLVM_ENABLE_PROJECTS clang)
+set(LLVM_ENABLE_PROJECTS "clang")
 set(LLVM_TARGETS_TO_BUILD "X86;AArch64")
 set(LLVM_ENABLE_ZSTD OFF)
 
@@ -43,9 +43,6 @@ message(STATUS "INFO: LLVM source dir: ${llvm_SOURCE_DIR}")
 message(STATUS "INFO: LLVM binary dir: ${llvm_BINARY_DIR}")
 
 add_executable(hyde)
-
-# Make this explicit; for some reason it's not implicit in GitHub Actions
-add_dependencies(hyde clang-tablegen-targets)
 
 set(SRC_SOURCES
     ${PROJECT_SOURCE_DIR}/sources/autodetect.cpp
