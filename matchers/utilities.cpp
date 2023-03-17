@@ -16,7 +16,9 @@ written permission of Adobe.
 #include <iostream>
 #include <sstream>
 
-// clang
+// clang/llvm
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Werror"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
@@ -24,6 +26,7 @@ written permission of Adobe.
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/ArrayRef.h"
+#pragma clang diagnostic pop
 
 // clang :shakes-fist:
 #pragma clang diagnostic push
