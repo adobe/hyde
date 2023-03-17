@@ -18,10 +18,13 @@ written permission of Adobe.
 #include <sstream>
 
 // clang/llvm
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Werror"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
+#pragma clang diagnostic pop
 
 // application
 #include "autodetect.hpp"

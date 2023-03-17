@@ -11,9 +11,12 @@ written permission of Adobe.
 
 #pragma once
 
-// clang
+// clang/llvm
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Werror"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
+#pragma clang diagnostic pop
 
 // application
 #include "json.hpp"

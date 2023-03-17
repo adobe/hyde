@@ -15,11 +15,14 @@ written permission of Adobe.
 // stdc++
 #include <iostream>
 
-// clang
+// clang/llvm
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Werror"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Lex/Lexer.h"
+#pragma clang diagnostic pop
 
 // application
 #include "json.hpp"
