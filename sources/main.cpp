@@ -540,6 +540,8 @@ int main(int argc, const char** argv) try {
 
     // Have the driver parse comments. See:
     // https://clang.llvm.org/docs/UsersManual.html#comment-parsing-options
+    // This isn't strictly necessary, as Doxygen comments will be detected
+    // and parsed regardless. Better to be thorough, though.
     arguments.emplace_back("-fparse-all-comments");
 
     // Enables some checks built in to the clang driver to ensure comment

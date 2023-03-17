@@ -21,6 +21,7 @@ written permission of Adobe.
 #include "_clang_include_prefix.hpp" // must be first to disable warnings for clang headers
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Comment.h"
 #include "clang/AST/Type.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
@@ -28,24 +29,19 @@ written permission of Adobe.
 #include "llvm/ADT/ArrayRef.h"
 #include "_clang_include_suffix.hpp" // must be last to re-enable warnings
 
-// clang :shakes-fist:
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-anon-enum-enum-conversion"
-#include "clang/AST/Comment.h"
-#pragma clang diagnostic pop
-
 // application
 #include "json.hpp"
 
 using namespace clang;
 using namespace clang::ast_matchers;
+using namespace clang::comments;
 
 /**************************************************************************************************/
 
 namespace {
 
 /**************************************************************************************************/
-
+// TODO: Make this `std::string_view trim_back(std::string_view src)`
 void trim_back(std::string& src) {
     std::size_t start(src.size());
 
@@ -62,6 +58,7 @@ void trim_back(std::string& src) {
 std::string to_string(const ASTContext* n, SourceRange range, bool as_token) {
     const auto char_range = as_token ? clang::CharSourceRange::getTokenRange(range) :
                                        clang::CharSourceRange::getCharRange(range);
+    // TODO: Make `result` a std::string_view
     std::string result =
         Lexer::getSourceText(char_range, n->getSourceManager(), n->getLangOpts()).str();
     trim_back(result);
@@ -332,8 +329,9 @@ inline std::string_view to_string_view(StringRef string) {
     return std::string_view(string.data(), string.size());
 }
 
-inline std::string_view to_string_view(clang::comments::ParamCommandComment::PassDirection x) {
-    using namespace clang::comments;
+/**************************************************************************************************/
+
+inline std::string_view to_string_view(ParamCommandComment::PassDirection x) {
     switch (x) {
         case ParamCommandComment::PassDirection::In: return "in";
         case ParamCommandComment::PassDirection::InOut: return "inout";
@@ -343,80 +341,166 @@ inline std::string_view to_string_view(clang::comments::ParamCommandComment::Pas
 
 /**************************************************************************************************/
 
-std::optional<hyde::json> ProcessComments(const Decl* d) {
-    using namespace clang::comments;
+std::optional<hyde::json> ProcessComment(const ASTContext& n,
+                                         const FullComment* full_comment,
+                                         const Comment* comment) {
+    const CommandTraits& commandTraits = n.getCommentCommandTraits();
+    hyde::json::object_t result;
 
+    const auto process_comment_args = [](auto& comment_with_args) -> std::optional<hyde::json> {
+        const unsigned arg_count = comment_with_args.getNumArgs();
+        if (arg_count == 0) return std::nullopt;
+
+        hyde::json::array_t result;
+
+        for (unsigned i{0}; i < arg_count; ++i) {
+            hyde::json::object_t args_entry;
+            args_entry["text"] = to_string_view(comment_with_args.getArgText(i));
+            result.push_back(std::move(args_entry));
+        }
+
+        return result;
+    };
+
+    const auto process_comment_children = [&n, &full_comment](auto& comment_with_children) -> std::optional<hyde::json> {
+        auto first = comment_with_children.child_begin();
+        auto last = comment_with_children.child_end();
+
+        if (first == last) return std::nullopt;
+
+        hyde::json::array_t result;
+
+        while (first != last) {
+            if (auto entry = ProcessComment(n, full_comment, *first++)) {
+                result.emplace_back(std::move(*entry));
+            }
+        }
+
+        return result;
+    };
+
+    switch (comment->getCommentKind()) {
+        case Comment::NoCommentKind: break;
+        case Comment::BlockCommandCommentKind: {
+            const BlockCommandComment* block_command_comment = llvm::dyn_cast_or_null<BlockCommandComment>(comment);
+            assert(block_command_comment);
+
+            result["command_name"] = to_string_view(block_command_comment->getCommandName(commandTraits));
+
+            if (auto args = process_comment_args(*block_command_comment)) {
+                result["args"] = std::move(*args);
+            }
+
+            if (auto children = process_comment_children(*block_command_comment)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::ParamCommandCommentKind: {
+            const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
+            assert(param_command_comment);
+
+            result["direction"] = to_string_view(param_command_comment->getDirection());
+            result["direction_explicit"] = param_command_comment->isDirectionExplicit();
+            result["index_valid"] = param_command_comment->isParamIndexValid();
+            result["vararg_param"] = param_command_comment->isVarArgParam();
+
+            if (param_command_comment->hasParamName()) {
+                result["name"] = to_string_view(param_command_comment->getParamName(full_comment));
+            }
+
+            if (auto children = process_comment_children(*param_command_comment)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::TParamCommandCommentKind: {
+            const TParamCommandComment* tparam_command_comment = llvm::dyn_cast_or_null<TParamCommandComment>(comment);
+            assert(tparam_command_comment);
+
+            if (auto children = process_comment_children(*tparam_command_comment)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::VerbatimBlockCommentKind: {
+            const VerbatimBlockComment* verbatim_block_comment = llvm::dyn_cast_or_null<VerbatimBlockComment>(comment);
+            assert(verbatim_block_comment);
+
+            if (auto children = process_comment_children(*verbatim_block_comment)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::VerbatimLineCommentKind: {
+            const VerbatimLineComment* verbatim_line_comment = llvm::dyn_cast_or_null<VerbatimLineComment>(comment);
+            assert(verbatim_line_comment);
+
+            if (auto children = process_comment_children(*verbatim_line_comment)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::ParagraphCommentKind: {
+            const ParagraphComment* paragraph_comment = llvm::dyn_cast_or_null<ParagraphComment>(comment);
+            assert(paragraph_comment);
+
+            if (auto children = process_comment_children(*paragraph_comment)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::FullCommentKind: {
+            const FullComment* full_comment_inner = llvm::dyn_cast_or_null<FullComment>(comment);
+            assert(full_comment_inner);
+
+            if (auto children = process_comment_children(*full_comment_inner)) {
+                result["children"] = std::move(*children);
+            }
+        } break;
+        case Comment::HTMLEndTagCommentKind: break;
+        case Comment::HTMLStartTagCommentKind: break;
+        case Comment::InlineCommandCommentKind: {
+            const InlineCommandComment* inline_command_comment = llvm::dyn_cast_or_null<InlineCommandComment>(comment);
+            assert(inline_command_comment);
+
+            result["command_name"] = to_string_view(inline_command_comment->getCommandName(commandTraits));
+
+            if (auto args = process_comment_args(*inline_command_comment)) {
+                result["args"] = std::move(*args);
+            }
+        } break;
+        case Comment::TextCommentKind: {
+            const TextComment* text_comment = llvm::dyn_cast_or_null<TextComment>(comment);
+            assert(text_comment);
+
+            if (auto children = process_comment_children(*text_comment)) {
+                result["children"] = std::move(*children);
+            }
+
+            result["text"] = to_string_view(text_comment->getText());
+        } break;
+        case Comment::VerbatimBlockLineCommentKind: break;
+    }
+
+    if (result.empty()) {
+        return std::nullopt;
+    }
+
+    result["kind"] = comment->getCommentKindName();
+    // result["full_text"] = to_string(n, comment->getSourceRange(), true);
+
+    return result;
+}
+
+/**************************************************************************************************/
+
+std::optional<hyde::json> ProcessComments(const Decl* d) {
     const ASTContext& n = d->getASTContext();
     const FullComment* full_comment = n.getCommentForDecl(d, nullptr);
 
     if (!full_comment) return std::nullopt;
 
-    auto first = full_comment->child_begin();
-    auto last = full_comment->child_end();
-    hyde::json::array_t result;
+    auto result = ProcessComment(n, full_comment, full_comment);
 
-    while (first != last) {
-        const Comment* comment = *first;
-        hyde::json::object_t entry;
-        switch (comment->getCommentKind()) {
-            case Comment::NoCommentKind: break;
-            case Comment::BlockCommandCommentKind: {
-                const BlockCommandComment* block_command_comment = llvm::dyn_cast_or_null<BlockCommandComment>(comment);
-                assert(block_command_comment);
-
-                entry["kind"] = "block command";
-
-                //std::string_view command_name = to_string_view(block_command_comment->getCommandName());
-                //(void)command_name;
-
-                hyde::json::array_t args;
-
-                const unsigned arg_count = block_command_comment->getNumArgs();
-                for (unsigned i{0}; i < arg_count; ++i) {
-                    hyde::json::object_t args_entry;
-                    args_entry["text"] = to_string_view(block_command_comment->getArgText(i));
-                    args.push_back(std::move(args_entry));
-                }
-
-                if (!args.empty()) {
-                    entry["args"] = std::move(args);
-                }
-            } break;
-            case Comment::ParamCommandCommentKind: {
-                const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
-                assert(param_command_comment);
-
-                entry["kind"] = "param command";
-                entry["direction"] = to_string_view(param_command_comment->getDirection());
-                entry["direction_explicit"] = param_command_comment->isDirectionExplicit();
-                entry["index_valid"] = param_command_comment->isParamIndexValid();
-                entry["vararg_param"] = param_command_comment->isVarArgParam();
-
-                if (param_command_comment->hasParamName()) {
-                    entry["name"] = to_string_view(param_command_comment->getParamName(full_comment));
-                }
-            } break;
-            case Comment::TParamCommandCommentKind: break;
-            case Comment::VerbatimBlockCommentKind: break;
-            case Comment::VerbatimLineCommentKind: break;
-            case Comment::ParagraphCommentKind: break;
-            case Comment::FullCommentKind: break;
-            case Comment::HTMLEndTagCommentKind: break;
-            case Comment::HTMLStartTagCommentKind: break;
-            case Comment::InlineCommandCommentKind: break;
-            case Comment::TextCommentKind: break;
-            case Comment::VerbatimBlockLineCommentKind: break;
-        }
-
-        if (!entry.empty()) {
-            result.emplace_back(std::move(entry));
-        }
-
-        ++first;
+    if (result) {
+        // The std::setw(2) is for pretty-printing. Remove it for ugly serialization.
+        std::cout << std::setw(2) << hyde::json(*result) << "\n\n";
     }
-
-    // The std::setw(2) is for pretty-printing. Remove it for ugly serialization.
-    std::cout << std::setw(2) << hyde::json(result) << "\n\n";
 
     return result;
 }
