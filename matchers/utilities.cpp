@@ -369,7 +369,7 @@ std::optional<hyde::json> ProcessComments(const Decl* d) {
                 bool vararg_param = param_command_comment->isVarArgParam();
                 (void)vararg_param;
                 if (param_command_comment->hasParamName()) {
-                    StringRef param_name = param_command_comment->getParamName(full_comment);
+                    std::string_view param_name = to_string_view(param_command_comment->getParamName(full_comment));
                     (void)param_name;
                 }
             } break;
