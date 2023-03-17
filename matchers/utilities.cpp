@@ -18,7 +18,7 @@ written permission of Adobe.
 
 // clang/llvm
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Werror"
+#pragma clang diagnostic ignored "-Wall"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
