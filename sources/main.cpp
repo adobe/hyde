@@ -18,13 +18,12 @@ written permission of Adobe.
 #include <sstream>
 
 // clang/llvm
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wall"
+#include "_clang_include_prefix.hpp" // must be first to disable warnings for clang headers
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
-#pragma clang diagnostic pop
+#include "_clang_include_suffix.hpp" // must be last to re-enable warnings
 
 // application
 #include "autodetect.hpp"

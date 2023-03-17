@@ -16,12 +16,11 @@ written permission of Adobe.
 #include <iostream>
 
 // clang/llvm
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wall"
+#include "_clang_include_prefix.hpp" // must be first to disable warnings for clang headers
 #include "clang/AST/ASTConsumer.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
-#pragma clang diagnostic pop
+#include "_clang_include_suffix.hpp" // must be last to re-enable warnings
 
 // application
 #include "json.hpp"
