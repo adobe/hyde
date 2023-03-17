@@ -536,6 +536,14 @@ int main(int argc, const char** argv) try {
     // Specify the hyde preprocessor macro
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
 
+    // Have the driver parse comments. See:
+    // https://clang.llvm.org/docs/UsersManual.html#comment-parsing-options
+    arguments.emplace_back("-fparse-all-comments");
+
+    // Enables some checks built in to the clang driver to ensure comment
+    // documentation matches whatever it is documenting.
+    arguments.emplace_back("-Wdocumentation");
+
     //
     // Spin up the tool and run it.
     //

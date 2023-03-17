@@ -25,6 +25,12 @@ written permission of Adobe.
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/ArrayRef.h"
 
+// clang :shakes-fist:
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-anon-enum-enum-conversion"
+#include "clang/AST/Comment.h"
+#pragma clang diagnostic pop
+
 // application
 #include "json.hpp"
 
@@ -319,6 +325,73 @@ hyde::json GetParents(const ASTContext* n, const Decl* d) {
 
 /**************************************************************************************************/
 
+inline std::string_view to_string_view(StringRef string) {
+    return std::string_view(string.data(), string.size());
+}
+
+/**************************************************************************************************/
+
+std::optional<hyde::json> ProcessComments(const Decl* d) {
+    using namespace clang::comments;
+
+    const ASTContext& n = d->getASTContext();
+    const FullComment* full_comment = n.getCommentForDecl(d, nullptr);
+
+    if (!full_comment) return std::nullopt;
+
+    auto first = full_comment->child_begin();
+    auto last = full_comment->child_end();
+
+    while (first != last) {
+        const Comment* comment = *first;
+        switch (comment->getCommentKind()) {
+            case Comment::NoCommentKind: break;
+            case Comment::BlockCommandCommentKind: {
+                const BlockCommandComment* block_command_comment = llvm::dyn_cast_or_null<BlockCommandComment>(comment);
+                assert(block_command_comment);
+                //std::string_view command_name = to_string_view(block_command_comment->getCommandName());
+                //(void)command_name;
+                const unsigned arg_count = block_command_comment->getNumArgs();
+                for (unsigned i{0}; i < arg_count; ++i) {
+                    std::string_view text = to_string_view(block_command_comment->getArgText(i));
+                    (void)text;
+                }
+            } break;
+            case Comment::ParamCommandCommentKind: {
+                const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
+                assert(param_command_comment);
+                ParamCommandComment::PassDirection direction = param_command_comment->getDirection();
+                (void)direction;
+                bool direction_explicit = param_command_comment->isDirectionExplicit();
+                (void)direction_explicit;
+                bool index_valid = param_command_comment->isParamIndexValid();
+                (void)index_valid;
+                bool vararg_param = param_command_comment->isVarArgParam();
+                (void)vararg_param;
+                if (param_command_comment->hasParamName()) {
+                    StringRef param_name = param_command_comment->getParamName(full_comment);
+                    (void)param_name;
+                }
+            } break;
+            case Comment::TParamCommandCommentKind: break;
+            case Comment::VerbatimBlockCommentKind: break;
+            case Comment::VerbatimLineCommentKind: break;
+            case Comment::ParagraphCommentKind: break;
+            case Comment::FullCommentKind: break;
+            case Comment::HTMLEndTagCommentKind: break;
+            case Comment::HTMLStartTagCommentKind: break;
+            case Comment::InlineCommandCommentKind: break;
+            case Comment::TextCommentKind: break;
+            case Comment::VerbatimBlockLineCommentKind: break;
+        }
+        ++first;
+    }
+
+    return hyde::json();
+}
+
+/**************************************************************************************************/
+
 } // namespace
 
 /**************************************************************************************************/
@@ -344,6 +417,8 @@ std::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
     auto info_opt = StandardDeclInfo(options, cxx);
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);
+
+    ProcessComments(cxx);
 
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
@@ -401,6 +476,8 @@ std::optional<json> DetailFunctionDecl(const hyde::processing_options& options, 
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);
     const clang::ASTContext* n = &f->getASTContext();
+
+    ProcessComments(f);
 
     info["return_type"] = hyde::to_string(f, f->getReturnType());
     info["arguments"] = json::array();
