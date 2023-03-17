@@ -13,6 +13,7 @@ written permission of Adobe.
 #include "utilities.hpp"
 
 // stdc++
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -332,6 +333,15 @@ inline std::string_view to_string_view(StringRef string) {
     return std::string_view(string.data(), string.size());
 }
 
+inline std::string_view to_string_view(clang::comments::ParamCommandComment::PassDirection x) {
+    using namespace clang::comments;
+    switch (x) {
+        case ParamCommandComment::PassDirection::In: return "in";
+        case ParamCommandComment::PassDirection::InOut: return "inout";
+        case ParamCommandComment::PassDirection::Out: return "out";
+    }
+}
+
 /**************************************************************************************************/
 
 std::optional<hyde::json> ProcessComments(const Decl* d) {
@@ -344,36 +354,47 @@ std::optional<hyde::json> ProcessComments(const Decl* d) {
 
     auto first = full_comment->child_begin();
     auto last = full_comment->child_end();
+    hyde::json::array_t result;
 
     while (first != last) {
         const Comment* comment = *first;
+        hyde::json::object_t entry;
         switch (comment->getCommentKind()) {
             case Comment::NoCommentKind: break;
             case Comment::BlockCommandCommentKind: {
                 const BlockCommandComment* block_command_comment = llvm::dyn_cast_or_null<BlockCommandComment>(comment);
                 assert(block_command_comment);
+
+                entry["kind"] = "block command";
+
                 //std::string_view command_name = to_string_view(block_command_comment->getCommandName());
                 //(void)command_name;
+
+                hyde::json::array_t args;
+
                 const unsigned arg_count = block_command_comment->getNumArgs();
                 for (unsigned i{0}; i < arg_count; ++i) {
-                    std::string_view text = to_string_view(block_command_comment->getArgText(i));
-                    (void)text;
+                    hyde::json::object_t args_entry;
+                    args_entry["text"] = to_string_view(block_command_comment->getArgText(i));
+                    args.push_back(std::move(args_entry));
+                }
+
+                if (!args.empty()) {
+                    entry["args"] = std::move(args);
                 }
             } break;
             case Comment::ParamCommandCommentKind: {
                 const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
                 assert(param_command_comment);
-                ParamCommandComment::PassDirection direction = param_command_comment->getDirection();
-                (void)direction;
-                bool direction_explicit = param_command_comment->isDirectionExplicit();
-                (void)direction_explicit;
-                bool index_valid = param_command_comment->isParamIndexValid();
-                (void)index_valid;
-                bool vararg_param = param_command_comment->isVarArgParam();
-                (void)vararg_param;
+
+                entry["kind"] = "param command";
+                entry["direction"] = to_string_view(param_command_comment->getDirection());
+                entry["direction_explicit"] = param_command_comment->isDirectionExplicit();
+                entry["index_valid"] = param_command_comment->isParamIndexValid();
+                entry["vararg_param"] = param_command_comment->isVarArgParam();
+
                 if (param_command_comment->hasParamName()) {
-                    std::string_view param_name = to_string_view(param_command_comment->getParamName(full_comment));
-                    (void)param_name;
+                    entry["name"] = to_string_view(param_command_comment->getParamName(full_comment));
                 }
             } break;
             case Comment::TParamCommandCommentKind: break;
@@ -387,10 +408,18 @@ std::optional<hyde::json> ProcessComments(const Decl* d) {
             case Comment::TextCommentKind: break;
             case Comment::VerbatimBlockLineCommentKind: break;
         }
+
+        if (!entry.empty()) {
+            result.emplace_back(std::move(entry));
+        }
+
         ++first;
     }
 
-    return hyde::json();
+    // The std::setw(2) is for pretty-printing. Remove it for ugly serialization.
+    std::cout << std::setw(2) << hyde::json(result) << "\n\n";
+
+    return result;
 }
 
 /**************************************************************************************************/
