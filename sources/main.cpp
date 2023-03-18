@@ -14,8 +14,9 @@ written permission of Adobe.
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <unordered_set>
+#include <optional>
 #include <sstream>
+#include <unordered_set>
 
 // clang/llvm
 #include "_clang_include_prefix.hpp" // must be first to disable warnings for clang headers
