@@ -545,24 +545,6 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
 
 /**************************************************************************************************/
 
-std::optional<hyde::json> ProcessComments(const Decl* d) {
-    const ASTContext& n = d->getASTContext();
-    const FullComment* full_comment = n.getCommentForDecl(d, nullptr);
-
-    if (!full_comment) return std::nullopt;
-
-    auto result = ProcessComment(n, full_comment, full_comment);
-
-    if (result) {
-        // The std::setw(2) is for pretty-printing. Remove it for ugly serialization.
-        std::cout << std::setw(2) << hyde::json(*result) << "\n\n";
-    }
-
-    return result;
-}
-
-/**************************************************************************************************/
-
 } // namespace
 
 /**************************************************************************************************/
@@ -903,6 +885,21 @@ std::string PostProcessType(const clang::Decl* decl, std::string type) {
     std::string result = PostProcessTypeParameter(decl, std::move(type));
     result = PostProcessSpacing(std::move(result));
     return result;
+}
+
+/**************************************************************************************************/
+
+std::optional<hyde::json> ProcessComments(const Decl* d) {
+    const ASTContext& n = d->getASTContext();
+    const FullComment* full_comment = n.getCommentForDecl(d, nullptr);
+
+    if (!full_comment) return std::nullopt;
+
+    if (auto result = ProcessComment(n, full_comment, full_comment)) {
+        return std::move((*result)["children"]);
+    }
+
+    return std::nullopt;
 }
 
 /**************************************************************************************************/
