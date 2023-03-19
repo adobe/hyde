@@ -41,6 +41,18 @@ using namespace clang::comments;
 namespace {
 
 /**************************************************************************************************/
+// TODO: Make this `std::string_view trim_front(std::string_view src)`
+void trim_front(std::string& text) {
+    std::size_t trim_count(0);
+    
+    for (; trim_count < text.size(); ++trim_count)
+        if (!(std::isspace(text[trim_count]) || text[trim_count] == '\n'))
+            break;
+    
+    text.erase(0, trim_count);
+}
+
+/**************************************************************************************************/
 // TODO: Make this `std::string_view trim_back(std::string_view src)`
 void trim_back(std::string& src) {
     std::size_t start(src.size());
@@ -49,6 +61,13 @@ void trim_back(std::string& src) {
         start--;
 
     src.erase(start, std::string::npos);
+}
+
+/**************************************************************************************************/
+// TODO: Make this `std::string_view chomp(std::string_view src)`
+void chomp(std::string& src) {
+    trim_front(src);
+    trim_back(src);
 }
 
 /**************************************************************************************************/
@@ -379,6 +398,19 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
         return result;
     };
 
+    // If the comment only has one child and it's a paragraph comment,
+    // take the text from that child and move it into the parent, then
+    // delete all the children (which is just the now-empty paragraph.)
+    const auto roll_up_single_paragraph_child = [](hyde::json::object_t json) -> hyde::json::object_t {
+        if (json.count("children") != 1) return json;
+        auto& children = json["children"];
+        auto& first_child = *children.begin();
+        if (first_child["kind"] != "ParagraphComment") return json;
+        json["text"] = std::move(first_child["text"]);
+        json.erase("children");
+        return json;
+    };
+
     switch (comment->getCommentKind()) {
         case Comment::NoCommentKind: break;
         case Comment::BlockCommandCommentKind: {
@@ -394,6 +426,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             if (auto children = process_comment_children(*block_command_comment)) {
                 result["children"] = std::move(*children);
             }
+
+            result = roll_up_single_paragraph_child(std::move(result));
         } break;
         case Comment::ParamCommandCommentKind: {
             const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
@@ -411,6 +445,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             if (auto children = process_comment_children(*param_command_comment)) {
                 result["children"] = std::move(*children);
             }
+
+            result = roll_up_single_paragraph_child(std::move(result));
         } break;
         case Comment::TParamCommandCommentKind: {
             const TParamCommandComment* tparam_command_comment = llvm::dyn_cast_or_null<TParamCommandComment>(comment);
@@ -419,6 +455,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             if (auto children = process_comment_children(*tparam_command_comment)) {
                 result["children"] = std::move(*children);
             }
+
+            result = roll_up_single_paragraph_child(std::move(result));
         } break;
         case Comment::VerbatimBlockCommentKind: {
             const VerbatimBlockComment* verbatim_block_comment = llvm::dyn_cast_or_null<VerbatimBlockComment>(comment);
@@ -440,8 +478,26 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             const ParagraphComment* paragraph_comment = llvm::dyn_cast_or_null<ParagraphComment>(comment);
             assert(paragraph_comment);
 
-            if (auto children = process_comment_children(*paragraph_comment)) {
-                result["children"] = std::move(*children);
+            // Paragraph comments have only been observed containing `TextComment`s,
+            // one per line in the paragraph. Some formatting gets sucked into the
+            // `TextComment`s, so processing of each is needed.
+
+            auto first = paragraph_comment->child_begin();
+            auto last = paragraph_comment->child_end();
+            std::string paragraph;
+
+            while (first != last) {
+                if (const TextComment* text_comment = llvm::dyn_cast_or_null<TextComment>(*first++)) {
+                    std::string line(text_comment->getText());
+                    chomp(line);
+                    if (line.empty()) continue;
+                    if (!paragraph.empty()) paragraph += ' '; // add one space between lines.
+                    paragraph += std::move(line);
+                }
+            }
+
+            if (!paragraph.empty()) {
+                result["text"] = std::move(paragraph);
             }
         } break;
         case Comment::FullCommentKind: {
