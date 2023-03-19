@@ -892,6 +892,9 @@ std::optional<hyde::json> ProcessComments(const Decl* d) {
     if (!full_comment) return std::nullopt;
 
     if (auto result = ProcessComment(n, full_comment, full_comment)) {
+        // The top-level FullComment has only been observed to have
+        // children and nothing else. Roll up the children as the
+        // comments, then, and shed the needless wrapper.
         return std::move((*result)["children"]);
     }
 
