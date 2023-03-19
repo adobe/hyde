@@ -571,8 +571,6 @@ std::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);
 
-    ProcessComments(cxx);
-
     // overrides for various fields if the record is of a specific sub-type.
     if (auto s = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(cxx)) {
         info["name"] = hyde::to_string(s, s->getTypeAsWritten()->getType());
@@ -629,8 +627,6 @@ std::optional<json> DetailFunctionDecl(const hyde::processing_options& options, 
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);
     const clang::ASTContext* n = &f->getASTContext();
-
-    ProcessComments(f);
 
     info["return_type"] = hyde::to_string(f, f->getReturnType());
     info["arguments"] = json::array();
