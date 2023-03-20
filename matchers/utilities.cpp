@@ -44,11 +44,10 @@ namespace {
 // TODO: Make this `std::string_view trim_front(std::string_view src)`
 void trim_front(std::string& text) {
     std::size_t trim_count(0);
-    
+
     for (; trim_count < text.size(); ++trim_count)
-        if (!(std::isspace(text[trim_count]) || text[trim_count] == '\n'))
-            break;
-    
+        if (!(std::isspace(text[trim_count]) || text[trim_count] == '\n')) break;
+
     text.erase(0, trim_count);
 }
 
@@ -351,22 +350,24 @@ inline std::string_view to_string_view(StringRef string) {
 /**************************************************************************************************/
 
 inline std::string_view to_string_view(ParamCommandComment::PassDirection x) {
+    // clang-format off
     switch (x) {
         case ParamCommandComment::PassDirection::In: return "in";
         case ParamCommandComment::PassDirection::InOut: return "inout";
         case ParamCommandComment::PassDirection::Out: return "out";
     }
+    // clang-format on
 }
 
 /**************************************************************************************************/
 
-std::optional<hyde::json> ProcessComment(const ASTContext& n,
-                                         const FullComment* full_comment,
-                                         const Comment* comment) {
+hyde::optional_json ProcessComment(const ASTContext& n,
+                                   const FullComment* full_comment,
+                                   const Comment* comment) {
     const CommandTraits& commandTraits = n.getCommentCommandTraits();
     hyde::json::object_t result;
 
-    const auto process_comment_args = [](auto& comment_with_args) -> std::optional<hyde::json> {
+    const auto process_comment_args = [](auto& comment_with_args) -> hyde::optional_json {
         const unsigned arg_count = comment_with_args.getNumArgs();
         if (arg_count == 0) return std::nullopt;
 
@@ -381,7 +382,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
         return result;
     };
 
-    const auto process_comment_children = [&n, &full_comment](auto& comment_with_children) -> std::optional<hyde::json> {
+    const auto process_comment_children =
+        [&n, &full_comment](auto& comment_with_children) -> hyde::optional_json {
         auto first = comment_with_children.child_begin();
         auto last = comment_with_children.child_end();
 
@@ -401,7 +403,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
     // If the comment only has one child and it's a paragraph comment,
     // take the text from that child and move it into the parent, then
     // delete all the children (which is just the now-empty paragraph.)
-    const auto roll_up_single_paragraph_child = [](hyde::json::object_t json) -> hyde::json::object_t {
+    const auto roll_up_single_paragraph_child =
+        [](hyde::json::object_t json) -> hyde::json::object_t {
         if (json.count("children") != 1) return json;
         auto& children = json["children"];
         auto& first_child = *children.begin();
@@ -421,7 +424,7 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
 
         const std::string new_command = "hyde" + text.substr(0, first_space);
         const std::string new_text = text.substr(first_space + 1);
- 
+
         json["name"] = std::move(new_command);
         json["text"] = std::move(new_text);
 
@@ -429,9 +432,11 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
     };
 
     switch (comment->getCommentKind()) {
-        case Comment::NoCommentKind: break;
+        case Comment::NoCommentKind:
+            break;
         case Comment::BlockCommandCommentKind: {
-            const BlockCommandComment* block_command_comment = llvm::dyn_cast_or_null<BlockCommandComment>(comment);
+            const BlockCommandComment* block_command_comment =
+                llvm::dyn_cast_or_null<BlockCommandComment>(comment);
             assert(block_command_comment);
 
             result["name"] = to_string_view(block_command_comment->getCommandName(commandTraits));
@@ -450,7 +455,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             result = post_process_hyde_command(std::move(result));
         } break;
         case Comment::ParamCommandCommentKind: {
-            const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
+            const ParamCommandComment* param_command_comment =
+                llvm::dyn_cast_or_null<ParamCommandComment>(comment);
             assert(param_command_comment);
 
             result["direction"] = to_string_view(param_command_comment->getDirection());
@@ -469,7 +475,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             result = roll_up_single_paragraph_child(std::move(result));
         } break;
         case Comment::TParamCommandCommentKind: {
-            const TParamCommandComment* tparam_command_comment = llvm::dyn_cast_or_null<TParamCommandComment>(comment);
+            const TParamCommandComment* tparam_command_comment =
+                llvm::dyn_cast_or_null<TParamCommandComment>(comment);
             assert(tparam_command_comment);
 
             if (auto children = process_comment_children(*tparam_command_comment)) {
@@ -479,7 +486,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             result = roll_up_single_paragraph_child(std::move(result));
         } break;
         case Comment::VerbatimBlockCommentKind: {
-            const VerbatimBlockComment* verbatim_block_comment = llvm::dyn_cast_or_null<VerbatimBlockComment>(comment);
+            const VerbatimBlockComment* verbatim_block_comment =
+                llvm::dyn_cast_or_null<VerbatimBlockComment>(comment);
             assert(verbatim_block_comment);
 
             if (auto children = process_comment_children(*verbatim_block_comment)) {
@@ -487,7 +495,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             }
         } break;
         case Comment::VerbatimLineCommentKind: {
-            const VerbatimLineComment* verbatim_line_comment = llvm::dyn_cast_or_null<VerbatimLineComment>(comment);
+            const VerbatimLineComment* verbatim_line_comment =
+                llvm::dyn_cast_or_null<VerbatimLineComment>(comment);
             assert(verbatim_line_comment);
 
             if (auto children = process_comment_children(*verbatim_line_comment)) {
@@ -495,7 +504,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             }
         } break;
         case Comment::ParagraphCommentKind: {
-            const ParagraphComment* paragraph_comment = llvm::dyn_cast_or_null<ParagraphComment>(comment);
+            const ParagraphComment* paragraph_comment =
+                llvm::dyn_cast_or_null<ParagraphComment>(comment);
             assert(paragraph_comment);
 
             // Paragraph comments have only been observed containing `TextComment`s,
@@ -507,7 +517,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             std::string paragraph;
 
             while (first != last) {
-                if (const TextComment* text_comment = llvm::dyn_cast_or_null<TextComment>(*first++)) {
+                if (const TextComment* text_comment =
+                        llvm::dyn_cast_or_null<TextComment>(*first++)) {
                     std::string line(text_comment->getText());
                     chomp(line);
                     if (line.empty()) continue;
@@ -528,10 +539,13 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
                 result["children"] = std::move(*children);
             }
         } break;
-        case Comment::HTMLEndTagCommentKind: break;
-        case Comment::HTMLStartTagCommentKind: break;
+        case Comment::HTMLEndTagCommentKind:
+            break;
+        case Comment::HTMLStartTagCommentKind:
+            break;
         case Comment::InlineCommandCommentKind: {
-            const InlineCommandComment* inline_command_comment = llvm::dyn_cast_or_null<InlineCommandComment>(comment);
+            const InlineCommandComment* inline_command_comment =
+                llvm::dyn_cast_or_null<InlineCommandComment>(comment);
             assert(inline_command_comment);
 
             result["name"] = to_string_view(inline_command_comment->getCommandName(commandTraits));
@@ -550,7 +564,8 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
 
             result["text"] = to_string_view(text_comment->getText());
         } break;
-        case Comment::VerbatimBlockLineCommentKind: break;
+        case Comment::VerbatimBlockLineCommentKind:
+            break;
     }
 
     if (result.empty()) {
@@ -563,6 +578,7 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
 }
 
 const char* remap_kind_key(std::string_view key) {
+    // clang-format off
     if (key == "BlockCommandComment") return "command";
     else if (key == "FullComment") return "full";
     else if (key == "HTMLEndTagComment") return "html_end";
@@ -576,11 +592,12 @@ const char* remap_kind_key(std::string_view key) {
     else if (key == "VerbatimBlockComment") return "vblock";
     else if (key == "VerbatimBlockLineComment") return "vblockline";
     else if (key == "VerbatimLineComment") return "vline";
+    // clang-format on
 
     return key.data();
 }
 
-std::optional<hyde::json> group_comments_by_kind(hyde::json comments) {
+hyde::optional_json group_comments_by_kind(hyde::json comments) {
     if (!comments.is_array()) return std::nullopt;
 
     hyde::json result;
@@ -616,8 +633,8 @@ json GetParentCXXRecords(const ASTContext* n, const Decl* d) {
 
 /**************************************************************************************************/
 
-std::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
-                                          const clang::CXXRecordDecl* cxx) {
+optional_json DetailCXXRecordDecl(const hyde::processing_options& options,
+                                  const clang::CXXRecordDecl* cxx) {
     auto info_opt = StandardDeclInfo(options, cxx);
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);
@@ -673,7 +690,7 @@ json GetTemplateParameters(const ASTContext* n, const clang::TemplateDecl* d) {
 
 /**************************************************************************************************/
 
-std::optional<json> DetailFunctionDecl(const hyde::processing_options& options, const FunctionDecl* f) {
+optional_json DetailFunctionDecl(const hyde::processing_options& options, const FunctionDecl* f) {
     auto info_opt = StandardDeclInfo(options, f);
     if (!info_opt) return info_opt;
     auto info = std::move(*info_opt);
@@ -702,20 +719,20 @@ std::optional<json> DetailFunctionDecl(const hyde::processing_options& options, 
             break;
     }
 
-	auto visibility = f->getVisibility();
-	switch (visibility) {
-		case Visibility::HiddenVisibility:
-			info["visibility"] = "hidden";
-			break;
-		case Visibility::DefaultVisibility:
-			info["visibility"] = "default";
-			break;
-		case Visibility::ProtectedVisibility:
-			info["visibility"] = "protected";
-			break;
-	}
-	LinkageInfo linkage_info = f->getLinkageAndVisibility();
-	info["visibility_explicit"] = linkage_info.isVisibilityExplicit() ? "true" : "false";
+    auto visibility = f->getVisibility();
+    switch (visibility) {
+        case Visibility::HiddenVisibility:
+            info["visibility"] = "hidden";
+            break;
+        case Visibility::DefaultVisibility:
+            info["visibility"] = "default";
+            break;
+        case Visibility::ProtectedVisibility:
+            info["visibility"] = "protected";
+            break;
+    }
+    LinkageInfo linkage_info = f->getLinkageAndVisibility();
+    info["visibility_explicit"] = linkage_info.isVisibilityExplicit() ? "true" : "false";
 
     if (const auto* method = llvm::dyn_cast_or_null<CXXMethodDecl>(f)) {
         if (method->isConst()) info["const"] = true;
@@ -855,8 +872,7 @@ std::string PostProcessTypeParameter(const clang::Decl* decl, std::string type) 
                 auto qualType = context.getTemplateTypeParmType(
                     depth, index, template_type->isParameterPack(), template_type);
 
-                std::string old_type =
-                    needle + std::to_string(depth) + "-" + std::to_string(index);
+                std::string old_type = needle + std::to_string(depth) + "-" + std::to_string(index);
                 std::string new_type = hyde::to_string(template_type, qualType);
                 parent_template_types.emplace_back(
                     std::make_pair(std::move(old_type), std::move(new_type)));
@@ -922,9 +938,7 @@ std::string ReplaceAll(std::string str, const std::string& substr, const std::st
     }
 }
 
-std::string PostProcessSpacing(std::string type) {
-    return ReplaceAll(type, "> >", ">>");
-}
+std::string PostProcessSpacing(std::string type) { return ReplaceAll(type, "> >", ">>"); }
 
 /**************************************************************************************************/
 
@@ -936,7 +950,7 @@ std::string PostProcessType(const clang::Decl* decl, std::string type) {
 
 /**************************************************************************************************/
 
-std::optional<hyde::json> ProcessComments(const Decl* d) {
+hyde::optional_json ProcessComments(const Decl* d) {
     const ASTContext& n = d->getASTContext();
     const FullComment* full_comment = n.getCommentForDecl(d, nullptr);
 
