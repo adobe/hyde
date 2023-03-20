@@ -58,7 +58,7 @@ std::string ReplaceAll(std::string str, const std::string& substr, const std::st
 // type-parameter-N-M filtering.
 std::string PostProcessType(const clang::Decl* decl, std::string type);
 
-// Doxygen-style comment whatnot.
+// Doxygen-style comments.
 std::optional<hyde::json> ProcessComments(const clang::Decl* d);
 
 /**************************************************************************************************/
@@ -108,8 +108,8 @@ std::optional<json> StandardDeclInfo(const hyde::processing_options& options,
 
     if (!AccessCheck(options._access_filter, clang_access)) return std::optional<json>();
 
-    if (auto comment = ProcessComments(d)) {
-        info["inline_comments"] = std::move(*comment);
+    if (auto comments = ProcessComments(d)) {
+        info["comments"] = std::move(*comments);
     }
 
     if (clang_access != clang::AccessSpecifier::AS_none)

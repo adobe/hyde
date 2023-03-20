@@ -411,13 +411,30 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
         return json;
     };
 
+    const auto post_process_hyde_command = [](hyde::json::object_t json) -> hyde::json::object_t {
+        if (json["name"].get<std::string>() != "hyde") return json;
+
+        const std::string text = json["text"].get<std::string>();
+        const auto first_space = text.find_first_of(" \t\n\r\v\f"); // \v and \f? Really?
+
+        if (first_space == std::string::npos) return json;
+
+        const std::string new_command = "hyde" + text.substr(0, first_space);
+        const std::string new_text = text.substr(first_space + 1);
+ 
+        json["name"] = std::move(new_command);
+        json["text"] = std::move(new_text);
+
+        return json;
+    };
+
     switch (comment->getCommentKind()) {
         case Comment::NoCommentKind: break;
         case Comment::BlockCommandCommentKind: {
             const BlockCommandComment* block_command_comment = llvm::dyn_cast_or_null<BlockCommandComment>(comment);
             assert(block_command_comment);
 
-            result["command_name"] = to_string_view(block_command_comment->getCommandName(commandTraits));
+            result["name"] = to_string_view(block_command_comment->getCommandName(commandTraits));
 
             if (auto args = process_comment_args(*block_command_comment)) {
                 result["args"] = std::move(*args);
@@ -428,6 +445,9 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             }
 
             result = roll_up_single_paragraph_child(std::move(result));
+
+            // Do further post-processing if the comment is a hyde command.
+            result = post_process_hyde_command(std::move(result));
         } break;
         case Comment::ParamCommandCommentKind: {
             const ParamCommandComment* param_command_comment = llvm::dyn_cast_or_null<ParamCommandComment>(comment);
@@ -514,7 +534,7 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
             const InlineCommandComment* inline_command_comment = llvm::dyn_cast_or_null<InlineCommandComment>(comment);
             assert(inline_command_comment);
 
-            result["command_name"] = to_string_view(inline_command_comment->getCommandName(commandTraits));
+            result["name"] = to_string_view(inline_command_comment->getCommandName(commandTraits));
 
             if (auto args = process_comment_args(*inline_command_comment)) {
                 result["args"] = std::move(*args);
@@ -538,7 +558,38 @@ std::optional<hyde::json> ProcessComment(const ASTContext& n,
     }
 
     result["kind"] = comment->getCommentKindName();
-    // result["full_text"] = to_string(n, comment->getSourceRange(), true);
+
+    return result;
+}
+
+const char* remap_kind_key(std::string_view key) {
+    if (key == "BlockCommandComment") return "command";
+    else if (key == "FullComment") return "full";
+    else if (key == "HTMLEndTagComment") return "html_end";
+    else if (key == "HTMLStartTagComment") return "html_start";
+    else if (key == "InlineCommandComment") return "command_inline";
+    else if (key == "NoComment") return "none";
+    else if (key == "ParagraphComment") return "paragraph";
+    else if (key == "ParamCommandComment") return "param";
+    else if (key == "TextComment") return "text";
+    else if (key == "TParamCommandComment") return "tparam";
+    else if (key == "VerbatimBlockComment") return "vblock";
+    else if (key == "VerbatimBlockLineComment") return "vblockline";
+    else if (key == "VerbatimLineComment") return "vline";
+
+    return key.data();
+}
+
+std::optional<hyde::json> group_comments_by_kind(hyde::json comments) {
+    if (!comments.is_array()) return std::nullopt;
+
+    hyde::json result;
+
+    for (auto& comment : comments.get<hyde::json::array_t>()) {
+        const char* new_key = remap_kind_key(comment["kind"].get<std::string>());
+        comment.erase("kind");
+        result[new_key].push_back(std::move(comment));
+    }
 
     return result;
 }
@@ -895,7 +946,7 @@ std::optional<hyde::json> ProcessComments(const Decl* d) {
         // The top-level FullComment has only been observed to have
         // children and nothing else. Roll up the children as the
         // comments, then, and shed the needless wrapper.
-        return std::move((*result)["children"]);
+        return group_comments_by_kind(std::move((*result)["children"]));
     }
 
     return std::nullopt;
