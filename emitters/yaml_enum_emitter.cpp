@@ -56,13 +56,13 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     if (j["values"].empty()) return true;
 
     json node = base_emitter_node("enumeration", j["name"], "enumeration");
-    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
+    node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
     maybe_annotate(j, node);
     
     std::string filename;
     for (const auto& ns : j["namespaces"]) {
         const std::string& namespace_str = ns;
-        node["namespace"].push_back(namespace_str);
+        node["hyde"]["namespace"].push_back(namespace_str);
         filename += namespace_str + "::";
     }
     filename = filename_filter(std::move(filename) + name) + ".md";
@@ -71,7 +71,7 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
         json cur_value;
         cur_value["name"] = value["name"];
         cur_value["description"] = tag_value_missing_k;
-        node["values"].push_back(std::move(cur_value));
+        node["hyde"]["values"].push_back(std::move(cur_value));
     }
 
     return reconcile(std::move(node), _dst_root, dst_path(j) / filename, out_emitted);
