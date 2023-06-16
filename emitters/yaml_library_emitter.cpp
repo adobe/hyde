@@ -39,10 +39,10 @@ bool yaml_library_emitter::do_merge(const std::string& filepath,
 
 bool yaml_library_emitter::emit(const json&, json& out_emitted) {
     json node = base_emitter_node("library", tag_value_missing_k, "library");
-    node["library-type"] = "library";
-    node["icon"] = tag_value_missing_k;
-    node["tab"] = tag_value_missing_k;
-    node["short_title"] = tag_value_optional_k;
+    node["hyde"]["library-type"] = "library";
+    node["hyde"]["icon"] = tag_value_missing_k;
+    node["hyde"]["tab"] = tag_value_missing_k;
+    node["hyde"]["short_title"] = tag_value_optional_k;
 
     return reconcile(std::move(node), _dst_root, _dst_root / index_filename_k, out_emitted);
 }

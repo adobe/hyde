@@ -122,17 +122,17 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function");
-    node["defined_in_file"] = defined_path;
+    node["hyde"]["defined_in_file"] = defined_path;
     
     if (!_as_methods && jsn.size() > 0) {
         // All overloads will have the same namespace
         for (const auto& ns : jsn.front()["namespaces"])
-            node["namespace"].push_back(static_cast<const std::string&>(ns));
+            node["hyde"]["namespace"].push_back(static_cast<const std::string&>(ns));
     }
     
-    node["overloads"] = std::move(overloads);
-    if (is_ctor) node["is_ctor"] = true;
-    if (is_dtor) node["is_dtor"] = true;
+    node["hyde"]["overloads"] = std::move(overloads);
+    if (is_ctor) node["hyde"]["is_ctor"] = true;
+    if (is_dtor) node["hyde"]["is_dtor"] = true;
 
     return reconcile(std::move(node), _dst_root, dst / (filename + ".md"), out_emitted);
 }

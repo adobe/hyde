@@ -66,24 +66,24 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
 
 bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     json node = base_emitter_node("class", j["name"], "class");
-    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
+    node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
     maybe_annotate(j, node);
 
     std::string declaration = format_template_parameters(j, true) + '\n' +
                               static_cast<const std::string&>(j["kind"]) + " " +
                               static_cast<const std::string&>(j["qualified_name"]) + ";";
-    node["declaration"] = std::move(declaration);
+    node["hyde"]["declaration"] = std::move(declaration);
 
     for (const auto& ns : j["namespaces"])
-        node["namespace"].push_back(static_cast<const std::string&>(ns));
+        node["hyde"]["namespace"].push_back(static_cast<const std::string&>(ns));
 
-    if (j.count("ctor")) node["ctor"] = static_cast<const std::string&>(j["ctor"]);
-    if (j.count("dtor")) node["dtor"] = static_cast<const std::string&>(j["dtor"]);
+    if (j.count("ctor")) node["hyde"]["ctor"] = static_cast<const std::string&>(j["ctor"]);
+    if (j.count("dtor")) node["hyde"]["dtor"] = static_cast<const std::string&>(j["dtor"]);
 
     if (j.count("fields")) {
         for (const auto& field : j["fields"]) {
             const std::string& key = field["name"];
-            auto& field_node = node["fields"][key];
+            auto& field_node = node["hyde"]["fields"][key];
             field_node["type"] = static_cast<const std::string&>(field["type"]);
             field_node["description"] = tag_value_missing_k;
             maybe_annotate(field, field_node);

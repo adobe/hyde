@@ -171,6 +171,11 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
     move_key("methods");
     move_key("overloads");
 
+    if (j.count("hyde")) {
+        result["hyde"] = json_to_yaml_ordered(j["hyde"]);
+        j.erase("hyde");
+    }
+
     // copy over the remainder of the keys.
     for (auto it = j.begin(); it != j.end(); ++it) {
         result[it.key()] = json_to_yaml(it.value());
@@ -202,9 +207,10 @@ json yaml_base_emitter::base_emitter_node(std::string layout, std::string title,
 
     node["layout"] = std::move(layout);
     node["title"] = std::move(title);
-    node["owner"] = tag_value_missing_k;
-    node["tags"].emplace_back(std::move(tag));
-    node["brief"] = tag_value_missing_k;
+
+    node["hyde"]["owner"] = tag_value_missing_k;
+    node["hyde"]["tags"].emplace_back(std::move(tag));
+    node["hyde"]["brief"] = tag_value_missing_k;
 
     return node;
 }
@@ -215,7 +221,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
     if (j.count("typedefs")) {
         for (const auto& type_def : j["typedefs"]) {
             const std::string& key = type_def["name"];
-            auto& type_node = node["typedefs"][key];
+            auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
             maybe_annotate(type_def, type_node);
@@ -225,7 +231,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
     if (j.count("typealiases")) {
         for (const auto& type_def : j["typealiases"]) {
             const std::string& key = type_def["name"];
-            auto& type_node = node["typedefs"][key];
+            auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
             maybe_annotate(type_def, type_node);
@@ -978,8 +984,9 @@ bool yaml_base_emitter::create_path_directories(std::filesystem::path p) {
     if (p.has_filename()) p = p.parent_path();
 
     std::vector<std::filesystem::path> ancestors;
+    const auto root_path = p.root_path();
 
-    while (true) {
+    while (p != root_path) {
         ancestors.push_back(p);
         if (!p.has_parent_path()) break;
         p = p.parent_path();
@@ -1143,14 +1150,14 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
         const std::string& access = j["access"];
 
         if (access != "public") {
-            node["annotation"].push_back(access);
+            node["hyde"]["annotation"].push_back(access);
         }
     }
 
     if (j.count("default") && j["default"])
-        node["annotation"].push_back("default");
+        node["hyde"]["annotation"].push_back("default");
     else if (j.count("delete") && j["delete"])
-        node["annotation"].push_back("delete");
+        node["hyde"]["annotation"].push_back("delete");
 
     if (j.count("deprecated") && j["deprecated"]) {
         std::string deprecated("deprecated");
@@ -1162,7 +1169,7 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
                                  .append(")");
             }
         }
-        node["annotation"].push_back(deprecated);
+        node["hyde"]["annotation"].push_back(deprecated);
     }
 }
 
