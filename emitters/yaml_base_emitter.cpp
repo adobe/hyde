@@ -185,6 +185,29 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
 }
 
 /**************************************************************************************************/
+// See Issue #75 and PR #80. Take the relevant hyde fields and move them under a top-level
+// `hyde` subfield. Only do this when we're asked to, in case this has already been done and those
+// high-level fields are used by something else. When we do this fixup, we don't know which fields
+// hyde actually uses, so this will move _all_ fields that are not `layout` and `title`.
+hyde::json fixup_hyde_subfield(hyde::json&& j) {
+    hyde::json result;
+
+    if (j.count("layout")) {
+        result["layout"] = std::move(j.at("layout"));
+        j.erase("layout");
+    }
+
+    if (j.count("title")) {
+        result["title"] = std::move(j.at("title"));
+        j.erase("title");
+    }
+
+    result["hyde"] = std::move(j);
+
+    return result;
+}
+
+/**************************************************************************************************/
 
 static const std::string front_matter_delimiter_k("---\n");
 
@@ -1077,6 +1100,11 @@ bool yaml_base_emitter::reconcile(json expected,
         have_contents.erase(front_matter_pos, front_matter_end + front_matter_delimiter_k.size());
         std::string remainder = std::move(have_contents);
         json have = yaml_to_json(load_yaml(path));
+
+        if (_options._fixup_hyde_subfield) {
+            have = fixup_hyde_subfield(std::move(have));
+        }
+
         json merged;
 
         std::tie(failure, merged) = merge(relative_path, have, expected);

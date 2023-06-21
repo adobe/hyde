@@ -55,13 +55,9 @@ static inline bool is_tag(const std::string& s) {
 /**************************************************************************************************/
 
 struct emit_options {
-    attribute_category _tested_by;
-    bool _ignore_extraneous_files;
-    
-    emit_options() :
-        _tested_by(attribute_category::disabled),
-        _ignore_extraneous_files(false)
-    {}
+    attribute_category _tested_by{attribute_category::disabled};
+    bool _ignore_extraneous_files{false};
+    bool _fixup_hyde_subfield{false};
 };
 
 /**************************************************************************************************/
