@@ -171,10 +171,40 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
     move_key("methods");
     move_key("overloads");
 
+    if (j.count("hyde")) {
+        result["hyde"] = json_to_yaml_ordered(j["hyde"]);
+        j.erase("hyde");
+    }
+
     // copy over the remainder of the keys.
     for (auto it = j.begin(); it != j.end(); ++it) {
         result[it.key()] = json_to_yaml(it.value());
     }
+
+    return result;
+}
+
+/**************************************************************************************************/
+// See Issue #75 and PR #80. Take the relevant hyde fields and move them under a top-level
+// `hyde` subfield. Only do this when we're asked to, in case this has already been done and those
+// high-level fields are used by something else. When we do this fixup, we don't know which fields
+// hyde actually uses, so this will move _all_ fields that are not `layout` and `title`.
+hyde::json fixup_hyde_subfield(hyde::json&& j) {
+    hyde::json result;
+
+    if (j.count("layout")) {
+        result["layout"] = std::move(j.at("layout"));
+        j.erase("layout");
+    }
+
+    if (j.count("title")) {
+        result["title"] = std::move(j.at("title"));
+        j.erase("title");
+    }
+
+    result["hyde"] = std::move(j);
+
+    std::string result_str = result.dump(4);
 
     return result;
 }
@@ -202,9 +232,10 @@ json yaml_base_emitter::base_emitter_node(std::string layout, std::string title,
 
     node["layout"] = std::move(layout);
     node["title"] = std::move(title);
-    node["owner"] = tag_value_missing_k;
-    node["tags"].emplace_back(std::move(tag));
-    node["brief"] = tag_value_missing_k;
+
+    node["hyde"]["owner"] = tag_value_missing_k;
+    node["hyde"]["tags"].emplace_back(std::move(tag));
+    node["hyde"]["brief"] = tag_value_missing_k;
 
     return node;
 }
@@ -215,7 +246,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
     if (j.count("typedefs")) {
         for (const auto& type_def : j["typedefs"]) {
             const std::string& key = type_def["name"];
-            auto& type_node = node["typedefs"][key];
+            auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
             maybe_annotate(type_def, type_node);
@@ -225,7 +256,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
     if (j.count("typealiases")) {
         for (const auto& type_def : j["typealiases"]) {
             const std::string& key = type_def["name"];
-            auto& type_node = node["typedefs"][key];
+            auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
             maybe_annotate(type_def, type_node);
@@ -890,11 +921,18 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     } else {
         failure |= check_scalar(filepath, have, expected, "", merged, "title");
     }
-    failure |= check_editable_scalar(filepath, have, expected, "", merged, "owner");
-    failure |= check_editable_scalar(filepath, have, expected, "", merged, "brief");
-    failure |= check_scalar_array(filepath, have, expected, "", merged, "tags");
 
-    failure |= do_merge(filepath, have, expected, merged);
+    {
+    auto& expected_hyde = expected.at("hyde");
+    auto& have_hyde = have.at("hyde");
+    auto& merged_hyde = merged["hyde"];
+
+    failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "owner");
+    failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");
+    failure |= check_scalar_array(filepath, have_hyde, expected_hyde, "", merged_hyde, "tags");
+
+    failure |= do_merge(filepath, have_hyde, expected_hyde, merged_hyde);
+    }
 
     return std::make_pair(failure, std::move(merged));
 }
@@ -1071,6 +1109,11 @@ bool yaml_base_emitter::reconcile(json expected,
         have_contents.erase(front_matter_pos, front_matter_end + front_matter_delimiter_k.size());
         std::string remainder = std::move(have_contents);
         json have = yaml_to_json(load_yaml(path));
+
+        if (_mode == yaml_mode::update && _options._fixup_hyde_subfield) {
+            have = fixup_hyde_subfield(std::move(have));
+        }
+
         json merged;
 
         std::tie(failure, merged) = merge(relative_path, have, expected);
@@ -1144,14 +1187,14 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
         const std::string& access = j["access"];
 
         if (access != "public") {
-            node["annotation"].push_back(access);
+            node["hyde"]["annotation"].push_back(access);
         }
     }
 
     if (j.count("default") && j["default"])
-        node["annotation"].push_back("default");
+        node["hyde"]["annotation"].push_back("default");
     else if (j.count("delete") && j["delete"])
-        node["annotation"].push_back("delete");
+        node["hyde"]["annotation"].push_back("delete");
 
     if (j.count("deprecated") && j["deprecated"]) {
         std::string deprecated("deprecated");
@@ -1163,7 +1206,7 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
                                  .append(")");
             }
         }
-        node["annotation"].push_back(deprecated);
+        node["hyde"]["annotation"].push_back(deprecated);
     }
 }
 

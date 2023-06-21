@@ -127,6 +127,12 @@ static cl::opt<bool> EmitJson(
     cl::cat(MyToolCategory),
     cl::ValueDisallowed);
 
+static cl::opt<bool> FixupHydeSubfield(
+    "fixup-hyde-subfield",
+    cl::desc("Fix-up preexisting documentation; move all fields except `layout` and `title` into a `hyde` subfield. `hyde-update` mode only."),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
+
 static cl::opt<hyde::attribute_category> TestedBy(
     "hyde-tested-by",
     cl::values(
@@ -595,7 +601,8 @@ int main(int argc, const char** argv) try {
         hyde::emit_options emit_options;
         emit_options._tested_by = TestedBy;
         emit_options._ignore_extraneous_files = IgnoreExtraneousFiles;
-        
+        emit_options._fixup_hyde_subfield = FixupHydeSubfield;
+
         auto out_emitted = hyde::json::object();
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
