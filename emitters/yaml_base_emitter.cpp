@@ -204,6 +204,8 @@ hyde::json fixup_hyde_subfield(hyde::json&& j) {
 
     result["hyde"] = std::move(j);
 
+    std::string result_str = result.dump(4);
+
     return result;
 }
 
@@ -919,11 +921,18 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     } else {
         failure |= check_scalar(filepath, have, expected, "", merged, "title");
     }
-    failure |= check_editable_scalar(filepath, have, expected, "", merged, "owner");
-    failure |= check_editable_scalar(filepath, have, expected, "", merged, "brief");
-    failure |= check_scalar_array(filepath, have, expected, "", merged, "tags");
 
-    failure |= do_merge(filepath, have, expected, merged);
+    {
+    auto& expected_hyde = expected.at("hyde");
+    auto& have_hyde = have.at("hyde");
+    auto& merged_hyde = merged["hyde"];
+
+    failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "owner");
+    failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");
+    failure |= check_scalar_array(filepath, have_hyde, expected_hyde, "", merged_hyde, "tags");
+
+    failure |= do_merge(filepath, have_hyde, expected_hyde, merged_hyde);
+    }
 
     return std::make_pair(failure, std::move(merged));
 }
@@ -1101,7 +1110,7 @@ bool yaml_base_emitter::reconcile(json expected,
         std::string remainder = std::move(have_contents);
         json have = yaml_to_json(load_yaml(path));
 
-        if (_options._fixup_hyde_subfield) {
+        if (_mode == yaml_mode::update && _options._fixup_hyde_subfield) {
             have = fixup_hyde_subfield(std::move(have));
         }
 
