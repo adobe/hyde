@@ -61,7 +61,9 @@ There are several modes under which the tool can run:
 - `-hyde-src-root = <path>` - The root path to the header file(s) being analyzed. Affects `defined_in_file` output values by taking out the root path.
 - `-hyde-yaml-dir = <path>` - Root directory for YAML validation / update. Required for either hyde-validate or hyde-update modes.
 
-- `use-system-clang` - Autodetect and use necessary resource directories and include paths
+- `--use-system-clang` - Autodetect and use necessary resource directories and include paths
+
+- `--fixup-hyde-subfield` - As of Hyde v0.1.5, all hyde fields are under a top-level `hyde` subfield in YAML output. This flag will update older hyde documentation that does not have this subfield by creating it, then moving all top-level fields except `title` and `layout` under it. This flag is intended to be used only once during the migration of older documentation from the non-subfield structure to the subfield structure.
 
 This tool parses the passed header using Clang. To pass arguments to the compiler (e.g., include directories), append them after the `--` token on the command line. For example:
 
