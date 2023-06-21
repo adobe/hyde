@@ -978,8 +978,9 @@ bool yaml_base_emitter::create_path_directories(std::filesystem::path p) {
     if (p.has_filename()) p = p.parent_path();
 
     std::vector<std::filesystem::path> ancestors;
+    const auto root_path = p.root_path();
 
-    while (true) {
+    while (p != root_path) {
         ancestors.push_back(p);
         if (!p.has_parent_path()) break;
         p = p.parent_path();
