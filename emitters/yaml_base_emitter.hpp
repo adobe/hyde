@@ -71,6 +71,8 @@ protected:
 
     void maybe_annotate(const json& j, json& node); // make out arg?
 
+    void insert_doxygen(const json& j, json& node); // make out arg?
+
     std::string format_template_parameters(const json& json, bool with_types);
 
     std::string filename_filter(std::string f);

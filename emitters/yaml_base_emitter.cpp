@@ -217,6 +217,47 @@ json yaml_base_emitter::base_emitter_node(std::string layout, std::string title,
 
 /**************************************************************************************************/
 
+void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
+    const auto& comments = j["comments"];
+    auto& output = node["inline"];
+
+    if (comments.count("command")) {
+        for (const auto& item : comments.at("command").items()) {
+            const auto& command = item.value();
+            std::string key = command["name"].get<std::string>();
+            if (key.starts_with("hyde-")) {
+                key = key.substr(5);
+            }
+            output[key] = command["text"].get<std::string>();
+        }
+    }
+
+    if (comments.count("paragraph")) {
+        json::array_t paragraphs;
+        for (const auto& paragraph : comments.at("paragraph").items()) {
+            paragraphs.push_back(paragraph.value().at("text"));
+        }
+        output["description"] = std::move(paragraphs);
+    }
+
+    if (comments.count("param")) {
+        json::object_t arguments;
+        for (const auto& item : comments.at("param").items()) {
+            const auto& param = item.value();
+            const auto& name = param["name"].get<std::string>();
+            json::object_t argument;
+            // REVISIT (fosterbrereton) : Handle things like `direction`, `direction_explicit`, etc.
+            argument["description"] = param["text"].get<std::string>();
+            arguments[name] = std::move(argument);
+        }
+        output["arguments"] = std::move(arguments);
+    }
+
+    // std::cout << j.dump(4) << '\n';
+}
+
+/**************************************************************************************************/
+
 void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
     if (j.count("typedefs")) {
         for (const auto& type_def : j["typedefs"]) {

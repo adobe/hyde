@@ -93,6 +93,12 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
         }
 
         const std::string& key = static_cast<const std::string&>(overload["signature"]);
+
+        // If there are any in-source (a.k.a. Doxygen) comments, insert them into
+        // the node *first* so we can use them to decide if subsequent Hyde fields
+        // can be deferred.
+        insert_doxygen(overload, overloads[key]);
+
         overloads[key]["signature_with_names"] = overload["signature_with_names"];
         // description is now optional when there is a singular variant.
         overloads[key]["description"] = count > 1 ? tag_value_missing_k : tag_value_optional_k;
@@ -122,6 +128,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function");
+
     node["hyde"]["defined_in_file"] = defined_path;
     
     if (!_as_methods && jsn.size() > 0) {
