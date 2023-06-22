@@ -923,9 +923,10 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     }
 
     {
-    auto& expected_hyde = expected.at("hyde");
-    auto& have_hyde = have.at("hyde");
-    auto& merged_hyde = merged["hyde"];
+    static const hyde::json no_json_k;
+    const hyde::json& expected_hyde = expected.at("hyde");
+    const hyde::json& have_hyde = have.count("hyde") ? have.at("hyde") : no_json_k;
+    hyde::json& merged_hyde = merged["hyde"];
 
     failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "owner");
     failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");

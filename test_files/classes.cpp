@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // AST dump with
@@ -15,105 +15,88 @@ written permission of Adobe.
 #include <string>
 #include <vector>
 
-/**************************************************************************************************/
+//------------------------------------------------------------------------------------------------------------------------------------------
 
-namespace hyde {
-
-/**************************************************************************************************/
-
-namespace detail {
-
-/**************************************************************************************************/
-
-void do_implementation(); 
-
-/**************************************************************************************************/
-
-} // namespace detail
-
-/**************************************************************************************************/
-
-class foo {
+class class_example {
 public:
-    enum class color {
-        red,
-        green,
-        blue
-    };
+    enum class color { red, green = 42, blue };
 
-    struct nested_class {
-        int _x;
+    struct nested_class_example {
+        int _x{0};
         int _y;
     };
 
-    typedef std::string my_type;
-    using my_other_type = std::string;
+    typedef std::string typedef_example;
+    using using_example = std::string;
 
-    foo() = default;
+    class_example() = default;
 
-    explicit foo(int x) : _x(x) {}
+    explicit class_example(int x) : _x(x) {}
 
-    auto get_x() const -> int { return _x; }
+    auto member_function_trailing_return_type() const -> int { return _x; }
 
-    void double_x() { _x *= 2; }
+    void member_function() { _x *= 2; }
 
     void overloaded(const std::string& first);
     void overloaded(const std::string& first, const std::string& second) volatile;
     void overloaded(const std::string& first, std::vector<int> second) const;
-    void overloaded(const std::string& first, foo* second, int third, bool fourth, std::size_t fifth);
-    void overloaded(const std::string&, foo*, int); // intentionally unnamed
-    [[deprecated]]
-    void deprecated(const std::string& first, foo* second);
-    [[deprecated("message")]]
-    void deprecated_with_message(const std::string& s, foo* f);
+    void overloaded(
+        const std::string& first, class_example* second, int third, bool fourth, std::size_t fifth);
+    void overloaded(const std::string&, class_example*, int); // intentionally unnamed
+    [[deprecated]] void overloaded();
 
-    static const int static_member = 0;
+    [[deprecated]] void deprecated(const std::string& first, class_example* second);
+    [[deprecated("message")]] void deprecated_with_message(const std::string& s, class_example* f);
+
+    static const int _static_member = 0;
 
     static int static_method() { return 0; };
 
+    template <typename U>
+    void template_member_function() {}
+
+    template <>
+    void template_member_function<double>() {}
+
 private:
     int _x;
-    [[deprecated("message")]]
-    int deprecated_member = 0;
-    nested_class _nested;
+    [[deprecated("message")]] int _deprecated_member = 0;
+    nested_class_example _nested;
 };
 
+//------------------------------------------------------------------------------------------------------------------------------------------
 
+template <typename T>
+struct specialization_example {
+    constexpr auto as_tuple() const { return std::forward_as_tuple(); }
+};
 
-  template <typename T>
-    struct property_limits {
-        constexpr auto as_tuple() const { return std::forward_as_tuple(); }
-    };
+template <>
+struct specialization_example<std::int32_t> {
+    using value_type = std::int32_t;
+    value_type _first{0};
+    constexpr auto as_tuple() const { return std::forward_as_tuple(_first); }
+};
 
-    template<>
-    struct property_limits<std::int32_t> {
-        using value_type = std::int32_t;
-        value_type _min{0};
-        value_type _max{0};
-        value_type _step{0};
-        constexpr auto as_tuple() const { return std::forward_as_tuple(_min, _max, _step); }
-    };
+template <>
+struct specialization_example<float> {
+    using value_type = float;
+    value_type _first{0};
+    constexpr auto as_tuple() const { return std::forward_as_tuple(_first); }
+};
 
-    template<>
-    struct property_limits<float> {
-        using value_type = float;
-        value_type _min{0};
-        value_type _max{0};
-        value_type _step{0};
-        // dragons galore here now with floating point comparisons going on.
-        constexpr auto as_tuple() const { return std::forward_as_tuple(_min, _max, _step); }
-    };
+//------------------------------------------------------------------------------------------------------------------------------------------
 
+template <class T1, class T2>
+class partial_specialization_example {
+    T1 _first;
+    T2 _second;
+};
 
-    template<class T1, class T2>
-    class A {};    
- 
-    template<class T>
-    class A<int, T> {};
+template <class T>
+class partial_specialization_example<int, T> {
+    std::string _first;
+    T _second;
+};
 
-
-/**************************************************************************************************/
-
-} // namespace hyde
-
-/**************************************************************************************************/
+//------------------------------------------------------------------------------------------------------------------------------------------

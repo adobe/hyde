@@ -56,7 +56,15 @@ namespace {
 std::filesystem::path make_absolute(std::filesystem::path path) {
     if (path.is_absolute()) return path;
     static const auto pwd = std::filesystem::current_path();
-    return canonical(pwd / path);
+    std::error_code ec;
+    const auto relative = pwd / path;
+    auto result = weakly_canonical(relative, ec);
+
+    if (!ec) {
+        return result;
+    }
+
+    throw std::runtime_error("make_absolute: \"" + relative.string() + "\": " + ec.message());
 }
 
 /**************************************************************************************************/

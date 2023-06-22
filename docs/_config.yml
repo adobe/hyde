@@ -10,9 +10,9 @@ title: Hyde Example Docs
 subtitle: Website showing a possible Jekyll-formatted hyde output.
 email: noreply@adobe.com
 baseurl: /hyde
-url: "http://github.com/adobe/hyde" # the base hostname & protocol for your site
+url: "https://opensource.adobe.com/" # the base hostname & protocol for your site
 repository: adobe/hyde
-remote_theme: adobe/hyde-theme@v1.0.0
+remote_theme: adobe/hyde-theme@develop
 exclude:
     - "*.sh"
     - vendor # For Travis-CI (see https://jekyllrb.com/docs/continuous-integration/)
@@ -25,5 +25,4 @@ markdown: kramdown
 
 plugins:
   - jekyll-redirect-from
-
-theme: jekyll-theme-slate
+  - jekyll-remote-theme
