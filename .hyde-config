@@ -1,4 +1,8 @@
 {
-    "hyde-src-root" : ".",
-    "hyde-yaml-dir" : "./docs/libraries"
+    "hyde-src-root" : "./test_files",
+    "hyde-yaml-dir" : "./docs/libraries",
+    "clang_flags": [
+        "--std=c++2a",
+        "-Wno-everything"
+    ]
 }
