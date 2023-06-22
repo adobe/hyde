@@ -55,14 +55,17 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     // Most likely an enum forward declaration. Nothing to document here.
     if (j["values"].empty()) return true;
 
-    json node = base_emitter_node("enumeration", j["name"], "enumeration");
-    node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
+    json base_node = base_emitter_node("enumeration", j["name"], "enumeration");
+    json& node = base_node["hyde"];
+
+    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
     maybe_annotate(j, node);
-    
+    insert_doxygen(j, node);
+
     std::string filename;
     for (const auto& ns : j["namespaces"]) {
         const std::string& namespace_str = ns;
-        node["hyde"]["namespace"].push_back(namespace_str);
+        node["namespace"].push_back(namespace_str);
         filename += namespace_str + "::";
     }
     filename = filename_filter(std::move(filename) + name) + ".md";
@@ -71,10 +74,10 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
         json cur_value;
         cur_value["name"] = value["name"];
         cur_value["description"] = tag_value_missing_k;
-        node["hyde"]["values"].push_back(std::move(cur_value));
+        node["values"].push_back(std::move(cur_value));
     }
 
-    return reconcile(std::move(node), _dst_root, dst_path(j) / filename, out_emitted);
+    return reconcile(std::move(base_node), _dst_root, dst_path(j) / filename, out_emitted);
 }
 
 /**************************************************************************************************/

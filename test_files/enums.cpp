@@ -9,19 +9,33 @@ then your use, modification, or distribution of it requires the prior
 written permission of Adobe.
 */
 
+/// @file
+/// @brief Enumeration sample source file.
+/// @hyde-owner fosterbrereton
+
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// @brief An example typed enumeration with three values.
+/// @hyde-owner fosterbrereton
 enum class color_channel {
+    /// Red commentary
     red,
-    green,
+    /// Green commentary. Note this enum has a pre-set value.
+    green = 42,
+    /// Blue commentary
     blue,
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// @brief An example untyped enumeration with three values.
+/// @hyde-owner fosterbrereton
 enum untyped {
+    /// Apple commentary
     apple,
+    /// Orange commentary
     orange,
+    /// Banana commentary
     banana,
 };
 

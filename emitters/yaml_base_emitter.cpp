@@ -178,6 +178,7 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
 
     // copy over the remainder of the keys.
     for (auto it = j.begin(); it != j.end(); ++it) {
+        std::cout << "moved " << it.key() << '\n';
         result[it.key()] = json_to_yaml(it.value());
     }
 
@@ -278,7 +279,7 @@ void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
         output["arguments"] = std::move(arguments);
     }
 
-    // std::cout << j.dump(4) << '\n';
+    std::cout << j.dump(4) << '\n';
 }
 
 /**************************************************************************************************/
@@ -870,6 +871,8 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
                                   json& merged_node,
                                   const std::string& key,
                                   const check_proc& proc) {
+    const bool at_root = key == "<root>";
+
     const auto notify = [&](const std::string& validate_message,
                             const std::string& update_message) {
         check_notify(filepath, nodepath, key, validate_message, update_message);
@@ -914,8 +917,11 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
         std::string curnodepath = nodepath + "['" + subkey + "']";
 
         if (!expected.count(subkey)) {
-            notify("extraneous map key: `" + subkey + "`", "map key removed: `" + subkey + "`");
-            failure = true;
+            // Issue #75: only remove non-root keys to allow non-hyde YAML into the file.
+            if (!at_root) {
+                notify("extraneous map key: `" + subkey + "`", "map key removed: `" + subkey + "`");
+                failure = true;
+            }
         } else if (!have.count(subkey)) {
             notify("map key missing: `" + subkey + "`", "map key inserted: `" + subkey + "`");
             result_map[subkey] = expected[subkey];
