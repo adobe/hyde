@@ -29,9 +29,9 @@ written permission of Adobe.
 // application
 #include "autodetect.hpp"
 #include "config.hpp"
-#include "emitters/yaml_base_emitter_fwd.hpp"
 #include "json.hpp"
 #include "output_yaml.hpp"
+#include "emitters/yaml_base_emitter_fwd.hpp"
 
 // instead of this, probably have a matcher manager that pushes the json object
 // into the file then does the collation and passes it into jsonAST to do
@@ -56,7 +56,15 @@ namespace {
 std::filesystem::path make_absolute(std::filesystem::path path) {
     if (path.is_absolute()) return path;
     static const auto pwd = std::filesystem::current_path();
-    return canonical(pwd / path);
+    std::error_code ec;
+    const auto relative = pwd / path;
+    auto result = weakly_canonical(relative, ec);
+
+    if (!ec) {
+        return result;
+    }
+
+    throw std::runtime_error("make_absolute: \"" + relative.string() + "\": " + ec.message());
 }
 
 /**************************************************************************************************/
@@ -114,29 +122,31 @@ static cl::opt<ToolDiagnostic> ToolDiagnostic(
     cl::values(
         clEnumValN(ToolDiagnosticQuiet, "hyde-quiet", "output less to the console (default)"),
         clEnumValN(ToolDiagnosticVerbose, "hyde-verbose", "output more to the console"),
-        clEnumValN(ToolDiagnosticVeryVerbose,
-                   "hyde-very-verbose",
-                   "output much more to the console")),
+        clEnumValN(ToolDiagnosticVeryVerbose, "hyde-very-verbose", "output much more to the console")),
     cl::cat(MyToolCategory));
-static cl::opt<std::string> YamlDstDir("hyde-yaml-dir",
-                                       cl::desc("Root directory for YAML validation / update"),
-                                       cl::cat(MyToolCategory));
+static cl::opt<std::string> YamlDstDir(
+    "hyde-yaml-dir",
+    cl::desc("Root directory for YAML validation / update"),
+    cl::cat(MyToolCategory));
 
-static cl::opt<bool> EmitJson("hyde-emit-json",
-                              cl::desc("Output JSON emitted from operation"),
-                              cl::cat(MyToolCategory),
-                              cl::ValueDisallowed);
+static cl::opt<bool> EmitJson(
+    "hyde-emit-json",
+    cl::desc("Output JSON emitted from operation"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
+
+static cl::opt<bool> FixupHydeSubfield(
+    "fixup-hyde-subfield",
+    cl::desc("Fix-up preexisting documentation; move all fields except `layout` and `title` into a `hyde` subfield. `hyde-update` mode only."),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::opt<hyde::attribute_category> TestedBy(
     "hyde-tested-by",
     cl::values(
-        clEnumValN(hyde::attribute_category::disabled,
-                   "disabled",
-                   "Disable tested_by attribute (default)"),
+        clEnumValN(hyde::attribute_category::disabled, "disabled", "Disable tested_by attribute (default)"),
         clEnumValN(hyde::attribute_category::required, "required", "Require tested_by attribute"),
-        clEnumValN(hyde::attribute_category::optional,
-                   "optional",
-                   "Enable tested_by attribute with optional value")),
+        clEnumValN(hyde::attribute_category::optional, "optional", "Enable tested_by attribute with optional value")),
     cl::cat(MyToolCategory));
 
 static cl::opt<std::string> YamlSrcDir(
@@ -162,10 +172,11 @@ static cl::opt<bool> AutoToolchainIncludes(
     cl::ValueDisallowed);
 
 #if HYDE_PLATFORM(APPLE)
-static cl::opt<bool> AutoSysrootDirectory("auto-sysroot",
-                                          cl::desc("Autodetect and use isysroot"),
-                                          cl::cat(MyToolCategory),
-                                          cl::ValueDisallowed);
+static cl::opt<bool> AutoSysrootDirectory(
+    "auto-sysroot",
+    cl::desc("Autodetect and use isysroot"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 #endif
 
 static cl::opt<bool> UseSystemClang(
@@ -184,15 +195,17 @@ static cl::list<std::string> NamespaceBlacklist(
     cl::cat(MyToolCategory),
     cl::CommaSeparated);
 
-static cl::opt<bool> ProcessClassMethods("process-class-methods",
-                                         cl::desc("Process Class Methods"),
-                                         cl::cat(MyToolCategory),
-                                         cl::ValueDisallowed);
-
-static cl::opt<bool> IgnoreExtraneousFiles("ignore-extraneous-files",
-                                           cl::desc("Ignore extraneous files while validating"),
-                                           cl::cat(MyToolCategory),
-                                           cl::ValueDisallowed);
+static cl::opt<bool> ProcessClassMethods(
+    "process-class-methods",
+    cl::desc("Process Class Methods"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
+    
+static cl::opt<bool> IgnoreExtraneousFiles(
+    "ignore-extraneous-files",
+    cl::desc("Ignore extraneous files while validating"),
+    cl::cat(MyToolCategory),
+    cl::ValueDisallowed);
 
 static cl::extrahelp HydeHelp(
     "\nThis tool parses the header source(s) using Clang. To pass arguments to the\n"
@@ -269,7 +282,8 @@ optional_path_t find_hyde_config(std::filesystem::path src_file) {
 
 /**************************************************************************************************/
 
-std::pair<std::filesystem::path, hyde::json> load_hyde_config(std::filesystem::path src_file) try {
+std::pair<std::filesystem::path, hyde::json> load_hyde_config(
+    std::filesystem::path src_file) try {
     optional_path_t hyde_config_path(find_hyde_config(src_file));
 
     if (IsVerbose()) {
@@ -280,9 +294,10 @@ std::pair<std::filesystem::path, hyde::json> load_hyde_config(std::filesystem::p
         }
     }
 
-    return hyde_config_path ? std::make_pair(hyde_config_path->parent_path(),
-                                             hyde::json::parse(std::ifstream(*hyde_config_path))) :
-                              std::make_pair(std::filesystem::path(), hyde::json());
+    return hyde_config_path ?
+               std::make_pair(hyde_config_path->parent_path(),
+                              hyde::json::parse(std::ifstream(*hyde_config_path))) :
+               std::make_pair(std::filesystem::path(), hyde::json());
 } catch (...) {
     throw std::runtime_error("failed to parse the hyde-config file");
 }
@@ -440,8 +455,7 @@ int main(int argc, const char** argv) try {
     }
     sourcePaths.assign(s.begin(), s.end());
     MatchFinder Finder;
-    hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist,
-                                     ProcessClassMethods};
+    hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist, ProcessClassMethods};
 
     hyde::FunctionInfo function_matcher(options);
     Finder.addMatcher(hyde::FunctionInfo::GetMatcher(), &function_matcher);
@@ -475,7 +489,7 @@ int main(int argc, const char** argv) try {
 #if HYDE_PLATFORM(APPLE)
     //
     // Specify the isysroot directory to the driver
-    //
+    // 
     // in some versions of osx they have stopped using `/usr/include`; Apple seems to rely
     // on the isysroot parameter to accomplish this task in the general case, so we add it here.
     std::filesystem::path include_dir{"/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"};
@@ -515,7 +529,7 @@ int main(int argc, const char** argv) try {
 
     //
     // Specify the resource directory to the driver
-    //
+    // 
     // this may not work on windows, need to investigate using strings
     std::filesystem::path resource_dir;
 
@@ -539,39 +553,24 @@ int main(int argc, const char** argv) try {
     // Specify the hyde preprocessor macro
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
 
-    // Have the driver parse comments. See:
-    // https://clang.llvm.org/docs/UsersManual.html#comment-parsing-options
-    // This isn't strictly necessary, as Doxygen comments will be detected
-    // and parsed regardless. Better to be thorough, though.
-    arguments.emplace_back("-fparse-all-comments");
-
-    // Enables some checks built in to the clang driver to ensure comment
-    // documentation matches whatever it is documenting.
-    arguments.emplace_back("-Wdocumentation");
-
-    // Add hyde-specific commands to the Clang Doxygen parser. For hyde, we'll require the first
-    // word to be the hyde field (e.g., `@hyde-owner fosterbrereton`.) Because the Doxygen parser
-    // doesn't consider `-` or `_` as part of the command token, the first word will be
-    // `-owner` in this case, which gives us something parseable, and it reads
-    // reasonably in the code as well.
-    arguments.emplace_back("-fcomment-block-commands=hyde");
-
     //
     // Spin up the tool and run it.
     //
 
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
 
-    Tool.appendArgumentsAdjuster(
-        [](const CommandLineArguments& arguments, StringRef Filename) { return arguments; });
+    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
+        return arguments;
+    });
 
     Tool.appendArgumentsAdjuster(OptionsParser.getArgumentsAdjuster());
 
     Tool.appendArgumentsAdjuster(
         getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
 
-    Tool.appendArgumentsAdjuster(
-        [](const CommandLineArguments& arguments, StringRef Filename) { return arguments; });
+    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
+        return arguments;
+    });
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");
@@ -610,13 +609,13 @@ int main(int argc, const char** argv) try {
         hyde::emit_options emit_options;
         emit_options._tested_by = TestedBy;
         emit_options._ignore_extraneous_files = IgnoreExtraneousFiles;
+        emit_options._fixup_hyde_subfield = FixupHydeSubfield;
 
         auto out_emitted = hyde::json::object();
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,
                     ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
-                                                       hyde::yaml_mode::update,
-                    std::move(emit_options));
-
+                                                       hyde::yaml_mode::update, std::move(emit_options));
+        
         if (EmitJson) {
             std::cout << out_emitted << '\n';
         }
