@@ -46,11 +46,13 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
+            copy_inline_comments(expected, out_merged);
+
             return failure;
         });
 
     failure |= check_typedefs(filepath, have, expected, "", out_merged);
-    
+
     failure |= check_object_array(
         filepath, have, expected, "", out_merged, "methods", "title",
         [this](const std::string& filepath, const json& have, const json& expected,
@@ -58,6 +60,8 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, _options, true);
             return function_emitter.do_merge(filepath, have, expected, out_merged);
         });
+
+    copy_inline_comments(expected, out_merged);
 
     return failure;
 }
@@ -87,6 +91,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
             field_node["type"] = static_cast<const std::string&>(field["type"]);
             field_node["description"] = tag_value_missing_k;
             maybe_annotate(field, field_node);
+            insert_doxygen(field, field_node);
         }
     }
 

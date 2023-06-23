@@ -57,11 +57,20 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
                     failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
                     failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "unnamed");
 
+                    copy_inline_comments(expected, out_merged);
+
                     return failure;
                 });
 
+            copy_inline_comments(expected, out_merged);
+
             return failure;
         });
+
+    // REVISIT (fosterbrereton) : Roll-up the owners and briefs/descriptions to see if we can derive
+    // a set of inline values here from inline values used in the function definition(s).
+
+    copy_inline_comments(expected, out_merged);
 
     return failure;
 }

@@ -21,15 +21,6 @@ namespace hyde {
 
 /**************************************************************************************************/
 
-void copy_inline_comments(const json& expected, json& out_merged) {
-    // inline comments *always* come from the sources. Therefore, they are always overwritten in the merge.
-    if (expected.count("inline")) {
-        out_merged["inline"] = expected.at("inline");
-    }
-}
-
-/**************************************************************************************************/
-
 bool yaml_enum_emitter::do_merge(const std::string& filepath,
                                  const json& have,
                                  const json& expected,

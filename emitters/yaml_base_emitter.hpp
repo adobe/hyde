@@ -80,6 +80,8 @@ protected:
 
     void insert_typedefs(const json& j, json& node);
 
+    void copy_inline_comments(const json& expected, json& out_merged);
+
     bool check_typedefs(const std::string& filepath,
                         const json& have_node,
                         const json& expected_node,

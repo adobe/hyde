@@ -21,95 +21,118 @@ written permission of Adobe.
 class class_example {
 public:
     /// @brief an example enumeration within the class.
-    enum class color { red, green = 42, blue };
+    /// @hyde-owner fosterbrereton
+    enum class color {
+        /// this is an example description for the `red` value.
+        red,
+        /// this is an example description for the `green` value.
+        green = 42,
+        /// this is an example description for the `blue` value.
+        blue
+    };
 
     /// @brief a class definition contained within `example_class`.
+    /// @hyde-owner fosterbrereton
     struct nested_class_example {
+        /// member field `_x` within the nested class example.
         int _x{0};
+
+        /// member field `_y` within the nested class example.
         int _y;
     };
 
 
-    /// @brief a nested typedef expression.
+    /// a nested typedef expression.
     typedef std::string typedef_example;
 
-    /// @brief a nested using expression.
+    /// a nested using expression.
     using using_example = std::string;
 
 
-    /// @brief default constructor.
+    /// default constructor.
     class_example() = default;
 
-    /// @brief an explicit constructor that takes a single `int`.
+    /// an explicit constructor that takes a single `int`.
+    /// @param x The one integer parameter this routine takes
     explicit class_example(int x) : _x(x) {}
 
-    /// @brief member function with a trailing return type.
+
+    /// member function with a trailing return type.
+    /// @return "`_x`"
     auto member_function_trailing_return_type() const -> int { return _x; }
 
-    /// @brief example member function.
-    void member_function() { _x *= 2; }
+    /// example member function.
+    /// @return double the value of `_x`.
+    auto member_function() { return _x *= 2; }
 
-    /// @brief an overloaded member function that takes one parameter.
+
+    /// an overloaded member function that takes one parameter.
     /// @param first the first parameter of the first overload.
+    /// @hyde-owner fosterbrereton
     void overloaded(const std::string& first);
 
-    /// @brief an overloaded member function that takes two parameters.
+    /// an overloaded member function that takes two parameters.
     /// @param first the first parameter of the second overload.
     /// @param second the second parameter of the second overload.
+    /// @hyde-owner fosterbrereton
     void overloaded(const std::string& first, const std::string& second) volatile;
 
-    /// @brief another overloaded member function that takes two parameters.
+    /// another overloaded member function that takes two parameters.
     /// @param first the first parameter of the third overload.
     /// @param second the second parameter of the third overload.
+    /// @hyde-owner fosterbrereton
     void overloaded(const std::string& first, std::vector<int> second) const;
 
-    /// @brief an overloaded member function that takes _five_ parameters.
+    /// an overloaded member function that takes _five_ parameters.
     /// @param first the first parameter of the fourth overload.
     /// @param second the second parameter of the fourth overload.
     /// @param third the third parameter of the fourth overload.
     /// @param fourth the fourth parameter of the fourth overload.
     /// @param fifth the fifth parameter of the fourth overload.
+    /// @hyde-owner fosterbrereton
     void overloaded(
         const std::string& first, class_example* second, int third, bool fourth, std::size_t fifth);
 
-    /// @brief an overloaded member function that takes three unnamed parameters.
+    /// an overloaded member function that takes three unnamed parameters.
     /// Let it be known that Doxygen doesn't support documenting unnamed parameters at this time.
-    /// There is a bug open on the issue, but as of this writing does not appear to be progressing:
-    /// https://github.com/doxygen/doxygen/issues/6926
+    /// There is a [bug open on the issue](https://github.com/doxygen/doxygen/issues/6926), but as
+    /// of this writing does not appear to be progressing.
+    /// @hyde-owner fosterbrereton
     void overloaded(const std::string&, class_example*, int); // intentionally unnamed
 
-    /// @brief an overloaded member function that takes zero unnamed parameters.
+    /// an overloaded member function that takes zero unnamed parameters.
+    /// @hyde-owner fosterbrereton
     [[deprecated]] void overloaded();
 
 
-    /// @brief deprecated member function
+    /// deprecated member function
     [[deprecated]] void deprecated(const std::string& first, class_example* second);
 
-    /// @brief deprecated member function that contains a compile-time deprecation message.
+    /// deprecated member function that contains a compile-time deprecation message.
     [[deprecated("message")]] void deprecated_with_message(const std::string& s, class_example* f);
 
-    /// @brief static member variable.
+    /// static member variable.
     static const int _static_member = 0;
 
-    /// @brief static member function.
+    /// static member function.
     static int static_method() { return 0; };
 
-    /// @brief templatized member function.
+    /// templatized member function.
     template <typename U>
     void template_member_function() {}
 
-    /// @brief specialization of the above templatized member function.
+    /// specialization of the above templatized member function.
     template <>
     void template_member_function<double>() {}
 
 private:
-    /// @brief some variable that holds an integer.
+    /// some variable that holds an integer.
     int _x;
 
-    /// @brief a deprecated member variable that contains a message. Apparently this works?!
+    /// a deprecated member variable that contains a message. Apparently this works?!
     [[deprecated("message")]] int _deprecated_member = 0;
 
-    /// @brief an instance of the nested class example defined earlier.
+    /// an instance of the nested class example defined earlier.
     nested_class_example _nested;
 };
 

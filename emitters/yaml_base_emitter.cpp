@@ -248,7 +248,9 @@ json yaml_base_emitter::base_emitter_node(std::string layout, std::string title,
 /**************************************************************************************************/
 
 void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
-    const auto& comments = j["comments"];
+    if (!j.count("comments")) return;
+
+    const auto& comments = j.at("comments");
     auto& output = node["inline"];
 
     if (comments.count("command")) {
@@ -296,6 +298,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
             maybe_annotate(type_def, type_node);
+            insert_doxygen(type_def, type_node);
         }
     }
 
@@ -306,7 +309,17 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
             maybe_annotate(type_def, type_node);
+            insert_doxygen(type_def, type_node);
         }
+    }
+}
+
+/**************************************************************************************************/
+
+void yaml_base_emitter::copy_inline_comments(const json& expected, json& out_merged) {
+    // inline comments *always* come from the sources. Therefore, they are always overwritten in the merge.
+    if (expected.count("inline")) {
+        out_merged["inline"] = expected.at("inline");
     }
 }
 
@@ -326,6 +339,8 @@ bool yaml_base_emitter::check_typedefs(const std::string& filepath,
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "definition");
             failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+
+            copy_inline_comments(expected, out_merged);
 
             return failure;
         });
@@ -544,6 +559,8 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
         return false;
     }
 
+    // Among other cases, this check will handle when tags go from __MISSING__ to __INLINED__ and
+    // vice versa.
     if (hyde::is_tag(have_scalar)) {
         notify("found unexpected tag `" + have_scalar + "`",
                "tag updated from `" + have_scalar + "` to `" + default_value_scalar + "`");

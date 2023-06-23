@@ -560,8 +560,12 @@ int main(int argc, const char** argv) try {
     arguments.emplace_back("-fparse-all-comments");
 
     // Enables some checks built in to the clang driver to ensure comment
-    // documentation matches whatever it is documenting.
-    arguments.emplace_back("-Wdocumentation");
+    // documentation matches whatever it is documenting. We also make it
+    // an error because the documentation should be accurate when generated.
+    arguments.emplace_back("-Werror=documentation");
+    arguments.emplace_back("-Werror=documentation-deprecated-sync");
+    arguments.emplace_back("-Werror=documentation-html");
+    arguments.emplace_back("-Werror=documentation-pedantic");
 
     // Add hyde-specific commands to the Clang Doxygen parser. For hyde, we'll require the first
     // word to be the hyde field (e.g., `@hyde-owner fosterbrereton`.) Because the Doxygen parser
