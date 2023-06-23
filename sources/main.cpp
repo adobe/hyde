@@ -553,24 +553,33 @@ int main(int argc, const char** argv) try {
     // Specify the hyde preprocessor macro
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
 
+    // Have the driver parse comments. See:
+    // https://clang.llvm.org/docs/UsersManual.html#comment-parsing-options
+    // This isn't strictly necessary, as Doxygen comments will be detected
+    // and parsed regardless. Better to be thorough, though.
+    arguments.emplace_back("-fparse-all-comments");
+
+    // Enables some checks built in to the clang driver to ensure comment
+    // documentation matches whatever it is documenting.
+    arguments.emplace_back("-Wdocumentation");
+
+    // Add hyde-specific commands to the Clang Doxygen parser. For hyde, we'll require the first
+    // word to be the hyde field (e.g., `@hyde-owner fosterbrereton`.) Because the Doxygen parser
+    // doesn't consider `-` or `_` as part of the command token, the first word will be
+    // `-owner` in this case, which gives us something parseable, and it reads
+    // reasonably in the code as well.
+    arguments.emplace_back("-fcomment-block-commands=hyde");
+
     //
     // Spin up the tool and run it.
     //
 
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
 
-    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
-        return arguments;
-    });
-
     Tool.appendArgumentsAdjuster(OptionsParser.getArgumentsAdjuster());
 
     Tool.appendArgumentsAdjuster(
         getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
-
-    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
-        return arguments;
-    });
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");

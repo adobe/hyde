@@ -9,9 +9,8 @@ then your use, modification, or distribution of it requires the prior
 written permission of Adobe.
 */
 
-/// @file
-/// @brief Enumeration sample source file.
-/// @hyde-owner fosterbrereton
+// AST dump with
+// clang --std=c++1z -Xclang -ast-dump -fsyntax-only ./enums.cpp
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 

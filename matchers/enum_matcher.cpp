@@ -51,6 +51,10 @@ void EnumInfo::run(const MatchFinder::MatchResult& Result) {
 
         enumerator["name"] = p->getNameAsString();
 
+        if (auto comments = ProcessComments(p)) {
+            enumerator["comments"] = std::move(*comments);
+        }
+
         info["values"].push_back(std::move(enumerator));
     }
 

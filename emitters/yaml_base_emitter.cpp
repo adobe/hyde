@@ -30,6 +30,11 @@ namespace {
 
 /**************************************************************************************************/
 
+static const hyde::json no_json_k;
+static const hyde::json inline_json_k(hyde::tag_value_use_inline_k);
+
+/**************************************************************************************************/
+
 YAML::Node update_cleanup(const YAML::Node& node) {
     YAML::Node result;
 
@@ -178,7 +183,6 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
 
     // copy over the remainder of the keys.
     for (auto it = j.begin(); it != j.end(); ++it) {
-        std::cout << "moved " << it.key() << '\n';
         result[it.key()] = json_to_yaml(it.value());
     }
 
@@ -279,7 +283,7 @@ void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
         output["arguments"] = std::move(arguments);
     }
 
-    std::cout << j.dump(4) << '\n';
+    // std::cout << j.dump(4) << '\n';
 }
 
 /**************************************************************************************************/
@@ -417,6 +421,57 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
 }
 
 /**************************************************************************************************/
+// The intent of this routine is to arrive at the ideal output given the various bits of state the
+// engine has available to it. The two major players are `have` (the data that has been parsed out
+// of documentation that already exists) and `expected` (the data derived by the engine from
+// compiling the source file). In addition to user-entered values in the `have` data, there are a
+// handful of predefined values for the key that also play a part (missing, inlined, deprecated,
+// etc.) Both `have` and `expected` come in as json blobs that might contain an entry under `key`.
+// The goal is to affect `merged_node` (which is also a json blob) under that same `key`. I
+// say "affect" because it doesn't always mean setting a value to the output - sometimes it's
+// the _removal_ of said key. Hopefully this all is made more clear by the path outlined below.
+//
+// It's worth adding a comment about "associated inline" values. To start, this is data extracted
+// from the source file's Doxygen-formatted inline comments (hence the term). Therefore, this data
+// is _always_ derived, and _never_ modified by `have`. Thus, if inline values exist, they are
+// always copied from `expected` into the merged output. In order for an inline value to be
+// considered "associated" with a given entry `expected[key]`, the value must exist under `expected
+// ["inline"][key]`. The associated value type is not always a string (for example, inline comments
+// can be an array of strings _or_ a single string. Those value type differences need to be
+// accounted for in the Jekyll theme that will be displaying that data - we don't care about them
+// here.)
+//
+// A word on the "special" values. These are placeholder string values that, depending on their
+// individual semantics, will affect how the final documentation is displayed:
+//     - __MISSING__: This is the value most developers will be familiar with. In order for the
+//         documentation to pass validation, all __MISSING__ fields must be manually filled in.
+//     - __OPTIONAL__: This field's value is not required for validation and will be shown if
+//         manually filled in.
+//     - __DEPRECATED__: This field will be found in `expected`, and will cause the equivalent field
+//         in `have` to be removed.
+//     - __INLINED__: The value _would_ be __MISSING__ except that there is an associated inline
+//         value for the field, and thus the minimum requirement for documentation has been met,
+//         and validation will pass for this field. Users are allowed to replace this value should
+//         they want to add further documentation. 
+//
+// These `check_` routines are used for both the validation and update phases. Their logic is the
+// same, but how they behave will differ (e.g., inserting a value [updating] v. reporting a value
+// missing [validating].)
+//
+// The logical gist of this routine is as follows:
+//     - If `expected[key]` doesn't exist, make sure `have[key]` doesn't either. Done.
+//     - If `expected[key]` isn't a string, we're in the wrong routine. Done. In other words, all
+//       hyde scalars are strings.
+//     - If `expected[key]` has an associated inline value, set `default_value` to __INLINED__
+//         - Otherwise, set `default_value` to __MISSING__
+//     - If `have[key]` does not exist, the result is `default_value`. Done.
+//     - If `have[key]` is not a scalar, the result is `default_value`. Done.
+//     - If both `expected[key]` and `have[key]` are __MISSING__, the result is
+//       `default_value`. Done.
+//     - If `expected[key]` is __DEPRECATED__, result is no output. Done.
+//     - If `expected[key]` and `have[key]` are both __OPTIONAL__, result is __OPTIONAL__. Done.
+//     - If `have[key]` is a special tag value, result is `default_value`. Done.
+//     - Otherwise, result is `have[key]`. Done.
 
 bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
                                               const json& have_node,
@@ -434,12 +489,18 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
     }
 
     const json& expected = expected_node[key];
+    const bool has_associated_inline_value = expected_node.count("inline") && expected_node.at("inline").count(key);
 
     if (!expected.is_string()) {
         throw std::runtime_error("expected type mismatch?");
     }
 
     const std::string& expected_scalar(expected);
+    const bool expected_set_to_missing = expected_scalar == tag_value_missing_k;
+    const bool use_inline_value = expected_set_to_missing && has_associated_inline_value;
+    const json& default_value = use_inline_value ? inline_json_k : expected;
+    const std::string& default_value_scalar(default_value);
+
     json& result = merged_node[key];
 
     if (!have_node.count(key)) {
@@ -448,28 +509,27 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
             return false;
         } else {
             notify("value missing", "value inserted");
-            result = expected;
+            result = default_value;
             return true;
         }
     }
-    
+
     const json& have = have_node[key];
-    
+
     if (!have.is_string()) {
-        notify("value not scalar; expected `" + expected_scalar + "`",
-               "value not scalar; updated to `" + expected_scalar + "`");
-        result = expected;
+        notify("value not scalar; expected `" + default_value_scalar + "`",
+               "value not scalar; updated to `" + default_value_scalar + "`");
+        result = default_value;
         return true;
     }
 
     const std::string& have_scalar(have);
 
-    if (expected_scalar == tag_value_missing_k && have_scalar == tag_value_missing_k) {
-        result = have;
+    if (default_value_scalar == tag_value_missing_k && have_scalar == tag_value_missing_k) {
+        result = default_value;
         if (_mode == yaml_mode::validate) {
             notify("value not documented", "");
         }
-
         return true;
     }
 
@@ -478,15 +538,17 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
         return true;
     }
 
-    if (expected_scalar == tag_value_optional_k && have_scalar == tag_value_optional_k) {
+    // If the scalars are identical, they're both equal tags at this point. Done.
+    if (default_value_scalar == have_scalar) {
         result = have;
         return false;
     }
 
     if (hyde::is_tag(have_scalar)) {
-        notify("value is unexpected tag `" + have_scalar + "`",
-               "value updated from `" + have_scalar + "` to `" + expected_scalar + "`");
-        result = expected; // Replace unexpected tag
+        notify("found unexpected tag `" + have_scalar + "`",
+               "tag updated from `" + have_scalar + "` to `" + default_value_scalar + "`");
+        // Replace unexpected tag?
+        result = default_value;
         return true;
     }
 
@@ -970,7 +1032,6 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     }
 
     {
-    static const hyde::json no_json_k;
     const hyde::json& expected_hyde = expected.at("hyde");
     const hyde::json& have_hyde = have.count("hyde") ? have.at("hyde") : no_json_k;
     hyde::json& merged_hyde = merged["hyde"];

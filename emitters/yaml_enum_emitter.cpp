@@ -21,6 +21,15 @@ namespace hyde {
 
 /**************************************************************************************************/
 
+void copy_inline_comments(const json& expected, json& out_merged) {
+    // inline comments *always* come from the sources. Therefore, they are always overwritten in the merge.
+    if (expected.count("inline")) {
+        out_merged["inline"] = expected.at("inline");
+    }
+}
+
+/**************************************************************************************************/
+
 bool yaml_enum_emitter::do_merge(const std::string& filepath,
                                  const json& have,
                                  const json& expected,
@@ -40,9 +49,13 @@ bool yaml_enum_emitter::do_merge(const std::string& filepath,
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "name");
             failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar_array(filepath, have, expected, "", out_merged, "values");
-            
+
+            copy_inline_comments(expected, out_merged);
+
             return failure;
         });
+
+    copy_inline_comments(expected, out_merged);
 
     return failure;
 }
@@ -74,6 +87,7 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
         json cur_value;
         cur_value["name"] = value["name"];
         cur_value["description"] = tag_value_missing_k;
+        insert_doxygen(value, cur_value);
         node["values"].push_back(std::move(cur_value));
     }
 
