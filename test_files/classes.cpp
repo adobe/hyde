@@ -16,6 +16,7 @@ written permission of Adobe.
 #include <vector>
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
 /// @brief an example class that demonstrates what Hyde documents.
 /// @hyde-owner fosterbrereton
 class class_example {
@@ -100,21 +101,24 @@ public:
     /// @hyde-owner fosterbrereton
     void overloaded(const std::string&, class_example*, int); // intentionally unnamed
 
-    /// an overloaded member function that takes zero unnamed parameters.
+    /// a deprecated overload that takes zero parameters.
     /// @hyde-owner fosterbrereton
     [[deprecated]] void overloaded();
 
 
-    /// deprecated member function
+    /// deprecated member function.
     [[deprecated]] void deprecated(const std::string& first, class_example* second);
 
     /// deprecated member function that contains a compile-time deprecation message.
-    [[deprecated("message")]] void deprecated_with_message(const std::string& s, class_example* f);
+    [[deprecated("example deprecation message")]] void deprecated_with_message(const std::string& s, class_example* f);
 
     /// static member variable.
     static const int _static_member = 0;
 
     /// static member function.
+    /// @return Zero.
+    //          Zilch.
+    //          Nada.
     static int static_method() { return 0; };
 
     /// templatized member function.
@@ -130,7 +134,7 @@ private:
     int _x;
 
     /// a deprecated member variable that contains a message. Apparently this works?!
-    [[deprecated("message")]] int _deprecated_member = 0;
+    [[deprecated("example deprecation message")]] int _deprecated_member = 0;
 
     /// an instance of the nested class example defined earlier.
     nested_class_example _nested;

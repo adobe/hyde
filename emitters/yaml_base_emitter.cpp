@@ -1313,14 +1313,14 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
         const std::string& access = j["access"];
 
         if (access != "public") {
-            node["hyde"]["annotation"].push_back(access);
+            node["annotation"].push_back(access);
         }
     }
 
     if (j.count("default") && j["default"])
-        node["hyde"]["annotation"].push_back("default");
+        node["annotation"].push_back("default");
     else if (j.count("delete") && j["delete"])
-        node["hyde"]["annotation"].push_back("delete");
+        node["annotation"].push_back("delete");
 
     if (j.count("deprecated") && j["deprecated"]) {
         std::string deprecated("deprecated");
@@ -1332,7 +1332,7 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
                                  .append(")");
             }
         }
-        node["hyde"]["annotation"].push_back(deprecated);
+        node["annotation"].push_back(deprecated);
     }
 }
 

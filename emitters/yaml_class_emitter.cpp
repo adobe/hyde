@@ -71,7 +71,8 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
 bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     json node = base_emitter_node("class", j["name"], "class");
     node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
-    maybe_annotate(j, node);
+    maybe_annotate(j, node["hyde"]);
+    insert_doxygen(j, node["hyde"]);
 
     std::string declaration = format_template_parameters(j, true) + '\n' +
                               static_cast<const std::string&>(j["kind"]) + " " +
