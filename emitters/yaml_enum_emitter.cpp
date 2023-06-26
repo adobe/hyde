@@ -59,11 +59,11 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     // Most likely an enum forward declaration. Nothing to document here.
     if (j["values"].empty()) return true;
 
-    json base_node = base_emitter_node("enumeration", j["name"], "enumeration");
+    json base_node = base_emitter_node("enumeration", j["name"], "enumeration", has_json_flag(j, "implicit"));
     json& node = base_node["hyde"];
 
     node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
-    maybe_annotate(j, node);
+    insert_annotations(j, node);
     insert_doxygen(j, node);
 
     std::string filename;

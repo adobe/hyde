@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 #pragma once
@@ -29,12 +29,7 @@ static constexpr char const* index_filename_k = "index.md";
 
 /**************************************************************************************************/
 
-enum class attribute_category {
-    disabled,
-    required,
-    optional,
-    deprecated
-};
+enum class attribute_category { disabled, required, optional, deprecated };
 
 static constexpr char const* get_tag(attribute_category c) {
     switch (c) {
@@ -49,9 +44,7 @@ static constexpr char const* get_tag(attribute_category c) {
     }
 }
 
-static inline bool is_tag(const std::string& s) {
-    return s.substr(0, 2) == "__";
-}
+static inline bool is_tag(const std::string& s) { return s.substr(0, 2) == "__"; }
 
 /**************************************************************************************************/
 

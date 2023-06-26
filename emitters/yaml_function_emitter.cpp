@@ -97,8 +97,8 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
             // prefix to keep free-function from colliding with class member (e.g., `swap`)
             filename = (_as_methods ? "m_" : "f_") + filename_filter(name);
             defined_path = defined_in_file(overload["defined_in_file"], _src_root);
-            if (overload.count("is_ctor") && overload["is_ctor"]) is_ctor = true;
-            if (overload.count("is_dtor") && overload["is_dtor"]) is_dtor = true;
+            is_ctor = has_json_flag(overload, "is_ctor");
+            is_dtor = has_json_flag(overload, "is_dtor");
         }
 
         const std::string& key = static_cast<const std::string&>(overload["signature"]);
@@ -109,13 +109,15 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
         insert_doxygen(overload, overloads[key]);
 
         overloads[key]["signature_with_names"] = overload["signature_with_names"];
-        // description is now optional when there is a singular variant.
-        overloads[key]["description"] = count > 1 ? tag_value_missing_k : tag_value_optional_k;
+        // description is now optional when there is a singular variant, or when the overload
+        // is implicit (e.g., compiler-implemented.)
+        const bool is_optional = count <= 1 || has_json_flag(overload, "implicit");
+        overloads[key]["description"] = is_optional ? tag_value_optional_k : tag_value_missing_k;
         overloads[key]["return"] = tag_value_optional_k;
         if (_options._tested_by != hyde::attribute_category::disabled) {
             overloads[key]["tested_by"] = hyde::get_tag(_options._tested_by);
         }
-        maybe_annotate(overload, overloads[key]);
+        insert_annotations(overload, overloads[key]);
 
         if (!overload["arguments"].empty()) {
             std::size_t j{0};
@@ -136,7 +138,8 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
     }
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
-                                  _as_methods ? "method" : "function");
+                                  _as_methods ? "method" : "function",
+                                  has_json_flag(jsn, "implicit"));
 
     node["hyde"]["defined_in_file"] = defined_path;
     

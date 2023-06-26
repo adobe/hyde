@@ -69,9 +69,9 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
 /**************************************************************************************************/
 
 bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
-    json node = base_emitter_node("class", j["name"], "class");
+    json node = base_emitter_node("class", j["name"], "class", has_json_flag(j, "implicit"));
     node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
-    maybe_annotate(j, node["hyde"]);
+    insert_annotations(j, node["hyde"]);
     insert_doxygen(j, node["hyde"]);
 
     std::string declaration = format_template_parameters(j, true) + '\n' +
@@ -91,7 +91,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
             auto& field_node = node["hyde"]["fields"][key];
             field_node["type"] = static_cast<const std::string&>(field["type"]);
             field_node["description"] = tag_value_missing_k;
-            maybe_annotate(field, field_node);
+            insert_annotations(field, field_node);
             insert_doxygen(field, field_node);
         }
     }

@@ -704,6 +704,7 @@ optional_json DetailFunctionDecl(const hyde::processing_options& options, const 
     // redo the name and qualified name for this entry, now that we have a proper function
     info["name"] = info["signature"];
     info["qualified_name"] = GetSignature(n, f, signature_options::fully_qualified);
+    info["implicit"] = f->isImplicit();
 
     if (f->isConstexpr()) info["constexpr"] = true;
 

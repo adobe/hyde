@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -232,15 +232,20 @@ file_checker yaml_base_emitter::checker_s; // REVISIT (fbrereto) : Global. Bad p
 
 /**************************************************************************************************/
 
-json yaml_base_emitter::base_emitter_node(std::string layout, std::string title, std::string tag) {
+json yaml_base_emitter::base_emitter_node(std::string layout,
+                                          std::string title,
+                                          std::string tag,
+                                          bool implicit) {
     json node;
 
     node["layout"] = std::move(layout);
     node["title"] = std::move(title);
 
-    node["hyde"]["owner"] = tag_value_missing_k;
+    const auto& default_tag_value = implicit ? tag_value_optional_k : tag_value_missing_k;
+
+    node["hyde"]["owner"] = default_tag_value;
     node["hyde"]["tags"].emplace_back(std::move(tag));
-    node["hyde"]["brief"] = tag_value_missing_k;
+    node["hyde"]["brief"] = default_tag_value;
 
     return node;
 }
@@ -297,7 +302,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
             auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
-            maybe_annotate(type_def, type_node);
+            insert_annotations(type_def, type_node);
             insert_doxygen(type_def, type_node);
         }
     }
@@ -308,7 +313,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
             auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
-            maybe_annotate(type_def, type_node);
+            insert_annotations(type_def, type_node);
             insert_doxygen(type_def, type_node);
         }
     }
@@ -317,7 +322,8 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
 /**************************************************************************************************/
 
 void yaml_base_emitter::copy_inline_comments(const json& expected, json& out_merged) {
-    // inline comments *always* come from the sources. Therefore, they are always overwritten in the merge.
+    // inline comments *always* come from the sources. Therefore, they are always overwritten in the
+    // merge.
     if (expected.count("inline")) {
         out_merged["inline"] = expected.at("inline");
     }
@@ -330,15 +336,18 @@ bool yaml_base_emitter::check_typedefs(const std::string& filepath,
                                        const json& expected_node,
                                        const std::string& nodepath,
                                        json& merged_node) {
-    return check_map(filepath, have_node, expected_node, nodepath, merged_node, "typedefs",
+    return check_map(
+        filepath, have_node, expected_node, nodepath, merged_node, "typedefs",
         [this](const std::string& filepath, const json& have, const json& expected,
                const std::string& nodepath, json& out_merged) {
             bool failure{false};
 
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "name");
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "definition");
-            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
-            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged,
+                                             "description");
+            failure |=
+                check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
             copy_inline_comments(expected, out_merged);
 
@@ -355,15 +364,15 @@ void yaml_base_emitter::check_notify(const std::string& filepath,
                                      const std::string& update_message) {
     std::string escaped_nodepath = hyde::ReplaceAll(nodepath, "\n", "\\n");
     std::string escaped_key = hyde::ReplaceAll(key, "\n", "\\n");
-    
+
     switch (_mode) {
         case yaml_mode::validate: {
-            std::cerr << filepath << "@" << escaped_nodepath << "['" << escaped_key << "']: " << validate_message
-                      << "\n";
+            std::cerr << filepath << "@" << escaped_nodepath << "['" << escaped_key
+                      << "']: " << validate_message << "\n";
         } break;
         case yaml_mode::update: {
-            std::cout << filepath << "@" << escaped_nodepath << "['" << escaped_key << "']: " << update_message
-                      << "\n";
+            std::cout << filepath << "@" << escaped_nodepath << "['" << escaped_key
+                      << "']: " << update_message << "\n";
         } break;
     }
 }
@@ -413,12 +422,12 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
         result = expected;
         return true;
     }
-    
+
     const json& have = have_node[key];
 
     if (have != expected) {
         result = expected;
-        
+
         // Since yaml <-> json type conversions aren't perfect (at least with the libraries we are
         // currently using), we will only report a failure if the yaml-serialized value is different
         auto have_yaml = json_to_yaml(have).as<std::string>();
@@ -461,13 +470,14 @@ bool yaml_base_emitter::check_scalar(const std::string& filepath,
 //     - __MISSING__: This is the value most developers will be familiar with. In order for the
 //         documentation to pass validation, all __MISSING__ fields must be manually filled in.
 //     - __OPTIONAL__: This field's value is not required for validation and will be shown if
-//         manually filled in.
+//         manually filled in. Among other cases, this value is used when a declaration is implicit
+//         (e.g., compiler-implemented, v. defined in the source code.)
 //     - __DEPRECATED__: This field will be found in `expected`, and will cause the equivalent field
 //         in `have` to be removed.
 //     - __INLINED__: The value _would_ be __MISSING__ except that there is an associated inline
 //         value for the field, and thus the minimum requirement for documentation has been met,
 //         and validation will pass for this field. Users are allowed to replace this value should
-//         they want to add further documentation. 
+//         they want to add further documentation.
 //
 // These `check_` routines are used for both the validation and update phases. Their logic is the
 // same, but how they behave will differ (e.g., inserting a value [updating] v. reporting a value
@@ -504,7 +514,8 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
     }
 
     const json& expected = expected_node[key];
-    const bool has_associated_inline_value = expected_node.count("inline") && expected_node.at("inline").count(key);
+    const bool has_associated_inline_value =
+        expected_node.count("inline") && expected_node.at("inline").count(key);
 
     if (!expected.is_string()) {
         throw std::runtime_error("expected type mismatch?");
@@ -706,13 +717,13 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
     }
 
     json& result = merged_node[key];
-    
+
     if (!have_node.count(key)) {
         notify("value missing", "value inserted");
         result = expected;
         return true;
     }
-    
+
     if (!have_node[key].is_array()) {
         notify("value not an array", "non-array value replaced");
         result = expected;
@@ -777,8 +788,10 @@ bool yaml_base_emitter::check_scalar_array(const std::string& filepath,
             std::size_t have_index = have_found_iter->second;
             if (have_index != index) {
                 std::string have_index_str(std::to_string(have_index));
-                notify("bad item location for item `" + expected_str + "`; have: " + have_index_str + ", expected: " + index_str,
-                       "moved item `" + expected_str + "` at index " + have_index_str + " to index " + index_str);
+                notify("bad item location for item `" + expected_str +
+                           "`; have: " + have_index_str + ", expected: " + index_str,
+                       "moved item `" + expected_str + "` at index " + have_index_str +
+                           " to index " + index_str);
                 failure = true;
             }
             result_array.push_back(expected_str);
@@ -831,7 +844,7 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
     }
 
     json& result = merged_node[key];
-    
+
     if (!have_node.count(key)) {
         notify("value missing", "value inserted");
         result = expected;
@@ -915,8 +928,10 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
             std::size_t have_index = have_found_iter->second;
             if (have_index != index) {
                 std::string have_index_str(std::to_string(have_index));
-                notify("bad item location for key `" + expected_key + "`; have: " + have_index_str + ", expected: " + index_str,
-                       "moved item with key `" + expected_key + "` at index " + have_index_str + " to index " + index_str);
+                notify("bad item location for key `" + expected_key + "`; have: " + have_index_str +
+                           ", expected: " + index_str,
+                       "moved item with key `" + expected_key + "` at index " + have_index_str +
+                           " to index " + index_str);
                 failure = true;
             }
             std::string nodepath = "['" + key + "'][" + index_str + "]";
@@ -931,7 +946,8 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
     for (const auto& have_iter : have_map) {
         const std::string& have_key = have_iter.first;
         std::string have_index_str(std::to_string(have_iter.second));
-        auto message = "extraneous item with key `" + have_key + "` at index `" + have_index_str + "`";
+        auto message =
+            "extraneous item with key `" + have_key + "` at index `" + have_index_str + "`";
         notify(message, "removed " + message);
         failure = true;
     }
@@ -990,7 +1006,7 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
     keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
 
     bool failure{false};
-    
+
     json result_map;
     for (const auto& subkey : keys) {
         std::string curnodepath = nodepath + "['" + subkey + "']";
@@ -1006,10 +1022,11 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
             result_map[subkey] = expected[subkey];
             failure = true;
         } else {
-            failure |= proc(filepath, have[subkey], expected[subkey], curnodepath, result_map[subkey]);
+            failure |=
+                proc(filepath, have[subkey], expected[subkey], curnodepath, result_map[subkey]);
         }
     }
-    
+
     result = std::move(result_map);
 
     return failure;
@@ -1021,7 +1038,7 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
                                                const json& have,
                                                const json& expected) {
     bool failure{false};
-    
+
     // Create a temporary object with the json to merge as a value so we can use `check_map`
     // to make sure removed keys are handled
     static const auto root_key = "<root>";
@@ -1031,10 +1048,10 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     expected_root[root_key] = expected;
     json merged_root;
     failure |= check_map(filepath, have_root, expected_root, "", merged_root, root_key,
-        [](const std::string& filepath, const json& have, const json& expected,
-            const std::string& nodepath, json& out_merged) { return false; });
+                         [](const std::string& filepath, const json& have, const json& expected,
+                            const std::string& nodepath, json& out_merged) { return false; });
     json& merged = merged_root[root_key];
-    
+
     // we can probably get rid of `have` in the check
     // routines; I don't think we can keep it from being an
     // out-arg, though, because we need to preserve the
@@ -1049,15 +1066,17 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
     }
 
     {
-    const hyde::json& expected_hyde = expected.at("hyde");
-    const hyde::json& have_hyde = have.count("hyde") ? have.at("hyde") : no_json_k;
-    hyde::json& merged_hyde = merged["hyde"];
+        const hyde::json& expected_hyde = expected.at("hyde");
+        const hyde::json& have_hyde = have.count("hyde") ? have.at("hyde") : no_json_k;
+        hyde::json& merged_hyde = merged["hyde"];
 
-    failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "owner");
-    failure |= check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");
-    failure |= check_scalar_array(filepath, have_hyde, expected_hyde, "", merged_hyde, "tags");
+        failure |=
+            check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "owner");
+        failure |=
+            check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");
+        failure |= check_scalar_array(filepath, have_hyde, expected_hyde, "", merged_hyde, "tags");
 
-    failure |= do_merge(filepath, have_hyde, expected_hyde, merged_hyde);
+        failure |= do_merge(filepath, have_hyde, expected_hyde, merged_hyde);
     }
 
     return std::make_pair(failure, std::move(merged));
@@ -1075,7 +1094,7 @@ inline std::uint64_t fnv_1a(const std::string& s) {
     }
 
     return result;
-    }
+}
 
 /**************************************************************************************************/
 
@@ -1289,7 +1308,6 @@ bool yaml_base_emitter::reconcile(json expected,
     return failure;
 }
 
-
 /**************************************************************************************************/
 
 std::string yaml_base_emitter::defined_in_file(const std::string& src_path,
@@ -1300,13 +1318,13 @@ std::string yaml_base_emitter::defined_in_file(const std::string& src_path,
 /**************************************************************************************************/
 
 std::filesystem::path yaml_base_emitter::subcomponent(const std::filesystem::path& src_path,
-                                                        const std::filesystem::path& src_root) {
+                                                      const std::filesystem::path& src_root) {
     return std::filesystem::relative(src_path, src_root);
 }
 
 /**************************************************************************************************/
 
-void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
+void yaml_base_emitter::insert_annotations(const json& j, json& node) {
     std::string annotation;
 
     if (j.count("access")) {
@@ -1317,19 +1335,23 @@ void yaml_base_emitter::maybe_annotate(const json& j, json& node) {
         }
     }
 
-    if (j.count("default") && j["default"])
+    if (has_json_flag(j, "default")) {
         node["annotation"].push_back("default");
-    else if (j.count("delete") && j["delete"])
+    } else if (has_json_flag(j, "delete")) {
         node["annotation"].push_back("delete");
+    }
 
-    if (j.count("deprecated") && j["deprecated"]) {
+    if (has_json_flag(j, "implicit")) {
+        node["annotation"].push_back("implicit");
+    }
+
+    if (has_json_flag(j, "deprecated")) {
         std::string deprecated("deprecated");
+
         if (j.count("deprecated_message")) {
             const std::string& message_str = j["deprecated_message"];
             if (!message_str.empty()) {
-                deprecated = deprecated.append(" (")
-                                 .append(message_str)
-                                 .append(")");
+                deprecated = deprecated.append("(\"").append(message_str).append("\")");
             }
         }
         node["annotation"].push_back(deprecated);
