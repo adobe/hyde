@@ -14,22 +14,33 @@ written permission of Adobe.
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Example typedef expression whose underlying type is `int`.
 typedef int typedef_example;
+
+/// Example using expression whose underlying type is `int`.
 using using_example = int;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Example class with two type definitions
 template <typename T, typename U>
 struct template_example {
+    /// Type derived from the first template parameter.
     typedef T typedef_from_T;
+    /// Type derived from the second template parameter.
     using using_from_U = U;
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Partial specialization of the above `template_example` template
 template <typename U>
 using using_partial_specialization_example = template_example<bool, U>;
+
+/// Full specialization of the above partial specialization
 using using_full_specialization_example = using_partial_specialization_example<bool>;
+
+/// Using typedef to define another full specialization of the above partial specialization
 typedef using_partial_specialization_example<double> typedef_full_specialization_example;
 
 //------------------------------------------------------------------------------------------------------------------------------------------

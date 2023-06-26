@@ -141,6 +141,14 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted) {
                                   _as_methods ? "method" : "function",
                                   has_json_flag(jsn, "implicit"));
 
+    // If the function being emitted is either the ctor or dtor of a class,
+    // the high-level `brief` is optional, as their default implementations
+    // should require no additional commenatary beyond that which is provided
+    // on an overload-by-overload basis.
+    if (is_ctor || is_dtor) {
+        node["hyde"]["brief"] = tag_value_optional_k;
+    }
+
     node["hyde"]["defined_in_file"] = defined_path;
     
     if (!_as_methods && jsn.size() > 0) {
