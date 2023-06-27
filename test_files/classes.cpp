@@ -146,33 +146,46 @@ private:
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// @brief an example template class with some specializations
+/// @hyde-owner fosterbrereton
 template <typename T>
 struct specialization_example {
     constexpr auto as_tuple() const { return std::forward_as_tuple(); }
 };
 
+/// @brief an example `std::int32` specialization
+/// @hyde-owner fosterbrereton
 template <>
 struct specialization_example<std::int32_t> {
+    /// An example typedef
     using value_type = std::int32_t;
-    value_type _first{0};
+    value_type _first{0}; ///< An example field used in `as_tuple`
+    /// An example function
+    /// @return a tuple of the fields of this class
     constexpr auto as_tuple() const { return std::forward_as_tuple(_first); }
 };
 
+/// @brief an example `float` specialization
+/// @hyde-owner fosterbrereton
 template <>
 struct specialization_example<float> {
-    using value_type = float;
-    value_type _first{0};
+    using value_type = float; ///< An example typedef
+    value_type _first{0}; ///< An example field used in `as_tuple`
     constexpr auto as_tuple() const { return std::forward_as_tuple(_first); }
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/// @brief an example template class with a partial specialization.
+/// @hyde-owner fosterbrereton
 template <class T1, class T2>
 class partial_specialization_example {
     T1 _first;
     T2 _second;
 };
 
+/// @brief an example `int, T` partial specialization
+/// @hyde-owner fosterbrereton
 template <class T>
 class partial_specialization_example<int, T> {
     std::string _first;
