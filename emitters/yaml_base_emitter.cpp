@@ -31,7 +31,7 @@ namespace {
 /**************************************************************************************************/
 
 static const hyde::json no_json_k;
-static const hyde::json inline_json_k(hyde::tag_value_use_inline_k);
+static const hyde::json inline_json_k(hyde::tag_value_inlined_k);
 
 /**************************************************************************************************/
 
@@ -161,6 +161,7 @@ YAML::Node json_to_yaml_ordered(hyde::json j) {
     move_key("owner");
     move_key("brief");
     move_key("tags");
+    move_key("inline");
     move_key("library-type");
     move_key("defined_in_file");
     move_key("declaration");
@@ -295,13 +296,14 @@ void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
 
 /**************************************************************************************************/
 
-void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
+void yaml_base_emitter::insert_typedefs(const json& j, json& node, const json& inherited) {
     if (j.count("typedefs")) {
         for (const auto& type_def : j["typedefs"]) {
             const std::string& key = type_def["name"];
             auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
+            insert_inherited(inherited, type_node);
             insert_annotations(type_def, type_node);
             insert_doxygen(type_def, type_node);
         }
@@ -313,6 +315,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
             auto& type_node = node["hyde"]["typedefs"][key];
             type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
             type_node["description"] = tag_value_missing_k;
+            insert_inherited(inherited, type_node);
             insert_annotations(type_def, type_node);
             insert_doxygen(type_def, type_node);
         }
@@ -321,7 +324,7 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node) {
 
 /**************************************************************************************************/
 
-void yaml_base_emitter::copy_inline_comments(const json& expected, json& out_merged) {
+void yaml_base_emitter::check_inline_comments(const json& expected, json& out_merged) {
     // inline comments *always* come from the sources. Therefore, they are always overwritten in the
     // merge.
     if (expected.count("inline")) {
@@ -349,7 +352,7 @@ bool yaml_base_emitter::check_typedefs(const std::string& filepath,
             failure |=
                 check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
-            copy_inline_comments(expected, out_merged);
+            check_inline_comments(expected, out_merged);
 
             return failure;
         });
@@ -1320,6 +1323,19 @@ std::string yaml_base_emitter::defined_in_file(const std::string& src_path,
 std::filesystem::path yaml_base_emitter::subcomponent(const std::filesystem::path& src_path,
                                                       const std::filesystem::path& src_root) {
     return std::filesystem::relative(src_path, src_root);
+}
+
+/**************************************************************************************************/
+
+void yaml_base_emitter::insert_inherited(const json& inherited, json& node) {
+    if (inherited.count("owner")) {
+        node["owner"] = inherited.at("owner");
+    }
+
+    if (inherited.count("inline") &&
+        inherited.at("inline").count("owner")) {
+        node["inline"]["owner"] = inherited.at("inline").at("owner");
+    }
 }
 
 /**************************************************************************************************/

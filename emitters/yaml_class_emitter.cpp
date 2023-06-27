@@ -46,7 +46,7 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
-            copy_inline_comments(expected, out_merged);
+            check_inline_comments(expected, out_merged);
 
             return failure;
         });
@@ -61,16 +61,18 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             return function_emitter.do_merge(filepath, have, expected, out_merged);
         });
 
-    copy_inline_comments(expected, out_merged);
+    check_inline_comments(expected, out_merged);
 
     return failure;
 }
 
 /**************************************************************************************************/
 
-bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
+bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inherited) {
     json node = base_emitter_node("class", j["name"], "class", has_json_flag(j, "implicit"));
     node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
+
+    insert_inherited(inherited, node["hyde"]);
     insert_annotations(j, node["hyde"]);
     insert_doxygen(j, node["hyde"]);
 
@@ -98,8 +100,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
 
     insert_typedefs(j, node);
 
-    auto dst = dst_path(j,
-                        static_cast<const std::string&>(j["name"]));
+    auto dst = dst_path(j, static_cast<const std::string&>(j["name"]));
 
     bool failure = reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
 
@@ -109,7 +110,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     for (auto it = methods.begin(); it != methods.end(); ++it) {
         function_emitter.set_key(it.key());
         auto function_emitted = hyde::json::object();
-        failure |= function_emitter.emit(it.value(), function_emitted);
+        failure |= function_emitter.emit(it.value(), function_emitted, out_emitted.at("hyde"));
         out_emitted["methods"].push_back(std::move(function_emitted));
     }
 

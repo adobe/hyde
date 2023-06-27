@@ -41,19 +41,19 @@ bool yaml_enum_emitter::do_merge(const std::string& filepath,
             failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
             failure |= check_scalar_array(filepath, have, expected, "", out_merged, "values");
 
-            copy_inline_comments(expected, out_merged);
+            check_inline_comments(expected, out_merged);
 
             return failure;
         });
 
-    copy_inline_comments(expected, out_merged);
+    check_inline_comments(expected, out_merged);
 
     return failure;
 }
 
 /**************************************************************************************************/
 
-bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
+bool yaml_enum_emitter::emit(const json& j, json& out_emitted, const json& inherited) {
     const std::string& name = j["name"];
 
     // Most likely an enum forward declaration. Nothing to document here.
@@ -62,9 +62,11 @@ bool yaml_enum_emitter::emit(const json& j, json& out_emitted) {
     json base_node = base_emitter_node("enumeration", j["name"], "enumeration", has_json_flag(j, "implicit"));
     json& node = base_node["hyde"];
 
-    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
+    insert_inherited(inherited, node);
     insert_annotations(j, node);
     insert_doxygen(j, node);
+
+    node["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
 
     std::string filename;
     for (const auto& ns : j["namespaces"]) {

@@ -28,7 +28,7 @@ struct yaml_class_emitter : public yaml_base_emitter {
                                 emit_options options)
         : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)) {}
 
-    bool emit(const json& j, json& out_emitted) override;
+    bool emit(const json& matched, json& output, const json& inherited) override;
 
     bool do_merge(const std::string& filepath,
                   const json& have,

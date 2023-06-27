@@ -32,7 +32,7 @@ struct yaml_function_emitter : public yaml_base_emitter {
 
     void set_key(std::string key) { _key = std::move(key); }
 
-    bool emit(const json& j, json& out_emitted) override;
+    bool emit(const json& matched, json& output, const json& inherited) override;
 
     bool do_merge(const std::string& filepath,
                   const json& have,

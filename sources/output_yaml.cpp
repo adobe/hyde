@@ -40,20 +40,21 @@ void output_yaml(json j,
                  const emit_options& options) {
     bool failure{false};
     auto& library_emitted = out_emitted;
+    const json no_inheritance_k;
 
     // Process top-level library
-    yaml_library_emitter(src_root, dst_root, mode, options).emit(j, library_emitted);
+    yaml_library_emitter(src_root, dst_root, mode, options).emit(j, library_emitted, no_inheritance_k);
 
     // Process sourcefile
     yaml_sourcefile_emitter sourcefile_emitter(src_root, dst_root, mode, options);
     auto sourcefile_emitted = hyde::json::object();
-    failure |= sourcefile_emitter.emit(j, sourcefile_emitted);
+    failure |= sourcefile_emitter.emit(j, sourcefile_emitted, no_inheritance_k);
 
     // Process classes
     yaml_class_emitter class_emitter(src_root, dst_root, mode, options);
     for (const auto& c : j["classes"]) {
         auto class_emitted = hyde::json::object();
-        failure |= class_emitter.emit(c, class_emitted);
+        failure |= class_emitter.emit(c, class_emitted, no_inheritance_k);
         sourcefile_emitted["classes"].push_back(std::move(class_emitted));
     }
 
@@ -61,7 +62,7 @@ void output_yaml(json j,
     yaml_enum_emitter enum_emitter(src_root, dst_root, mode, options);
     for (const auto& c : j["enums"]) {
         auto enum_emitted = hyde::json::object();
-        failure |= enum_emitter.emit(c, enum_emitted);
+        failure |= enum_emitter.emit(c, enum_emitted, no_inheritance_k);
         sourcefile_emitted["enums"].push_back(std::move(enum_emitted));
     }
 
@@ -71,7 +72,7 @@ void output_yaml(json j,
     for (auto it = functions.begin(); it != functions.end(); ++it) {
         function_emitter.set_key(it.key());
         auto function_emitted = hyde::json::object();
-        failure |= function_emitter.emit(it.value(), function_emitted);
+        failure |= function_emitter.emit(it.value(), function_emitted, no_inheritance_k);
         sourcefile_emitted["functions"].push_back(std::move(function_emitted));
     }
 

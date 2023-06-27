@@ -10,7 +10,7 @@ written permission of Adobe.
 */
 
 // AST dump with
-// clang --std=c++1z -Xclang -ast-dump -fsyntax-only ./test_files/typedef_and_alias.cpp
+// TERM="" clang --std=c++1z -Xclang -ast-dump -fsyntax-only -fparse-all-comments -fcomment-block-commands=hyde ./typedef_and_alias.cpp
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ using using_example = int;
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Example class with two type definitions
+/// @brief Example class with two type definitions
 template <typename T, typename U>
 struct template_example {
     /// Type derived from the first template parameter.
@@ -45,10 +45,16 @@ typedef using_partial_specialization_example<double> typedef_full_specialization
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-struct template_example_user {
+/// @brief Example struct that leverages type aliases defined above.
+struct template_example_instantiator {
+    /// Example partial specialization
     template <typename U>
     using using_partial_specialization_example = template_example<int, U>;
+
+    /// Example full specialization
     using using_full_specialization_example = using_partial_specialization_example<bool>;
+
+    /// Example partial specialization using `typedef`
     typedef using_partial_specialization_example<double> typedef_full_specialization_example;
 };
 
