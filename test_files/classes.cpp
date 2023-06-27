@@ -21,7 +21,10 @@ written permission of Adobe.
 /// @hyde-owner fosterbrereton
 class class_example {
 public:
+    /// Note that nested classes will not inherit their ownership from
+    /// the class that contains them, so thus need their own `hyde-owner`.
     /// @brief an example enumeration within the class.
+    /// @hyde-owner sean-parent
     enum class color {
         /// this is an example description for the `red` value.
         red,
@@ -44,10 +47,10 @@ public:
     };
 
 
-    /// a nested typedef expression.
+    /// a nested `typedef` expression.
     typedef std::string typedef_example;
 
-    /// a nested using expression.
+    /// a nested `using` expression.
     using using_example = std::string;
 
 

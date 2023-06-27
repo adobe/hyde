@@ -159,7 +159,9 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
                 cur_arg["name"] = unnamed ? "unnamed-" + std::to_string(j) : name;
                 cur_arg["type"] = arg["type"];
                 cur_arg["description"] = tag_value_optional_k;
-                if (unnamed) cur_arg["unnamed"] = true;
+                if (unnamed) {
+                    cur_arg["unnamed"] = true;
+                }
                 ++j;
             }
         }

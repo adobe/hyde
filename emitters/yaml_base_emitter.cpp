@@ -284,8 +284,10 @@ void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
             const auto& param = item.value();
             const auto& name = param["name"].get<std::string>();
             json::object_t argument;
-            // REVISIT (fosterbrereton) : Handle things like `direction`, `direction_explicit`, etc.
-            argument["description"] = param["text"].get<std::string>();
+            if (param["direction_explicit"].get<bool>()) {
+                argument["direction"] = param["direction"];
+            }
+            argument["description"] = param["text"];
             arguments[name] = std::move(argument);
         }
         output["arguments"] = std::move(arguments);
