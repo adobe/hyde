@@ -98,7 +98,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inhe
         }
     }
 
-    insert_typedefs(j, node);
+    insert_typedefs(j, node, inherited);
 
     auto dst = dst_path(j, static_cast<const std::string&>(j["name"]));
 
