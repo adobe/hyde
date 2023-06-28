@@ -299,11 +299,14 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node, const json& i
         for (const auto& type_def : j["typedefs"]) {
             const std::string& key = type_def["name"];
             auto& type_node = node["hyde"]["typedefs"][key];
-            type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
-            type_node["description"] = tag_value_missing_k;
             insert_inherited(inherited, type_node);
             insert_annotations(type_def, type_node);
             insert_doxygen(type_def, type_node);
+
+            type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
+            type_node["description"] = has_inline_field(type_node, "description") ?
+                                           tag_value_inlined_k :
+                                           tag_value_missing_k;
         }
     }
 
@@ -311,11 +314,14 @@ void yaml_base_emitter::insert_typedefs(const json& j, json& node, const json& i
         for (const auto& type_def : j["typealiases"]) {
             const std::string& key = type_def["name"];
             auto& type_node = node["hyde"]["typedefs"][key];
-            type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
-            type_node["description"] = tag_value_missing_k;
             insert_inherited(inherited, type_node);
             insert_annotations(type_def, type_node);
             insert_doxygen(type_def, type_node);
+
+            type_node["definition"] = static_cast<const std::string&>(type_def["type"]);
+            type_node["description"] = has_inline_field(type_node, "description") ?
+                                           tag_value_inlined_k :
+                                           tag_value_missing_k;
         }
     }
 }
@@ -515,8 +521,7 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
     }
 
     const json& expected = expected_node[key];
-    const bool has_associated_inline_value =
-        expected_node.count("inline") && expected_node.at("inline").count(key);
+    const bool has_associated_inline_value = has_inline_field(expected_node, key);
 
     if (!expected.is_string()) {
         throw std::runtime_error("expected type mismatch?");
@@ -1035,6 +1040,12 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
 
 /**************************************************************************************************/
 
+bool yaml_base_emitter::has_inline_field(const json& j, const char* field) {
+    return j.count("inline") && j.at("inline").count(field);
+}
+
+/**************************************************************************************************/
+
 std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
                                                const json& have,
                                                const json& expected) {
@@ -1330,8 +1341,7 @@ void yaml_base_emitter::insert_inherited(const json& inherited, json& node) {
         node["owner"] = inherited.at("owner");
     }
 
-    if (inherited.count("inline") &&
-        inherited.at("inline").count("owner")) {
+    if (has_inline_field(inherited, "owner")) {
         node["inline"]["owner"] = inherited.at("inline").at("owner");
     }
 }

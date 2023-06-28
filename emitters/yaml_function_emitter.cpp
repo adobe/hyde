@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -37,18 +37,23 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
                const std::string& nodepath, json& out_merged) {
             bool failure{false};
 
-            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
-            failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "signature_with_names");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged,
+                                             "description");
+            failure |= check_scalar(filepath, have, expected, nodepath, out_merged,
+                                    "signature_with_names");
 
             if (!has_json_flag(expected, "is_ctor") && !has_json_flag(expected, "is_dtor")) {
-                failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "return");
+                failure |=
+                    check_editable_scalar(filepath, have, expected, nodepath, out_merged, "return");
             }
 
             if (_options._tested_by != hyde::attribute_category::disabled) {
-                failure |= check_editable_scalar_array(filepath, have, expected, nodepath, out_merged, "tested_by");
+                failure |= check_editable_scalar_array(filepath, have, expected, nodepath,
+                                                       out_merged, "tested_by");
             }
-            
-            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+
+            failure |=
+                check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
             failure |= check_object_array(
                 filepath, have, expected, nodepath, out_merged, "arguments", "name",
@@ -58,8 +63,10 @@ bool yaml_function_emitter::do_merge(const std::string& filepath,
 
                     failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "name");
                     failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "type");
-                    failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
-                    failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "unnamed");
+                    failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged,
+                                                     "description");
+                    failure |=
+                        check_scalar(filepath, have, expected, nodepath, out_merged, "unnamed");
 
                     check_inline_comments(expected, out_merged);
 
@@ -150,11 +157,12 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
         destination["signature_with_names"] = overload["signature_with_names"];
         // description is now optional when there is a singular variant, or when the overload
         // is implicit (e.g., compiler-implemented.)
-        const bool has_associated_inline = destination.count("inline") && destination["inline"].count("description");
+        const bool has_associated_inline =
+            destination.count("inline") && destination["inline"].count("description");
         const bool is_optional = count <= 1 || has_json_flag(overload, "implicit");
         destination["description"] = has_associated_inline ? tag_value_inlined_k :
-                                     is_optional ? tag_value_optional_k :
-                                     tag_value_missing_k;
+                                     is_optional           ? tag_value_optional_k :
+                                                             tag_value_missing_k;
 
         if (!is_ctor && !is_dtor) {
             destination["return"] = tag_value_optional_k;
@@ -223,10 +231,13 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
     // and then set the hyde owner field to inlined.
     if (!overload_owners.empty()) {
         std::sort(overload_owners.begin(), overload_owners.end());
-        overload_owners.erase(std::unique(overload_owners.begin(), overload_owners.end()), overload_owners.end());
+        overload_owners.erase(std::unique(overload_owners.begin(), overload_owners.end()),
+                              overload_owners.end());
         json::array_t owners;
         std::copy(overload_owners.begin(), overload_owners.end(), std::back_inserter(owners));
         node["hyde"]["inline"]["owner"] = std::move(owners);
+        node["hyde"]["owner"] = tag_value_inlined_k;
+    } else if (node["hyde"].count("inline") && node["hyde"]["inline"].count("owner")) {
         node["hyde"]["owner"] = tag_value_inlined_k;
     }
 
@@ -235,7 +246,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
         for (const auto& ns : jsn.front()["namespaces"])
             node["hyde"]["namespace"].push_back(static_cast<const std::string&>(ns));
     }
-    
+
     node["hyde"]["defined_in_file"] = defined_path;
     node["hyde"]["overloads"] = std::move(overloads);
     if (is_ctor) node["hyde"]["is_ctor"] = true;

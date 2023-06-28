@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -38,7 +38,8 @@ bool yaml_library_emitter::do_merge(const std::string& filepath,
 /**************************************************************************************************/
 
 bool yaml_library_emitter::emit(const json& j, json& out_emitted, const json&) {
-    json node = base_emitter_node("library", tag_value_missing_k, "library", has_json_flag(j, "implicit"));
+    json node =
+        base_emitter_node("library", tag_value_missing_k, "library", has_json_flag(j, "implicit"));
     node["hyde"]["library-type"] = "library";
     node["hyde"]["icon"] = tag_value_missing_k;
     node["hyde"]["tab"] = tag_value_missing_k;

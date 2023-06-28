@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -43,8 +43,10 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             bool failure{false};
 
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "type");
-            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
-            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged,
+                                             "description");
+            failure |=
+                check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
 
             check_inline_comments(expected, out_merged);
 
@@ -95,8 +97,10 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inhe
             insert_doxygen(field, field_node);
 
             field_node["type"] = static_cast<const std::string&>(field["type"]);
-            const bool inline_description_exists = field_node.count("inline") && field_node["inline"].count("description");
-            field_node["description"] = inline_description_exists ? tag_value_inlined_k : tag_value_missing_k;
+            const bool inline_description_exists =
+                field_node.count("inline") && field_node["inline"].count("description");
+            field_node["description"] =
+                inline_description_exists ? tag_value_inlined_k : tag_value_missing_k;
         }
     }
 
@@ -104,7 +108,8 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inhe
 
     auto dst = dst_path(j, static_cast<const std::string&>(j["name"]));
 
-    bool failure = reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
+    bool failure =
+        reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
 
     const auto& methods = j["methods"];
     yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, _options, true);
