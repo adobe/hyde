@@ -91,10 +91,12 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inhe
         for (const auto& field : j["fields"]) {
             const std::string& key = field["name"];
             auto& field_node = node["hyde"]["fields"][key];
-            field_node["type"] = static_cast<const std::string&>(field["type"]);
-            field_node["description"] = tag_value_missing_k;
             insert_annotations(field, field_node);
             insert_doxygen(field, field_node);
+
+            field_node["type"] = static_cast<const std::string&>(field["type"]);
+            const bool inline_description_exists = field_node.count("inline") && field_node["inline"].count("description");
+            field_node["description"] = inline_description_exists ? tag_value_inlined_k : tag_value_missing_k;
         }
     }
 

@@ -122,7 +122,7 @@ public:
     /// @brief static member function.
     /// @return Zero.
     //          By which I mean `0`.
-    //          In this source this comment is on multiple lines.
+    //          In the sources, this comment is on multiple lines.
     static int static_method() { return 0; };
 
     /// templatized member function.

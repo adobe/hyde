@@ -17,7 +17,7 @@ written permission of Adobe.
 /// @warning This is a sample warning.
 /// @par header This is a sample paragraph.
 /// @hyde-owner fosterbrereton
-/// @see [An LLVM dev meeting chat on the comment parsing feature](https://llvm.org/devmtg/2012-11/Gribenko_CommentParsing.pdf)
+/// @see [Slides](https://llvm.org/devmtg/2012-11/Gribenko_CommentParsing.pdf) from an LLVM dev meeting chat on the comment parsing feature
 struct some_struct {
     virtual ~some_struct() = delete;
 
@@ -30,8 +30,9 @@ struct some_struct {
     /// @pre An example precondition.
     /// @post An example postcondition.
     /// @return Some additional value.
-    /// @throw std::runtime_error if the function actually _can't_ do the thing. Sorry!
+    /// @throw `std::runtime_error` if the function actually _can't_ do the thing. Sorry!
     /// @todo This really could use some cleanup. Although, its implementation doesn't exist...
+    /// @warning This function may be very expensive to run. Do not call it inside a loop.
     int some_function(int input, int& input_output, int& output);
 
     /// A virtual function that intends to be overridden.

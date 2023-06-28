@@ -210,8 +210,6 @@ hyde::json fixup_hyde_subfield(hyde::json&& j) {
 
     result["hyde"] = std::move(j);
 
-    std::string result_str = result.dump(4);
-
     return result;
 }
 
@@ -292,8 +290,6 @@ void yaml_base_emitter::insert_doxygen(const json& j, json& node) {
         }
         output["arguments"] = std::move(arguments);
     }
-
-    // std::cout << j.dump(4) << '\n';
 }
 
 /**************************************************************************************************/
@@ -1330,7 +1326,7 @@ std::filesystem::path yaml_base_emitter::subcomponent(const std::filesystem::pat
 /**************************************************************************************************/
 
 void yaml_base_emitter::insert_inherited(const json& inherited, json& node) {
-    if (inherited.count("owner")) {
+    if (inherited.count("owner") && !is_tag(inherited.at("owner").get<std::string>())) {
         node["owner"] = inherited.at("owner");
     }
 

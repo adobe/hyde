@@ -90,11 +90,13 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
     bool first{true};
     bool is_ctor{false};
     bool is_dtor{false};
+    bool all_implicit{true};
     std::size_t count(jsn.size());
     std::size_t inline_description_count{0};
     json last_inline_description;
     std::size_t inline_brief_count{0};
     json last_inline_brief;
+    std::vector<std::string> overload_owners;
 
     for (const auto& overload : jsn) {
         if (first) {
@@ -111,11 +113,12 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
         }
 
         const std::string& key = static_cast<const std::string&>(overload["signature"]);
+        auto& destination = overloads[key];
 
         // If there are any in-source (a.k.a. Doxygen) comments, insert them into
         // the node *first* so we can use them to decide if subsequent Hyde fields
         // can be deferred.
-        insert_doxygen(overload, overloads[key]);
+        insert_doxygen(overload, destination);
 
         // The intent of these checks is to roll up brief/description details that were
         // entered inline to the top-level file that documents this function and all of its
@@ -125,33 +128,48 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
         // documentation). I foresee *a lot* of conflation between `brief` and `description`
         // as developers document their code, so we'll have to track both of these values as if
         // they are the same to make it as easy as possible to bubble up information.
-        if (overloads[key].count("inline") && overloads[key]["inline"].count("brief")) {
+        if (destination.count("inline") && destination["inline"].count("brief")) {
             ++inline_brief_count;
-            last_inline_brief = overloads[key]["inline"]["brief"];
+            last_inline_brief = destination["inline"]["brief"];
         }
-        if (overloads[key].count("inline") && overloads[key]["inline"].count("description")) {
+        if (destination.count("inline") && destination["inline"].count("description")) {
             ++inline_description_count;
-            last_inline_description = overloads[key]["inline"]["description"];
+            last_inline_description = destination["inline"]["description"];
+        }
+        if (destination.count("inline") && destination["inline"].count("owner")) {
+            const auto& owners = destination["inline"]["owner"];
+            if (owners.is_string()) {
+                overload_owners.push_back(owners.get<std::string>());
+            } else if (owners.is_array()) {
+                for (const auto& owner : owners) {
+                    overload_owners.push_back(owner.get<std::string>());
+                }
+            }
         }
 
-        overloads[key]["signature_with_names"] = overload["signature_with_names"];
+        destination["signature_with_names"] = overload["signature_with_names"];
         // description is now optional when there is a singular variant, or when the overload
         // is implicit (e.g., compiler-implemented.)
+        const bool has_associated_inline = destination.count("inline") && destination["inline"].count("description");
         const bool is_optional = count <= 1 || has_json_flag(overload, "implicit");
-        overloads[key]["description"] = is_optional ? tag_value_optional_k : tag_value_missing_k;
+        destination["description"] = has_associated_inline ? tag_value_inlined_k :
+                                     is_optional ? tag_value_optional_k :
+                                     tag_value_missing_k;
 
         if (!is_ctor && !is_dtor) {
-            overloads[key]["return"] = tag_value_optional_k;
+            destination["return"] = tag_value_optional_k;
         }
 
         if (_options._tested_by != hyde::attribute_category::disabled) {
-            overloads[key]["tested_by"] = hyde::get_tag(_options._tested_by);
+            destination["tested_by"] = hyde::get_tag(_options._tested_by);
         }
-        insert_annotations(overload, overloads[key]);
+        insert_annotations(overload, destination);
+
+        all_implicit &= has_json_flag(overload, "implicit");
 
         if (!overload["arguments"].empty()) {
             std::size_t j{0};
-            auto& args = overloads[key]["arguments"];
+            auto& args = destination["arguments"];
             for (const auto& arg : overload["arguments"]) {
                 auto& cur_arg = args[j];
                 const std::string& name = arg["name"];
@@ -169,7 +187,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function",
-                                  has_json_flag(jsn, "implicit"));
+                                  all_implicit || has_json_flag(jsn, "implicit"));
 
     insert_inherited(inherited, node["hyde"]);
 
@@ -190,15 +208,26 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
     // we'll put some pat statement into the brief indicating as much. Finally, if
     // at least one overload has an inline `brief`, then the top-level `brief` is
     // marked inlined.
-    if (inline_brief_count > 0) {
-        node["hyde"]["brief"] = tag_value_inlined_k;
-    }
     if (inline_brief_count == 1) {
         node["hyde"]["inline"]["brief"] = last_inline_brief;
+        node["hyde"]["brief"] = tag_value_inlined_k;
     } else if (inline_description_count == 1) {
         node["hyde"]["inline"]["brief"] = last_inline_description;
+        node["hyde"]["brief"] = tag_value_inlined_k;
     } else if (inline_brief_count > 1 || inline_description_count > 1) {
         node["hyde"]["inline"]["brief"] = "_multiple descriptions_";
+        node["hyde"]["brief"] = tag_value_inlined_k;
+    }
+
+    // Round up any overload owners into an inline top-level owner field,
+    // and then set the hyde owner field to inlined.
+    if (!overload_owners.empty()) {
+        std::sort(overload_owners.begin(), overload_owners.end());
+        overload_owners.erase(std::unique(overload_owners.begin(), overload_owners.end()), overload_owners.end());
+        json::array_t owners;
+        std::copy(overload_owners.begin(), overload_owners.end(), std::back_inserter(owners));
+        node["hyde"]["inline"]["owner"] = std::move(owners);
+        node["hyde"]["owner"] = tag_value_inlined_k;
     }
 
     // All overloads will have the same namespace
