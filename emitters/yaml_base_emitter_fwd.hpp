@@ -29,7 +29,7 @@ static constexpr char const* index_filename_k = "index.md";
 
 /**************************************************************************************************/
 
-enum class attribute_category { disabled, required, optional, deprecated };
+enum class attribute_category { disabled, required, optional, deprecated, inlined };
 
 static constexpr char const* get_tag(attribute_category c) {
     switch (c) {
@@ -39,6 +39,8 @@ static constexpr char const* get_tag(attribute_category c) {
             return tag_value_optional_k;
         case attribute_category::deprecated:
             return tag_value_deprecated_k;
+        case attribute_category::inlined:
+            return tag_value_inlined_k;
         default:
             throw std::invalid_argument("unexpected attribute category");
     }

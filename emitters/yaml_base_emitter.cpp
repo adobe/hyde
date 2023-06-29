@@ -208,7 +208,18 @@ hyde::json fixup_hyde_subfield(hyde::json&& j) {
         j.erase("title");
     }
 
-    result["hyde"] = std::move(j);
+    // If a fixup has already been done, or there are already fields in the `hyde` subobject,
+    // move them before going on to the next step.
+    if (j.count("hyde")) {
+        result["hyde"] = std::move(j.at("hyde"));
+        j.erase("hyde");
+    }
+
+    // For any keys that are left over in `j`, move them under the `hyde` subobject. Note that
+    // this will overwrite any conflicting keys that may already exist there.
+    for (auto& entry : j.items()) {
+        result["hyde"][entry.key()] = std::move(entry.value());
+    }
 
     return result;
 }
@@ -521,7 +532,7 @@ bool yaml_base_emitter::check_editable_scalar(const std::string& filepath,
     }
 
     const json& expected = expected_node[key];
-    const bool has_associated_inline_value = has_inline_field(expected_node, key);
+    const bool has_associated_inline_value = has_inline_field(expected_node, key.c_str());
 
     if (!expected.is_string()) {
         throw std::runtime_error("expected type mismatch?");
