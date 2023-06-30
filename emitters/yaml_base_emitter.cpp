@@ -226,7 +226,11 @@ hyde::json fixup_hyde_subfield(hyde::json&& j) {
 
 /**************************************************************************************************/
 
-static const std::string front_matter_delimiter_k("---\n");
+static const std::string front_matter_begin_k("---\n");
+
+// Using a string wrapped in newlines because some YAML data may contain "---" in them
+// (e.g., inline comments that have sucked up a horizontal delimiter.)
+static const std::string front_matter_end_k("\n---\n");
 
 /**************************************************************************************************/
 
@@ -1171,9 +1175,9 @@ bool yaml_base_emitter::create_directory_stub(std::filesystem::path p) {
         {"title", p.filename().string()},
     };
 
-    output << front_matter_delimiter_k;
-    output << json_to_yaml_ordered(stub_json_k) << '\n';
-    output << front_matter_delimiter_k;
+    output << front_matter_begin_k;
+    output << json_to_yaml_ordered(stub_json_k);
+    output << front_matter_end_k;
 
     return false;
 }
@@ -1265,16 +1269,30 @@ bool yaml_base_emitter::reconcile(json expected,
         // front-matter ends and any other relevant documentation begins. We
         // need to do this for the boilerpolate step to keep it from blasting
         // out any extra documentation that's already been added.
+        if (path.string().find("f_blend_mode_name") != std::string::npos) {
+            int x{42};
+            (void)x;
+        }
         std::ifstream have_file(path);
         std::stringstream have_contents_stream;
         have_contents_stream << have_file.rdbuf();
         std::string have_contents = have_contents_stream.str();
-        auto front_matter_pos = have_contents.find_first_of(front_matter_delimiter_k);
-        auto front_matter_end = have_contents.find(
-            front_matter_delimiter_k, front_matter_pos + front_matter_delimiter_k.size());
-        std::string yaml_src = have_contents.substr(
-            front_matter_pos, front_matter_end + front_matter_delimiter_k.size());
-        have_contents.erase(front_matter_pos, front_matter_end + front_matter_delimiter_k.size());
+
+        if (have_contents.find_first_of(front_matter_begin_k) != 0) {
+            std::cerr << "./" << path.string() << ": does not begin with YAML front-matter.\n";
+            return true;
+        }
+
+        const auto contents_end = have_contents.find(front_matter_end_k);
+
+        if (contents_end == std::string::npos) {
+            std::cerr << "./" << path.string() << ": could not find end of YAML front-matter.\n";
+            return true;
+        }
+
+        const auto front_matter_end = contents_end + front_matter_end_k.size();
+        std::string yaml_src = have_contents.substr(0, front_matter_end);
+        have_contents.erase(0, front_matter_end);
         std::string remainder = std::move(have_contents);
         json have = yaml_to_json(load_yaml(path));
 
@@ -1298,9 +1316,9 @@ bool yaml_base_emitter::reconcile(json expected,
                     std::cerr << "./" << path.string() << ": could not open file for output\n";
                     failure = true;
                 } else {
-                    output << front_matter_delimiter_k;
-                    output << json_to_yaml_ordered(merged) << '\n';
-                    output << front_matter_delimiter_k;
+                    output << front_matter_begin_k;
+                    output << json_to_yaml_ordered(merged);
+                    output << front_matter_end_k;
                     output << remainder;
                 }
             } break;
@@ -1320,9 +1338,9 @@ bool yaml_base_emitter::reconcile(json expected,
                     std::cerr << "./" << path.string() << ": could not open file for output\n";
                     failure = true;
                 } else {
-                    output << "---\n";
-                    output << update_cleanup(json_to_yaml_ordered(expected)) << '\n';
-                    output << "---\n";
+                    output << front_matter_begin_k;
+                    output << update_cleanup(json_to_yaml_ordered(expected));
+                    output << front_matter_end_k;
                 }
             } break;
         }
