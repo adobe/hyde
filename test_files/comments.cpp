@@ -12,6 +12,13 @@ written permission of Adobe.
 // AST dump with
 // TERM="" clang --std=c++1z -Xclang -ast-dump -fsyntax-only -fparse-all-comments -fcomment-block-commands=hyde ./comments.cpp
 
+/// @brief Sample class with various compiler-generated routines
+/// @hyde-owner fosterbrereton
+struct compiler_generated {
+    compiler_generated() = default;
+    compiler_generated(const compiler_generated&) = delete;
+};
+
 /// An example struct from which these commands will hang.
 /// @brief This is a sample brief.
 /// @warning This is a sample warning.
@@ -39,6 +46,8 @@ struct some_struct {
     virtual void virtual_function();
 
     int _x{0}; ///< A trailing comment that documents `_x`.
+
+    compiler_generated _cg; ///< Using this here causes some implicit routines to get defined.
 };
 
 /// Notice how many of the comments for this structure are inherited from its superclass.

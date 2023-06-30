@@ -1389,9 +1389,9 @@ void yaml_base_emitter::insert_annotations(const json& j, json& node) {
     }
 
     if (has_json_flag(j, "default")) {
-        node["annotation"].push_back("default");
+        node["annotation"].push_back("defaulted");
     } else if (has_json_flag(j, "delete")) {
-        node["annotation"].push_back("delete");
+        node["annotation"].push_back("deleted");
     }
 
     if (has_json_flag(j, "implicit")) {
