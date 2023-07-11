@@ -12,11 +12,16 @@ written permission of Adobe.
 // AST dump with
 // TERM="" clang --std=c++1z -Xclang -ast-dump -fsyntax-only -fparse-all-comments -fcomment-block-commands=hyde ./comments.cpp
 
-/// @brief Sample class with various compiler-generated routines
+/// @brief Sample class intended to exhibit docs for compiler-generated routines
 /// @hyde-owner fosterbrereton
 struct compiler_generated {
-    compiler_generated() = default;
-    compiler_generated(const compiler_generated&) = delete;
+    compiler_generated() = delete;
+    compiler_generated(const compiler_generated&) = default;
+
+    /// This definition will force the compiler to auto-generate this class' assignment operator.
+    void assign(const compiler_generated& rhs) {
+        *this = rhs;
+    }
 };
 
 /// An example struct from which these commands will hang.
@@ -46,8 +51,6 @@ struct some_struct {
     virtual void virtual_function();
 
     int _x{0}; ///< A trailing comment that documents `_x`.
-
-    compiler_generated _cg; ///< Using this here causes some implicit routines to get defined.
 };
 
 /// Notice how many of the comments for this structure are inherited from its superclass.

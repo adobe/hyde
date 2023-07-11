@@ -97,7 +97,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
     bool first{true};
     bool is_ctor{false};
     bool is_dtor{false};
-    bool all_compiler_generated{true};
+    bool all_compiler_managed{true};
     std::size_t count(jsn.size());
     std::size_t inline_description_count{0};
     json last_inline_description;
@@ -155,13 +155,15 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
         }
 
         destination["signature_with_names"] = overload["signature_with_names"];
+
         // description is now optional when there is a singular variant, or when the overload
-        // is implicit (e.g., compiler-implemented.)
+        // is compiler-managed (implicit, =default, or =delete)
         const bool has_associated_inline = has_inline_field(destination, "description");
-        const bool is_compiler_generated = has_json_flag(overload, "implicit") ||
-                                           has_json_flag(overload, "defaulted") ||
-                                           has_json_flag(overload, "deleted");
-        const bool is_optional = count <= 1 || is_compiler_generated;
+        const bool is_implicit = has_json_flag(overload, "implicit");
+        const bool is_defaulted = has_json_flag(overload, "defaulted");
+        const bool is_deleted = has_json_flag(overload, "deleted");
+        const bool is_compiler_managed = is_implicit || is_defaulted || is_deleted;
+        const bool is_optional = count <= 1 || is_compiler_managed;
         destination["description"] = has_associated_inline ? tag_value_inlined_k :
                                      is_optional           ? tag_value_optional_k :
                                                              tag_value_missing_k;
@@ -171,11 +173,11 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
         }
 
         if (_options._tested_by != hyde::attribute_category::disabled) {
-            destination["tested_by"] = is_compiler_generated ? tag_value_optional_k : hyde::get_tag(_options._tested_by);
+            destination["tested_by"] = is_compiler_managed ? tag_value_optional_k : hyde::get_tag(_options._tested_by);
         }
         insert_annotations(overload, destination);
 
-        all_compiler_generated &= is_compiler_generated;
+        all_compiler_managed &= is_compiler_managed;
 
         if (!overload["arguments"].empty()) {
             std::size_t j{0};
@@ -197,7 +199,7 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
 
     json node = base_emitter_node(_as_methods ? "method" : "function", name,
                                   _as_methods ? "method" : "function",
-                                  all_compiler_generated);
+                                  all_compiler_managed);
 
     insert_inherited(inherited, node["hyde"]);
 

@@ -1388,14 +1388,14 @@ void yaml_base_emitter::insert_annotations(const json& j, json& node) {
         }
     }
 
-    if (has_json_flag(j, "default")) {
-        node["annotation"].push_back("defaulted");
-    } else if (has_json_flag(j, "delete")) {
-        node["annotation"].push_back("deleted");
-    }
-
     if (has_json_flag(j, "implicit")) {
         node["annotation"].push_back("implicit");
+    }
+    if (has_json_flag(j, "defaulted")) {
+        node["annotation"].push_back("defaulted");
+    }
+    if (has_json_flag(j, "deleted")) {
+        node["annotation"].push_back("deleted");
     }
 
     if (has_json_flag(j, "deprecated")) {

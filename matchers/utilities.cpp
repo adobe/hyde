@@ -738,14 +738,14 @@ optional_json DetailFunctionDecl(const hyde::processing_options& options, const 
     info["visibility_explicit"] = linkage_info.isVisibilityExplicit() ? "true" : "false";
 
     if (const auto* method = llvm::dyn_cast_or_null<CXXMethodDecl>(f)) {
-        if (method->isConst()) info["const"] = true;
-        if (method->isVolatile()) info["volatile"] = true;
-        if (method->isStatic()) info["static"] = true;
-        if (method->isDeletedAsWritten()) info["delete"] = true;
-        if (method->isExplicitlyDefaulted()) info["default"] = true;
+        info["const"] = method->isConst();
+        info["volatile"] = method->isVolatile();
+        info["static"] = method->isStatic();
+        info["deleted"] = method->isDeletedAsWritten();
+        info["defaulted"] = method->isExplicitlyDefaulted();
 
-        bool is_ctor = isa<CXXConstructorDecl>(method);
-        bool is_dtor = isa<CXXDestructorDecl>(method);
+        const bool is_ctor = isa<CXXConstructorDecl>(method);
+        const bool is_dtor = isa<CXXDestructorDecl>(method);
 
         if (is_ctor || is_dtor) {
             if (is_ctor) {
@@ -753,15 +753,16 @@ optional_json DetailFunctionDecl(const hyde::processing_options& options, const 
 
                 if (auto ctor_decl = llvm::dyn_cast_or_null<CXXConstructorDecl>(method)) {
                     auto specifier = ctor_decl->getExplicitSpecifier();
-                    if (specifier.isExplicit()) info["explicit"] = true;
+                    info["explicit"] = specifier.isExplicit();
                 }
+            } else /*is_dtor*/ {
+                info["is_dtor"] = true;
             }
-            if (is_dtor) info["is_dtor"] = true;
         }
 
         if (auto conversion_decl = llvm::dyn_cast_or_null<CXXConversionDecl>(method)) {
             auto specifier = conversion_decl->getExplicitSpecifier();
-            if (specifier.isExplicit()) info["explicit"] = true;
+            info["explicit"] = specifier.isExplicit();
         }
     }
 
