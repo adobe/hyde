@@ -91,7 +91,7 @@ std::vector<std::string> make_absolute(std::vector<std::string> paths) {
     Command line arguments section. These are intentionally global. See:
         https://llvm.org/docs/CommandLine.html
 */
-enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate };
+enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate, ToolModeFixupSubfield };
 enum ToolDiagnostic { ToolDiagnosticQuiet, ToolDiagnosticVerbose, ToolDiagnosticVeryVerbose };
 static llvm::cl::OptionCategory MyToolCategory(
     "Hyde is a tool to scan library headers to ensure documentation is kept up to\n"
@@ -103,7 +103,11 @@ static cl::opt<ToolMode> ToolMode(
         clEnumValN(ToolModeYAMLValidate, "hyde-validate", "Validate existing YAML documentation"),
         clEnumValN(ToolModeYAMLUpdate,
                    "hyde-update",
-                   "Write updated YAML documentation for missing elements")),
+                   "Write updated YAML documentation for missing elements"),
+        clEnumValN(ToolModeFixupSubfield,
+                   "hyde-fixup-subfield",
+                   "Fix-up preexisting documentation; move all fields except `layout` and `title` into a `hyde` subfield. Note this mode is unique in that it takes pre-existing documentation as source(s), not a C++ source file.")
+    ),
     cl::cat(MyToolCategory));
 static cl::opt<hyde::ToolAccessFilter> ToolAccessFilter(
     cl::desc("Restrict documentation of class elements by their access specifier."),
@@ -132,12 +136,6 @@ static cl::opt<std::string> YamlDstDir(
 static cl::opt<bool> EmitJson(
     "hyde-emit-json",
     cl::desc("Output JSON emitted from operation"),
-    cl::cat(MyToolCategory),
-    cl::ValueDisallowed);
-
-static cl::opt<bool> FixupHydeSubfield(
-    "fixup-hyde-subfield",
-    cl::desc("Fix-up preexisting documentation; move all fields except `layout` and `title` into a `hyde` subfield. `hyde-update` mode only."),
     cl::cat(MyToolCategory),
     cl::ValueDisallowed);
 
@@ -402,6 +400,22 @@ CommonOptionsParser MakeOptionsParser(int argc, const char** argv) {
 }
 
 /**************************************************************************************************/
+// Hyde may accumulate many "fixups" throughout its lifetime. The first of these so far is to move
+// the hyde fields under a `hyde` subfield in the YAML, allowing for other tools' fields to coexist
+// under other values in the same have file.
+bool fixup_have_file_subfield(const std::filesystem::path& path) {
+    // Passing `true` is what's actually causing the fixup.
+    const auto parsed = hyde::parse_documentation(path, true);
+    const auto failure = parsed._error || hyde::write_documentation(parsed, path);
+
+    if (failure) {
+        std::cerr << "Failed to fixup " << path << '\n';
+    }
+
+    return failure;
+}
+
+/**************************************************************************************************/
 
 } // namespace
 
@@ -454,6 +468,18 @@ int main(int argc, const char** argv) try {
         s.insert(i);
     }
     sourcePaths.assign(s.begin(), s.end());
+
+    if (ToolMode == ToolModeFixupSubfield) {
+        bool failure{false};
+
+        for (const auto& path : sourcePaths) {
+            failure |= fixup_have_file_subfield(path);
+        }
+
+        // In this mode, once the documentation file has been fixed up, we're done.
+        return failure ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
+
     MatchFinder Finder;
     hyde::processing_options options{sourcePaths, ToolAccessFilter, NamespaceBlacklist, ProcessClassMethods};
 
@@ -553,24 +579,37 @@ int main(int argc, const char** argv) try {
     // Specify the hyde preprocessor macro
     arguments.emplace_back("-DADOBE_TOOL_HYDE=1");
 
+    // Have the driver parse comments. See:
+    // https://clang.llvm.org/docs/UsersManual.html#comment-parsing-options
+    // This isn't strictly necessary, as Doxygen comments will be detected
+    // and parsed regardless. Better to be thorough, though.
+    arguments.emplace_back("-fparse-all-comments");
+
+    // Enables some checks built in to the clang driver to ensure comment
+    // documentation matches whatever it is documenting. We also make it
+    // an error because the documentation should be accurate when generated.
+    arguments.emplace_back("-Werror=documentation");
+    arguments.emplace_back("-Werror=documentation-deprecated-sync");
+    arguments.emplace_back("-Werror=documentation-html");
+    arguments.emplace_back("-Werror=documentation-pedantic");
+
+    // Add hyde-specific commands to the Clang Doxygen parser. For hyde, we'll require the first
+    // word to be the hyde field (e.g., `@hyde-owner fosterbrereton`.) Because the Doxygen parser
+    // doesn't consider `-` or `_` as part of the command token, the first word will be
+    // `-owner` in this case, which gives us something parseable, and it reads
+    // reasonably in the code as well.
+    arguments.emplace_back("-fcomment-block-commands=hyde");
+
     //
     // Spin up the tool and run it.
     //
 
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
 
-    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
-        return arguments;
-    });
-
     Tool.appendArgumentsAdjuster(OptionsParser.getArgumentsAdjuster());
 
     Tool.appendArgumentsAdjuster(
         getInsertArgumentAdjuster(arguments, clang::tooling::ArgumentInsertPosition::END));
-
-    Tool.appendArgumentsAdjuster([](const CommandLineArguments& arguments, StringRef Filename){
-        return arguments;
-    });
 
     if (Tool.run(newFrontendActionFactory(&Finder).get()))
         throw std::runtime_error("compilation failed.");
@@ -609,7 +648,6 @@ int main(int argc, const char** argv) try {
         hyde::emit_options emit_options;
         emit_options._tested_by = TestedBy;
         emit_options._ignore_extraneous_files = IgnoreExtraneousFiles;
-        emit_options._fixup_hyde_subfield = FixupHydeSubfield;
 
         auto out_emitted = hyde::json::object();
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,

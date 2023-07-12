@@ -83,3 +83,17 @@ To validate pre-existing YAML:
 
 To output updated YAML:
 ```./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-update ../test_files/classes.cpp```
+
+# Hyde 1 to Hyde 2 Format Conversion
+
+As of the Hyde 2 work, all subfields in the YAML output (except the Jekyll-required `layout` and `title` fields) must go under a top-level `hyde` subfield. This allows for other tools to include additional (possibly same-named) fields under their own top-level subfields in the YAML.
+
+Here is an example of updating from Hyde 1 to Hyde 2 formatted docs by scanning a directory for markdown-formatted files and passing them to `hyde` with the new `-hyde-fixup-subfield` mode:
+
+   find . -name '*.md' | xargs -I % -L 1 /path/to/hyde -hyde-fixup-subfield % --
+
+# Sass Updates
+
+Sometimes it may be necessary to clean up or "lint" the sass files. You can do so with:
+
+    bundle exec sass-convert -i /path/to/file.scss

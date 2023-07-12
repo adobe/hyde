@@ -11,10 +11,8 @@ written permission of Adobe.
 
 #pragma once
 
-// stdc++
-#include <optional>
-
 // clang/llvm
+// clang-format off
 #include "_clang_include_prefix.hpp" // must be first to disable warnings for clang headers
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
@@ -22,6 +20,7 @@ written permission of Adobe.
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "_clang_include_suffix.hpp" // must be last to re-enable warnings
+// clang-format on
 
 // application
 #include "json.hpp"
@@ -39,11 +38,11 @@ json GetParentCXXRecords(const clang::ASTContext* n, const clang::Decl* d);
 
 json GetTemplateParameters(const clang::ASTContext* n, const clang::TemplateDecl* d);
 
-std::optional<json> DetailFunctionDecl(const hyde::processing_options& options,
-                                       const clang::FunctionDecl* f);
+optional_json DetailFunctionDecl(const hyde::processing_options& options,
+                                 const clang::FunctionDecl* f);
 
-std::optional<json> DetailCXXRecordDecl(const hyde::processing_options& options,
-                                        const clang::CXXRecordDecl* cxx);
+optional_json DetailCXXRecordDecl(const hyde::processing_options& options,
+                                  const clang::CXXRecordDecl* cxx);
 
 bool PathCheck(const std::vector<std::string>& paths, const clang::Decl* d, clang::ASTContext* n);
 
@@ -57,6 +56,9 @@ std::string ReplaceAll(std::string str, const std::string& substr, const std::st
 
 // type-parameter-N-M filtering.
 std::string PostProcessType(const clang::Decl* decl, std::string type);
+
+// Doxygen-style comments.
+optional_json ProcessComments(const clang::Decl* d);
 
 /**************************************************************************************************/
 
@@ -86,11 +88,10 @@ inline std::string to_string(const clang::Decl* decl, clang::QualType type) {
 /**************************************************************************************************/
 
 template <typename DeclarationType>
-std::optional<json> StandardDeclInfo(const hyde::processing_options& options,
-                                       const DeclarationType* d) {
+optional_json StandardDeclInfo(const hyde::processing_options& options, const DeclarationType* d) {
     clang::ASTContext* n = &d->getASTContext();
 
-    if (!PathCheck(options._paths, d, n)) return std::optional<json>();
+    if (!PathCheck(options._paths, d, n)) return std::nullopt;
 
     json info = json::object();
 
@@ -99,14 +100,17 @@ std::optional<json> StandardDeclInfo(const hyde::processing_options& options,
     info["parents"] = GetParentCXXRecords(n, d);
     info["qualified_name"] = d->getQualifiedNameAsString();
 
-    if (NamespaceBlacklist(options._namespace_blacklist, info)) return std::optional<json>();
+    if (NamespaceBlacklist(options._namespace_blacklist, info)) return std::nullopt;
 
     auto clang_access = d->getAccess();
 
-    if (!AccessCheck(options._access_filter, clang_access)) return std::optional<json>();
+    if (!AccessCheck(options._access_filter, clang_access)) return std::nullopt;
 
-    if (clang_access != clang::AccessSpecifier::AS_none)
-        info["access"] = to_string(clang_access);
+    if (auto comments = ProcessComments(d)) {
+        info["comments"] = std::move(*comments);
+    }
+
+    if (clang_access != clang::AccessSpecifier::AS_none) info["access"] = to_string(clang_access);
 
     info["defined_in_file"] = [&] {
         auto beginLoc = d->getBeginLoc();

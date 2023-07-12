@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 #pragma once
@@ -47,6 +47,12 @@ private:
 
 /**************************************************************************************************/
 
+inline bool has_json_flag(const json& j, const char* k) {
+    return j.count(k) && j.at(k).get<bool>();
+}
+
+/**************************************************************************************************/
+
 struct yaml_base_emitter {
 public:
     yaml_base_emitter(std::filesystem::path src_root,
@@ -54,29 +60,45 @@ public:
                       yaml_mode mode,
                       emit_options options,
                       bool editable_title = false)
-        : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode), _options(std::move(options)), _editable_title{editable_title} {}
+        : _src_root(std::move(src_root)), _dst_root(std::move(dst_root)), _mode(mode),
+          _options(std::move(options)), _editable_title{editable_title} {}
 
-    virtual bool emit(const json& j, json& out_emitted) = 0;
+    /// @param matched The json given to us by the matcher engine
+    /// @param output The resulting output of this call
+    /// @param inherited Any inherited fields from parent constructs, e.g., passing
+    ///                  the owner of a class to its members
+    /// @return `true` if an error took place during emit; `false` otherwise.
+    virtual bool emit(const json& matched, json& output, const json& inherited) = 0;
 
 protected:
-    json base_emitter_node(std::string layout, std::string title, std::string tag);
+    json base_emitter_node(std::string layout, std::string title, std::string tag, bool implicit);
 
-    bool reconcile(json node, std::filesystem::path root_path, std::filesystem::path path, json& out_reconciled);
+    bool reconcile(json node,
+                   std::filesystem::path root_path,
+                   std::filesystem::path path,
+                   json& out_reconciled);
 
-    std::string defined_in_file(const std::string& src_path,
-                                const std::filesystem::path& src_root);
+    std::string defined_in_file(const std::string& src_path, const std::filesystem::path& src_root);
 
     std::filesystem::path subcomponent(const std::filesystem::path& src_path,
-                                         const std::filesystem::path& src_root);
+                                       const std::filesystem::path& src_root);
 
-    void maybe_annotate(const json& j, json& node); // make out arg?
+    // For some reason nlohmann's JSON types aren't happy with my moving them about
+    // (they always seem to show up null (~) in the final YAML output)
+    // so converting these to out-arg-based routines will have to wait until I can
+    // sort that out.
+    void insert_inherited(const json& inherited, json& node); // make out arg?
+    void insert_annotations(const json& j, json& node);       // make out arg?
+    void insert_doxygen(const json& j, json& node);           // make out arg?
 
     std::string format_template_parameters(const json& json, bool with_types);
 
     std::string filename_filter(std::string f);
     std::string filename_truncate(std::string s);
 
-    void insert_typedefs(const json& j, json& node);
+    void insert_typedefs(const json& j, json& node, const json& inherited);
+
+    void check_inline_comments(const json& expected, json& out_merged);
 
     bool check_typedefs(const std::string& filepath,
                         const json& have_node,
@@ -143,6 +165,8 @@ protected:
                    const std::string& key,
                    const check_proc& proc);
 
+    static bool has_inline_field(const json& j, const char* field);
+
 private:
     template <typename Arg, typename... Args>
     std::filesystem::path dst_path_append(std::filesystem::path p, Arg&& arg, Args&&... args);
@@ -206,7 +230,9 @@ std::filesystem::path yaml_base_emitter::dst_path(const json& j, Args&&... args)
 /**************************************************************************************************/
 
 template <typename Arg, typename... Args>
-std::filesystem::path yaml_base_emitter::dst_path_append(std::filesystem::path p, Arg&& arg, Args&&... args) {
+std::filesystem::path yaml_base_emitter::dst_path_append(std::filesystem::path p,
+                                                         Arg&& arg,
+                                                         Args&&... args) {
     return dst_path_append(dst_path_append(std::move(p), arg), std::forward<Args>(args)...);
 }
 

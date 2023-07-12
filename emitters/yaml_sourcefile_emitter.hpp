@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 #pragma once
@@ -28,7 +28,7 @@ struct yaml_sourcefile_emitter : public yaml_base_emitter {
                                      emit_options options)
         : yaml_base_emitter(std::move(src_root), std::move(dst_root), mode, std::move(options)) {}
 
-    bool emit(const json& j, json& out_emitted) override;
+    bool emit(const json& matched, json& output, const json& inherited) override;
 
     bool do_merge(const std::string& filepath,
                   const json& have,

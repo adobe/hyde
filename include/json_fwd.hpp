@@ -11,6 +11,9 @@ written permission of Adobe.
 
 #pragma once
 
+// stdc++
+#include <optional>
+
 // nlohmann/json
 #include "nlohmann/json_fwd.hpp"
 
@@ -21,6 +24,8 @@ namespace hyde {
 /**************************************************************************************************/
 
 using json = nlohmann::json;
+
+using optional_json = std::optional<json>;
 
 /**************************************************************************************************/
 

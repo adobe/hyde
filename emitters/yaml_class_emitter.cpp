@@ -6,7 +6,7 @@ NOTICE: Adobe permits you to use, modify, and distribute this file in
 accordance with the terms of the Adobe license agreement accompanying
 it. If you have received this file from a source other than Adobe,
 then your use, modification, or distribution of it requires the prior
-written permission of Adobe. 
+written permission of Adobe.
 */
 
 // identity
@@ -43,14 +43,18 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             bool failure{false};
 
             failure |= check_scalar(filepath, have, expected, nodepath, out_merged, "type");
-            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged, "description");
-            failure |= check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+            failure |= check_editable_scalar(filepath, have, expected, nodepath, out_merged,
+                                             "description");
+            failure |=
+                check_scalar_array(filepath, have, expected, nodepath, out_merged, "annotation");
+
+            check_inline_comments(expected, out_merged);
 
             return failure;
         });
 
     failure |= check_typedefs(filepath, have, expected, "", out_merged);
-    
+
     failure |= check_object_array(
         filepath, have, expected, "", out_merged, "methods", "title",
         [this](const std::string& filepath, const json& have, const json& expected,
@@ -59,15 +63,20 @@ bool yaml_class_emitter::do_merge(const std::string& filepath,
             return function_emitter.do_merge(filepath, have, expected, out_merged);
         });
 
+    check_inline_comments(expected, out_merged);
+
     return failure;
 }
 
 /**************************************************************************************************/
 
-bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
-    json node = base_emitter_node("class", j["name"], "class");
+bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inherited) {
+    json node = base_emitter_node("class", j["name"], "class", has_json_flag(j, "implicit"));
     node["hyde"]["defined_in_file"] = defined_in_file(j["defined_in_file"], _src_root);
-    maybe_annotate(j, node);
+
+    insert_inherited(inherited, node["hyde"]);
+    insert_annotations(j, node["hyde"]);
+    insert_doxygen(j, node["hyde"]);
 
     std::string declaration = format_template_parameters(j, true) + '\n' +
                               static_cast<const std::string&>(j["kind"]) + " " +
@@ -84,18 +93,23 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
         for (const auto& field : j["fields"]) {
             const std::string& key = field["name"];
             auto& field_node = node["hyde"]["fields"][key];
+            insert_annotations(field, field_node);
+            insert_doxygen(field, field_node);
+
             field_node["type"] = static_cast<const std::string&>(field["type"]);
-            field_node["description"] = tag_value_missing_k;
-            maybe_annotate(field, field_node);
+            const bool inline_description_exists =
+                field_node.count("inline") && field_node["inline"].count("description");
+            field_node["description"] =
+                inline_description_exists ? tag_value_inlined_k : tag_value_missing_k;
         }
     }
 
-    insert_typedefs(j, node);
+    insert_typedefs(j, node, inherited);
 
-    auto dst = dst_path(j,
-                        static_cast<const std::string&>(j["name"]));
+    auto dst = dst_path(j, static_cast<const std::string&>(j["name"]));
 
-    bool failure = reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
+    bool failure =
+        reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
 
     const auto& methods = j["methods"];
     yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, _options, true);
@@ -103,7 +117,7 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted) {
     for (auto it = methods.begin(); it != methods.end(); ++it) {
         function_emitter.set_key(it.key());
         auto function_emitted = hyde::json::object();
-        failure |= function_emitter.emit(it.value(), function_emitted);
+        failure |= function_emitter.emit(it.value(), function_emitted, out_emitted.at("hyde"));
         out_emitted["methods"].push_back(std::move(function_emitted));
     }
 
