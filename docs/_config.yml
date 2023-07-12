@@ -12,7 +12,7 @@ email: noreply@adobe.com
 baseurl: /hyde
 url: "https://opensource.adobe.com/" # the base hostname & protocol for your site
 repository: adobe/hyde
-remote_theme: adobe/hyde-theme@develop
+remote_theme: adobe/hyde-theme@v2.0.0
 exclude:
     - "*.sh"
     - vendor # For Travis-CI (see https://jekyllrb.com/docs/continuous-integration/)
