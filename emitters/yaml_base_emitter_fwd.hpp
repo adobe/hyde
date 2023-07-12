@@ -12,8 +12,12 @@ written permission of Adobe.
 #pragma once
 
 // stdc++
+#include <filesystem>
 #include <stdexcept>
 #include <string>
+
+// application
+#include "json.hpp"
 
 /**************************************************************************************************/
 
@@ -53,8 +57,20 @@ static inline bool is_tag(const std::string& s) { return s.substr(0, 2) == "__";
 struct emit_options {
     attribute_category _tested_by{attribute_category::disabled};
     bool _ignore_extraneous_files{false};
-    bool _fixup_hyde_subfield{false};
 };
+
+/**************************************************************************************************/
+
+struct documentation {
+    json _json;
+    std::string _remainder;
+    bool _error{false};
+};
+
+documentation parse_documentation(const std::filesystem::path& path, bool fixup_subfield);
+
+/// @return `true` on failure to write, `false` otherwise.
+bool write_documentation(const documentation& docs, const std::filesystem::path& path);
 
 /**************************************************************************************************/
 

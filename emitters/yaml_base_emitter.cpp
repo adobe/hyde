@@ -1236,6 +1236,64 @@ auto load_yaml(const std::filesystem::path& path) try {
 
 /**************************************************************************************************/
 
+documentation parse_documentation(const std::filesystem::path& path, bool fixup_subfield) {
+    // we have to load the file ourselves and find the place where the
+    // front-matter ends and any other relevant documentation begins. We
+    // need to do this for the boilerpolate step to keep it from blasting
+    // out any extra documentation that's already been added.
+    std::ifstream have_file(path);
+    std::stringstream have_contents_stream;
+    have_contents_stream << have_file.rdbuf();
+    std::string have_contents = have_contents_stream.str();
+    documentation result;
+
+    if (have_contents.find_first_of(front_matter_begin_k) != 0) {
+        std::cerr << "./" << path.string() << ": does not begin with YAML front-matter.\n";
+        result._error = true;
+        return result;
+    }
+
+    const auto contents_end = have_contents.find(front_matter_end_k);
+
+    if (contents_end == std::string::npos) {
+        std::cerr << "./" << path.string() << ": could not find end of YAML front-matter.\n";
+        result._error = true;
+        return result;
+    }
+
+    const auto front_matter_end = contents_end + front_matter_end_k.size();
+    std::string yaml_src = have_contents.substr(0, front_matter_end);
+    have_contents.erase(0, front_matter_end);
+    
+    result._remainder = std::move(have_contents);
+    result._json = yaml_to_json(load_yaml(path));
+
+    if (fixup_subfield) {
+        result._json = fixup_hyde_subfield(std::move(result._json));
+    }
+
+    return result;
+}
+
+/**************************************************************************************************/
+
+bool write_documentation(const documentation& docs, const std::filesystem::path& path) {
+    std::ofstream output(path);
+    if (!output) {
+        std::cerr << "./" << path.string() << ": could not open file for output\n";
+        return true;
+    }
+
+    output << front_matter_begin_k;
+    output << json_to_yaml_ordered(docs._json);
+    output << front_matter_end_k;
+    output << docs._remainder;
+
+    return false;
+}
+
+/**************************************************************************************************/
+
 bool yaml_base_emitter::reconcile(json expected,
                                   std::filesystem::path root_path,
                                   std::filesystem::path path,
@@ -1265,40 +1323,14 @@ bool yaml_base_emitter::reconcile(json expected,
     failure |= create_path_directories(path);
 
     if (checker_s.exists(path)) {
-        // we have to load the file ourselves and find the place where the
-        // front-matter ends and any other relevant documentation begins. We
-        // need to do this for the boilerpolate step to keep it from blasting
-        // out any extra documentation that's already been added.
-        if (path.string().find("f_blend_mode_name") != std::string::npos) {
-            int x{42};
-            (void)x;
-        }
-        std::ifstream have_file(path);
-        std::stringstream have_contents_stream;
-        have_contents_stream << have_file.rdbuf();
-        std::string have_contents = have_contents_stream.str();
+        const auto have_docs = parse_documentation(path, true);
 
-        if (have_contents.find_first_of(front_matter_begin_k) != 0) {
-            std::cerr << "./" << path.string() << ": does not begin with YAML front-matter.\n";
+        if (have_docs._error) {
             return true;
         }
 
-        const auto contents_end = have_contents.find(front_matter_end_k);
-
-        if (contents_end == std::string::npos) {
-            std::cerr << "./" << path.string() << ": could not find end of YAML front-matter.\n";
-            return true;
-        }
-
-        const auto front_matter_end = contents_end + front_matter_end_k.size();
-        std::string yaml_src = have_contents.substr(0, front_matter_end);
-        have_contents.erase(0, front_matter_end);
-        std::string remainder = std::move(have_contents);
-        json have = yaml_to_json(load_yaml(path));
-
-        if (_mode == yaml_mode::update && _options._fixup_hyde_subfield) {
-            have = fixup_hyde_subfield(std::move(have));
-        }
+        const auto& have = have_docs._json;
+        const auto& remainder = have_docs._remainder;
 
         json merged;
 
@@ -1311,16 +1343,7 @@ bool yaml_base_emitter::reconcile(json expected,
                 // do nothing
             } break;
             case hyde::yaml_mode::update: {
-                std::ofstream output(path);
-                if (!output) {
-                    std::cerr << "./" << path.string() << ": could not open file for output\n";
-                    failure = true;
-                } else {
-                    output << front_matter_begin_k;
-                    output << json_to_yaml_ordered(merged);
-                    output << front_matter_end_k;
-                    output << remainder;
-                }
+                failure = write_documentation({std::move(merged), std::move(remainder)}, path);
             } break;
         }
     } else { // file does not exist
@@ -1333,6 +1356,9 @@ bool yaml_base_emitter::reconcile(json expected,
             } break;
             case hyde::yaml_mode::update: {
                 // Add update. No remainder yet, as above.
+                // REVISIT: Refactor all this into a call to write_documentation,
+                // though I'm not sure what the call to `update_cleanup` is all about,
+                // and which was missing from the prior case when the file existed.
                 std::ofstream output(path);
                 if (!output) {
                     std::cerr << "./" << path.string() << ": could not open file for output\n";
