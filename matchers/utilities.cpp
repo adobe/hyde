@@ -359,6 +359,7 @@ inline std::string_view to_string_view(ParamCommandComment::PassDirection x) {
         case ParamCommandComment::PassDirection::Out: return "out";
     }
     // clang-format on
+    return "in"; // gcc on linux is asking for this.
 }
 
 /**************************************************************************************************/
