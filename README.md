@@ -90,7 +90,7 @@ As of the Hyde 2 work, all subfields in the YAML output (except the Jekyll-requi
 
 Here is an example of updating from Hyde 1 to Hyde 2 formatted docs by scanning a directory for markdown-formatted files and passing them to `hyde` with the new `-hyde-fixup-subfield` mode:
 
-   find . -name '*.md' | xargs -I % -L 1 /path/to/hyde -hyde-fixup-subfield % --
+    find . -name '*.md' | xargs -I % -L 1 /path/to/hyde -hyde-fixup-subfield % --
 
 # Sass Updates
 
