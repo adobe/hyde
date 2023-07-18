@@ -39,8 +39,8 @@ jobs:
         uses: actions/checkout@v3
       - name: 🏗️ Setup project files
         run: |
-          sudo apt-get install libllvm10 llvm-10 llvm-10-dev
-          sudo apt-get install clang-tools-10 libclang-common-10-dev clang-10 libclang-10-dev
+          sudo apt-get install libllvm12 llvm-12 llvm-12-dev
+          sudo apt-get install clang-tools-12 libclang-common-12-dev clang-12 libclang-12-dev
           sudo apt-get install ninja-build
           git submodule update --init
           mkdir build
