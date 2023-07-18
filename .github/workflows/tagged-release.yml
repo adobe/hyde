@@ -33,7 +33,7 @@ jobs:
           files:
             build/Release/hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz
   release-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: ⬇️ Checkout sources
         uses: actions/checkout@v3
