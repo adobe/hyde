@@ -45,8 +45,6 @@ FetchContent_MakeAvailable(llvm)
 message(STATUS "INFO: LLVM source dir: ${llvm_SOURCE_DIR}")
 message(STATUS "INFO: LLVM binary dir: ${llvm_BINARY_DIR}")
 
-add_executable(hyde)
-
 set(SRC_SOURCES
     ${PROJECT_SOURCE_DIR}/sources/autodetect.cpp
     ${PROJECT_SOURCE_DIR}/sources/main.cpp
@@ -104,7 +102,15 @@ set(SRC_YAMLCPP
     ${PROJECT_SOURCE_DIR}/submodules/yaml-cpp/src/tag.cpp
 )
 
-target_sources(hyde
+# We make the hyde sources a library so that we can define these sources as a dependency of the
+# executable. This will cause cmake to order the compilation of these files ahead of any other
+# dependencies like Clang (because we specify this library as the first dependency of the
+# executable.) The big benefit to this change is that they'll get compiled (and possibly
+# break) _first_, letting builds fail faster than if Clang we're compiled ahead of these sources.
+
+add_library(hyde_lib STATIC)
+
+target_sources(hyde_lib
     PRIVATE
         ${SRC_SOURCES}
         ${SRC_EMITTERS}
@@ -117,7 +123,7 @@ source_group(emitters FILES ${SRC_EMITTERS})
 source_group(matchers FILES ${SRC_MATCHERS})
 source_group(yaml-cpp FILES ${SRC_YAMLCPP})
 
-target_include_directories(hyde
+target_include_directories(hyde_lib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -129,7 +135,7 @@ target_include_directories(hyde
         ${llvm_BINARY_DIR}/include
 )
 
-target_compile_options(hyde
+target_compile_options(hyde_lib
     PUBLIC
         -Wall
         -Wno-comment
@@ -138,10 +144,16 @@ target_compile_options(hyde
 )
 
 if (NOT LLVM_ENABLE_RTTI)
-    target_compile_options(hyde PRIVATE -fno-rtti)
+    target_compile_options(hyde_lib PRIVATE -fno-rtti)
 endif()
 
+# cmake won't let you make an executable with no source files, so we create a dummy empty file.
+# See: https://stackoverflow.com/a/34234515/153535
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/null.cpp "// See CMakeLists.txt for the origin of this file.")
+add_executable(hyde ${CMAKE_CURRENT_BINARY_DIR}/null.cpp)
+
 target_link_libraries(hyde
+    hyde_lib
     clang
     clangAST
     clangASTMatchers
