@@ -33,14 +33,14 @@ jobs:
           files:
             build/Release/hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz
   release-linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: ⬇️ Checkout sources
         uses: actions/checkout@v3
       - name: 🏗️ Setup project files
         run: |
-          sudo apt-get install libllvm12 llvm-12 llvm-12-dev
-          sudo apt-get install clang-tools-12 libclang-common-12-dev clang-12 libclang-12-dev
+          sudo apt-get install libllvm15 llvm-15 llvm-15-dev
+          sudo apt-get install clang-tools-15 libclang-common-15-dev clang-15 libclang-15-dev
           sudo apt-get install ninja-build
           git submodule update --init
           mkdir build
