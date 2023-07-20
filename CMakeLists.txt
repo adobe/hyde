@@ -153,10 +153,11 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/null.cpp "// See CMakeLists.txt for the o
 add_executable(hyde ${CMAKE_CURRENT_BINARY_DIR}/null.cpp)
 
 target_link_libraries(hyde
-    clangAST # Actually needs to happen before `hyde_lib` to generate necessary tables.
+    # Some Clang dependencies need to build before `hyde_lib` to generate necessary tables.
+    clangAST
+    clangASTMatchers
     hyde_lib
     clang
-    clangASTMatchers
     clangBasic
     clangFrontend
     clangLex
