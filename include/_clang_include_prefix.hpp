@@ -5,6 +5,7 @@
     #pragma clang diagnostic ignored "-Weverything"
 #elif __GNUC__ // must follow clang (which defines both)
     #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wdeprecated-enum-enum-conversion"
     #pragma GCC diagnostic ignored "-Wunknown-pragmas"
     #pragma GCC diagnostic ignored "-Wall"
     #pragma GCC diagnostic ignored "-Wextra"
