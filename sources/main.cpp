@@ -417,6 +417,18 @@ bool fixup_have_file_subfield(const std::filesystem::path& path) {
 
 /**************************************************************************************************/
 
+constexpr auto hyde_version_major_k = 2;
+constexpr auto hyde_version_minor_k = 0;
+constexpr auto hyde_version_patch_k = 1;
+
+auto hyde_version() {
+    return std::to_string(hyde_version_major_k) +
+           "." + std::to_string(hyde_version_minor_k) +
+           "." + std::to_string(hyde_version_patch_k);
+}
+
+/**************************************************************************************************/
+
 } // namespace
 
 /**************************************************************************************************/
@@ -428,6 +440,10 @@ std::vector<std::string> source_paths(int argc, const char** argv) {
 /**************************************************************************************************/
 
 int main(int argc, const char** argv) try {
+    llvm::cl::SetVersionPrinter([](llvm::raw_ostream &OS) {
+        OS << "hyde " << hyde_version() << "; llvm " << LLVM_VERSION_STRING << "\n";
+    });
+
     auto sources = source_paths(argc, argv);
     command_line_args args = integrate_hyde_config(argc, argv);
     int new_argc = static_cast<int>(args._hyde.size());
