@@ -6,6 +6,8 @@ RUN apt-get -y install curl gnupg2 software-properties-common ninja-build  apt-u
 
 RUN apt-get -y install wget
 
+RUN apt-get -y install git
+
 # Install llvm/clang 13
 
 RUN wget https://apt.llvm.org/llvm.sh
@@ -21,7 +23,7 @@ RUN mkdir /opt/cmake
 RUN sh /cmake-3.24.0-linux-x86_64.sh --prefix=/opt/cmake --skip-license
 RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
-#install hyde dependencies 
+#install hyde dependencies
 RUN apt-get -y install libyaml-cpp-dev libboost-system-dev libboost-filesystem-dev
 
 COPY . /usr/src/hyde
@@ -31,8 +33,8 @@ WORKDIR /usr/src/hyde
 RUN mkdir -p build \
     && cd build \
     && rm -rf *  \
-    && cmake .. -GNinja \
-    && ninja 
+    && cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release \
+    && ninja
 
 # install hyde
 RUN cp ./build/hyde /usr/bin
