@@ -41,9 +41,8 @@ LLVM/Clang are declared as a dependency in the project's `CMakeLists.txt` file, 
 
 # Using Docker
 
-```
-VOLUME="hyde"
-docker build --tag $VOLUME .
+```sh
+docker build --tag hyde .
 
 docker run --platform linux/x86_64 --mount type=bind,source="$(pwd)",target=/mnt/host \
     --tty --interactive \
