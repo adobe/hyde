@@ -41,6 +41,8 @@ LLVM/Clang are declared as a dependency in the project's `CMakeLists.txt` file, 
 
 # Using Docker
 
+You may need to increase your docker resources to build the image.
+
 ```sh
 docker build --tag hyde .
 
