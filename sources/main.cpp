@@ -94,8 +94,7 @@ std::vector<std::string> make_absolute(std::vector<std::string> paths) {
 enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate, ToolModeFixupSubfield };
 enum ToolDiagnostic { ToolDiagnosticQuiet, ToolDiagnosticVerbose, ToolDiagnosticVeryVerbose };
 static llvm::cl::OptionCategory MyToolCategory(
-    "Hyde is a tool to scan library headers to ensure documentation is kept up to\n"
-    "date");
+    "Hyde is a tool to scan library headers to ensure documentation is kept up to date");
 static cl::opt<ToolMode> ToolMode(
     cl::desc("There are several modes under which the tool can run:"),
     cl::values(
@@ -192,6 +191,16 @@ static cl::list<std::string> NamespaceBlacklist(
     cl::desc("Namespace(s) whose contents should not be processed"),
     cl::cat(MyToolCategory),
     cl::CommaSeparated);
+
+static cl::opt<std::string> DriverLanguage(
+    "language",
+    cl::desc("Override language used for compilation"),
+    cl::cat(MyToolCategory));
+
+static cl::alias DriverLanguageAlias(
+    "x",
+    cl::desc("Alias for `-language`"),
+    cl::aliasopt(DriverLanguage));
 
 static cl::opt<bool> ProcessClassMethods(
     "process-class-methods",
@@ -444,7 +453,6 @@ int main(int argc, const char** argv) try {
         OS << "hyde " << hyde_version() << "; llvm " << LLVM_VERSION_STRING << "\n";
     });
 
-    auto sources = source_paths(argc, argv);
     command_line_args args = integrate_hyde_config(argc, argv);
     int new_argc = static_cast<int>(args._hyde.size());
     std::vector<const char*> new_argv(args._hyde.size(), nullptr);
@@ -621,6 +629,20 @@ int main(int argc, const char** argv) try {
     //
 
     ClangTool Tool(OptionsParser.getCompilations(), sourcePaths);
+
+    // Clang usually permits the "-x" (aka "--language") flag to "treat subsequent input files as
+    // having type <language>". (See https://clang.llvm.org/docs/ClangCommandLineReference.html).
+    // As noted, the flag only works for _subsequent_ files, and since the input file is passed as
+    // the last parameter before the flag termination token (`--`), we cannot pass the `--language`
+    // flag thereafter and have it apply retroactively. Since the clang driver flags are all passed
+    // after the flag termination token, we have to inject this specific flag early.
+    if (!DriverLanguage.empty()) {
+        std::vector<std::string> prefix_arguments;
+        prefix_arguments.emplace_back("--language=" + DriverLanguage.getValue());
+
+        Tool.appendArgumentsAdjuster(
+            getInsertArgumentAdjuster(prefix_arguments, clang::tooling::ArgumentInsertPosition::BEGIN));
+    }
 
     Tool.appendArgumentsAdjuster(OptionsParser.getArgumentsAdjuster());
 
