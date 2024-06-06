@@ -24,17 +24,12 @@ RUN apt-get -y install build-essential
 # directory with
 # `hyde ./test.hpp -- -x c++ -print-resource-dir`
 
+# FROM base AS full
+
 ENV LLVM_VERSION=15
 
 RUN apt-get -y install clang-${LLVM_VERSION}
-
-# The above doesn't setup libc++ header paths correctly. Currently LLVM-15
-# doesn't install with llvm.sh in docker. So we install LLVM-16 just for
-# the libc++ config!
-
-RUN wget https://apt.llvm.org/llvm.sh
-RUN chmod +x llvm.sh
-RUN ./llvm.sh 16 all
+RUN apt-get -y install libc++-${LLVM_VERSION}-dev
 
 # set clang ${LLVM_VERSION} to be the version of clang we use when clang/clang++ is invoked
 RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100
@@ -64,3 +59,7 @@ RUN cp ./build/hyde /usr/bin
 # RUN apt-get -y install clang-15
 
 CMD ["./generate_test_files.sh"]
+
+# Experimenting with publishing the container and linking it to the hyde repo:
+
+LABEL org.opencontainers.image.source=https://github.com/adobe/hyde
