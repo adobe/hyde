@@ -39,9 +39,21 @@
 
 LLVM/Clang are declared as a dependency in the project's `CMakeLists.txt` file, and will be downloaded and made available to the project automatically.
 
-# Using Docker
+# How to run from Docker
 
-You may need to increase your docker resources to build the image.
+```sh
+docker pull ghcr.io/adobe/hyde:latest
+
+docker run --platform linux/x86_64 --mount type=bind,source="$(pwd)",target=/mnt/host \
+    --tty --interactive \
+    ghcr.io/adobe/hyde:latest bash
+```
+
+You can then run the examples as below, except don't prefix `hyde` with `./`.
+
+# Building the Docker image
+
+You may need to increase your docker resources to build the image. (2.0.1 successfully built with 16GB RAM and 4GB swap)
 
 ```sh
 docker build --tag hyde .
@@ -50,6 +62,20 @@ docker run --platform linux/x86_64 --mount type=bind,source="$(pwd)",target=/mnt
     --tty --interactive \
     hyde bash
 ```
+
+# Publishing the docker image (requires write access to the `adobe` GitHub organization)
+
+Instructions for publishing a GitHub package can be found [here](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+Instructions for associating the with the `adobe/hyde` repository can be found [here](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package#connecting-a-repository-to-a-container-image-using-the-command-line).
+
+```sh
+VERSION=2.0.1
+docker tag hyde ghcr.io/adobe/hyde:$VERSION
+docker tag hyde ghcr.io/adobe/hyde:latest
+docker push ghcr.io/adobe/hyde:$VERSION
+docker push ghcr.io/adobe/hyde:latest
+```
+
 
 # Parameters and Flags
 
