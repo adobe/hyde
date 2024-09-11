@@ -30,7 +30,7 @@ message(STATUS "INFO: Setting up LLVM...")
 FetchContent_Declare(
     llvm
     GIT_REPOSITORY https://github.com/llvm/llvm-project.git
-    GIT_TAG 8dfdcc7b7bf66834a761bd8de445840ef68e4d1a # llvmorg-15.0.7
+    GIT_TAG 3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff # llvmorg-18.1.8
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
     SOURCE_SUBDIR llvm
