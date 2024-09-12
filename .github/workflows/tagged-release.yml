@@ -24,14 +24,15 @@ jobs:
       - name: 🗜️ Create archive
         run: |
           cd build/Release
-          # xattr -d com.apple.quarantine hyde
-          tar -zcvf hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz hyde
+          xattr -d com.apple.quarantine hyde
+          strip hyde
+          tar -zcvf hyde-${{github.ref_name}}-macos.tgz hyde
       - name: ✍️ Post archive
         uses: softprops/action-gh-release@v1
         with:
           generate_release_notes: true
           files:
-            build/Release/hyde-${{github.ref_name}}-macos-${{runner.arch}}.tgz
+            build/Release/hyde-${{github.ref_name}}-macos.tgz
   release-linux:
     runs-on: ubuntu-latest
     steps:
@@ -39,8 +40,8 @@ jobs:
         uses: actions/checkout@v3
       - name: 🏗️ Setup project files
         run: |
-          sudo apt-get install libllvm13 llvm-13 llvm-13-dev
-          sudo apt-get install clang-tools-13 libclang-common-13-dev clang-13 libclang-13-dev
+          sudo apt-get install libllvm18 llvm-18 llvm-18-dev
+          sudo apt-get install clang-tools-18 libclang-common-18-dev clang-18 libclang-18-dev
           sudo apt-get install ninja-build
           git submodule update --init
           mkdir build
