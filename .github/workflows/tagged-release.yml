@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch: null
 permissions:
   contents: write
 jobs:
@@ -24,7 +25,8 @@ jobs:
       - name: 🗜️ Create archive
         run: |
           cd build/Release
-          xattr -d com.apple.quarantine hyde
+          # "No such xattr: com.apple.quarantine"
+          # xattr -d com.apple.quarantine hyde
           strip hyde
           tar -zcvf hyde-${{github.ref_name}}-macos.tgz hyde
       - name: ✍️ Post archive
@@ -38,10 +40,12 @@ jobs:
     steps:
       - name: ⬇️ Checkout sources
         uses: actions/checkout@v3
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "18"
       - name: 🏗️ Setup project files
         run: |
-          sudo apt-get install libllvm18 llvm-18 llvm-18-dev
-          sudo apt-get install clang-tools-18 libclang-common-18-dev clang-18 libclang-18-dev
           sudo apt-get install ninja-build
           git submodule update --init
           mkdir build
