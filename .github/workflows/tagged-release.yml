@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch: null
 permissions:
   contents: write
 jobs:
@@ -24,7 +25,8 @@ jobs:
       - name: 🗜️ Create archive
         run: |
           cd build/Release
-          xattr -d com.apple.quarantine hyde
+          # "No such xattr: com.apple.quarantine"
+          # xattr -d com.apple.quarantine hyde
           strip hyde
           tar -zcvf hyde-${{github.ref_name}}-macos.tgz hyde
       - name: ✍️ Post archive
