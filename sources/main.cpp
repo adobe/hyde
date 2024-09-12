@@ -428,7 +428,7 @@ bool fixup_have_file_subfield(const std::filesystem::path& path) {
 
 constexpr auto hyde_version_major_k = 2;
 constexpr auto hyde_version_minor_k = 0;
-constexpr auto hyde_version_patch_k = 1;
+constexpr auto hyde_version_patch_k = 2;
 
 auto hyde_version() {
     return std::to_string(hyde_version_major_k) +
