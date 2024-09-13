@@ -28,6 +28,7 @@ jobs:
           # "No such xattr: com.apple.quarantine"
           # xattr -d com.apple.quarantine hyde
           strip hyde
+          codesign --force -s - hyde
           tar -zcvf hyde-${{github.ref_name}}-macos.tgz hyde
       - name: ✍️ Post archive
         uses: softprops/action-gh-release@v1
