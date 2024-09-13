@@ -41,7 +41,7 @@ jobs:
     steps:
       - name: ⬇️ Checkout sources
         uses: actions/checkout@v3
-      - name: Set up Clang
+      - name: 🏗️ Set up Clang
         uses: egor-tensin/setup-clang@v1
         with:
           version: 18
