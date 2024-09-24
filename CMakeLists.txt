@@ -30,10 +30,19 @@ message(STATUS "INFO: Setting up LLVM...")
 FetchContent_Declare(
     llvm
     GIT_REPOSITORY https://github.com/llvm/llvm-project.git
-    GIT_TAG 3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff # llvmorg-18.1.8
+    GIT_TAG 7cbf1a2591520c2491aa35339f227775f4d3adf6 # llvmorg-16.0.6
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
     SOURCE_SUBDIR llvm
+)
+
+FetchContent_Declare(
+    diff
+    GIT_REPOSITORY https://github.com/fosterbrereton/diff.git
+    GIT_TAG 702efcba1ab81f6a86a196a941c2393125347386
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+    SOURCE_SUBDIR diff
 )
 
 set(LLVM_ENABLE_PROJECTS "clang")
@@ -41,6 +50,7 @@ set(LLVM_TARGETS_TO_BUILD "X86;AArch64")
 set(LLVM_ENABLE_ZSTD OFF)
 
 FetchContent_MakeAvailable(llvm)
+FetchContent_MakeAvailable(diff)
 
 message(STATUS "INFO: LLVM source dir: ${llvm_SOURCE_DIR}")
 message(STATUS "INFO: LLVM binary dir: ${llvm_BINARY_DIR}")
@@ -127,6 +137,7 @@ target_include_directories(hyde
         ${llvm_BINARY_DIR}/tools/clang/include
         ${llvm_SOURCE_DIR}/llvm/include
         ${llvm_BINARY_DIR}/include
+        ${diff_SOURCE_DIR}/include
 )
 
 target_compile_options(hyde

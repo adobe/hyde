@@ -25,8 +25,9 @@ namespace hyde {
 /**************************************************************************************************/
 
 enum class yaml_mode {
-    validate,
-    update,
+    validate,  // ensure the destination docs match the shape of the generated docs
+    update,    // update the destination docs to match the shape of the generated docs
+    transcribe // transcribe the destination docs to match the symbols put out by upgraded tooling
 };
 
 /**************************************************************************************************/

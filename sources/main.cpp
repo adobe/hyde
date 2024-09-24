@@ -91,10 +91,10 @@ std::vector<std::string> make_absolute(std::vector<std::string> paths) {
     Command line arguments section. These are intentionally global. See:
         https://llvm.org/docs/CommandLine.html
 */
-enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate, ToolModeFixupSubfield };
+enum ToolMode { ToolModeJSON, ToolModeYAMLValidate, ToolModeYAMLUpdate, ToolModeYAMLTranscribe, ToolModeFixupSubfield };
 enum ToolDiagnostic { ToolDiagnosticQuiet, ToolDiagnosticVerbose, ToolDiagnosticVeryVerbose };
 static llvm::cl::OptionCategory MyToolCategory(
-    "Hyde is a tool to scan library headers to ensure documentation is kept up to date");
+    "Hyde is a tool for the semi-automatic maintenance of API reference documentation");
 static cl::opt<ToolMode> ToolMode(
     cl::desc("There are several modes under which the tool can run:"),
     cl::values(
@@ -105,7 +105,10 @@ static cl::opt<ToolMode> ToolMode(
                    "Write updated YAML documentation for missing elements"),
         clEnumValN(ToolModeFixupSubfield,
                    "hyde-fixup-subfield",
-                   "Fix-up preexisting documentation; move all fields except `layout` and `title` into a `hyde` subfield. Note this mode is unique in that it takes pre-existing documentation as source(s), not a C++ source file.")
+                   "Fix-up preexisting documentation; move all fields except `layout` and `title` into a `hyde` subfield. Note this mode is unique in that it takes pre-existing documentation as source(s), not a C++ source file."),
+        clEnumValN(ToolModeYAMLTranscribe,
+                   "hyde-transcribe",
+                   "Transcribe preexisting documentation given the same symbols have different names because hyde updated its clang driver. This mode assumes the generated and present documentation would otherwise be identical.")
     ),
     cl::cat(MyToolCategory));
 static cl::opt<hyde::ToolAccessFilter> ToolAccessFilter(
@@ -428,7 +431,7 @@ bool fixup_have_file_subfield(const std::filesystem::path& path) {
 
 constexpr auto hyde_version_major_k = 2;
 constexpr auto hyde_version_minor_k = 0;
-constexpr auto hyde_version_patch_k = 2;
+constexpr auto hyde_version_patch_k = 3;
 
 auto hyde_version() {
     return std::to_string(hyde_version_major_k) +
@@ -687,10 +690,18 @@ int main(int argc, const char** argv) try {
         emit_options._tested_by = TestedBy;
         emit_options._ignore_extraneous_files = IgnoreExtraneousFiles;
 
+        const auto yaml_mode = [&]{
+            switch (ToolMode) {
+                case ToolModeYAMLValidate: return hyde::yaml_mode::validate;
+                case ToolModeYAMLUpdate: return hyde::yaml_mode::update;
+                case ToolModeYAMLTranscribe: return hyde::yaml_mode::transcribe;
+                default: throw std::runtime_error("Invalid YAML mode");
+            }
+        }();
+
         auto out_emitted = hyde::json::object();
         output_yaml(std::move(result), std::move(src_root), std::move(dst_root), out_emitted,
-                    ToolMode == ToolModeYAMLValidate ? hyde::yaml_mode::validate :
-                                                       hyde::yaml_mode::update, std::move(emit_options));
+                    yaml_mode, std::move(emit_options));
         
         if (EmitJson) {
             std::cout << out_emitted << '\n';

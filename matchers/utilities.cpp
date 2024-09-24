@@ -351,12 +351,12 @@ inline std::string_view to_string_view(StringRef string) {
 
 /**************************************************************************************************/
 
-inline std::string_view to_string_view(ParamCommandPassDirection x) {
+inline std::string_view to_string_view(ParamCommandComment::PassDirection x) {
     // clang-format off
     switch (x) {
-        case ParamCommandPassDirection::In: return "in";
-        case ParamCommandPassDirection::InOut: return "inout";
-        case ParamCommandPassDirection::Out: return "out";
+        case ParamCommandComment::PassDirection::In: return "in";
+        case ParamCommandComment::PassDirection::InOut: return "inout";
+        case ParamCommandComment::PassDirection::Out: return "out";
     }
     // clang-format on
     return "in"; // gcc on linux is asking for this.
@@ -435,9 +435,9 @@ hyde::optional_json ProcessComment(const ASTContext& n,
     };
 
     switch (comment->getCommentKind()) {
-        case CommentKind::None:
+        case Comment::NoCommentKind:
             break;
-        case CommentKind::BlockCommandComment: {
+        case Comment::BlockCommandCommentKind: {
             const BlockCommandComment* block_command_comment =
                 llvm::dyn_cast_or_null<BlockCommandComment>(comment);
             assert(block_command_comment);
@@ -457,7 +457,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
             // Do further post-processing if the comment is a hyde command.
             result = post_process_hyde_command(std::move(result));
         } break;
-        case CommentKind::ParamCommandComment: {
+        case Comment::ParamCommandCommentKind: {
             const ParamCommandComment* param_command_comment =
                 llvm::dyn_cast_or_null<ParamCommandComment>(comment);
             assert(param_command_comment);
@@ -477,7 +477,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
 
             result = roll_up_single_paragraph_child(std::move(result));
         } break;
-        case CommentKind::TParamCommandComment: {
+        case Comment::TParamCommandCommentKind: {
             const TParamCommandComment* tparam_command_comment =
                 llvm::dyn_cast_or_null<TParamCommandComment>(comment);
             assert(tparam_command_comment);
@@ -488,7 +488,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
 
             result = roll_up_single_paragraph_child(std::move(result));
         } break;
-        case CommentKind::VerbatimBlockComment: {
+        case Comment::VerbatimBlockCommentKind: {
             const VerbatimBlockComment* verbatim_block_comment =
                 llvm::dyn_cast_or_null<VerbatimBlockComment>(comment);
             assert(verbatim_block_comment);
@@ -497,7 +497,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
                 result["children"] = std::move(*children);
             }
         } break;
-        case CommentKind::VerbatimLineComment: {
+        case Comment::VerbatimLineCommentKind: {
             const VerbatimLineComment* verbatim_line_comment =
                 llvm::dyn_cast_or_null<VerbatimLineComment>(comment);
             assert(verbatim_line_comment);
@@ -506,7 +506,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
                 result["children"] = std::move(*children);
             }
         } break;
-        case CommentKind::ParagraphComment: {
+        case Comment::ParagraphCommentKind: {
             const ParagraphComment* paragraph_comment =
                 llvm::dyn_cast_or_null<ParagraphComment>(comment);
             assert(paragraph_comment);
@@ -534,7 +534,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
                 result["text"] = std::move(paragraph);
             }
         } break;
-        case CommentKind::FullComment: {
+        case Comment::FullCommentKind: {
             const FullComment* full_comment_inner = llvm::dyn_cast_or_null<FullComment>(comment);
             assert(full_comment_inner);
 
@@ -542,11 +542,11 @@ hyde::optional_json ProcessComment(const ASTContext& n,
                 result["children"] = std::move(*children);
             }
         } break;
-        case CommentKind::HTMLEndTagComment:
+        case Comment::HTMLEndTagCommentKind:
             break;
-        case CommentKind::HTMLStartTagComment:
+        case Comment::HTMLStartTagCommentKind:
             break;
-        case CommentKind::InlineCommandComment: {
+        case Comment::InlineCommandCommentKind: {
             const InlineCommandComment* inline_command_comment =
                 llvm::dyn_cast_or_null<InlineCommandComment>(comment);
             assert(inline_command_comment);
@@ -557,7 +557,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
                 result["args"] = std::move(*args);
             }
         } break;
-        case CommentKind::TextComment: {
+        case Comment::TextCommentKind: {
             const TextComment* text_comment = llvm::dyn_cast_or_null<TextComment>(comment);
             assert(text_comment);
 
@@ -567,7 +567,7 @@ hyde::optional_json ProcessComment(const ASTContext& n,
 
             result["text"] = to_string_view(text_comment->getText());
         } break;
-        case CommentKind::VerbatimBlockLineComment:
+        case Comment::VerbatimBlockLineCommentKind:
             break;
     }
 
