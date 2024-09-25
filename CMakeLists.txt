@@ -30,7 +30,7 @@ message(STATUS "INFO: Setting up LLVM...")
 FetchContent_Declare(
     llvm
     GIT_REPOSITORY https://github.com/llvm/llvm-project.git
-    GIT_TAG 7cbf1a2591520c2491aa35339f227775f4d3adf6 # llvmorg-16.0.6
+    GIT_TAG 3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff # llvmorg-18.1.8
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
     SOURCE_SUBDIR llvm
@@ -39,7 +39,7 @@ FetchContent_Declare(
 FetchContent_Declare(
     diff
     GIT_REPOSITORY https://github.com/fosterbrereton/diff.git
-    GIT_TAG 702efcba1ab81f6a86a196a941c2393125347386
+    GIT_TAG 2ba1687a30de266416caa141f8be408e72843be0
     GIT_SHALLOW TRUE
     GIT_PROGRESS TRUE
     SOURCE_SUBDIR diff
