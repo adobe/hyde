@@ -60,6 +60,8 @@ std::string PostProcessType(const clang::Decl* decl, std::string type);
 // Doxygen-style comments.
 optional_json ProcessComments(const clang::Decl* d);
 
+const std::string& hyde_version();
+
 /**************************************************************************************************/
 
 inline std::string to_string(clang::AccessSpecifier access) {

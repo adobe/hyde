@@ -973,6 +973,19 @@ hyde::optional_json ProcessComments(const Decl* d) {
 
 /**************************************************************************************************/
 
+constexpr auto hyde_version_major_k = 2;
+constexpr auto hyde_version_minor_k = 1;
+constexpr auto hyde_version_patch_k = 0;
+
+const std::string& hyde_version() {
+    static const std::string result = std::to_string(hyde_version_major_k) +
+                                      "." + std::to_string(hyde_version_minor_k) +
+                                      "." + std::to_string(hyde_version_patch_k);
+    return result;
+}
+
+/**************************************************************************************************/
+
 } // namespace hyde
 
 /**************************************************************************************************/

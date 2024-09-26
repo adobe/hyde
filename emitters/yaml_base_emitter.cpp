@@ -263,6 +263,7 @@ json yaml_base_emitter::base_emitter_node(std::string layout,
     node["hyde"]["owner"] = default_tag_value;
     node["hyde"]["tags"].emplace_back(std::move(tag));
     node["hyde"]["brief"] = default_tag_value;
+    node["hyde"]["version"] = hyde_version();
 
     return node;
 }
@@ -1018,23 +1019,6 @@ transcribe_pairs derive_transcribe_pairs(const json& src, const json& dst) {
         std::cerr << "WARNING: transcription key count mismatch\n";
     }
 
-    const auto score = [](const myers::patch& p) {
-        std::size_t score = 0;
-
-        for (const auto& c : p) {
-            switch (c.operation) {
-                case myers::operation::cpy:
-                    break;
-                case myers::operation::del:
-                case myers::operation::ins: {
-                    score += c.text.size();
-                } break;
-            }
-        }
-
-        return score;
-    };
-
     transcribe_pairs result;
 
     while (!src_keys.empty()) {
@@ -1048,9 +1032,8 @@ transcribe_pairs derive_transcribe_pairs(const json& src, const json& dst) {
         std::size_t best_match = std::numeric_limits<std::size_t>::max();
         std::size_t best_index = 0;
         for (std::size_t i = 0; i < dst_keys.size(); ++i) {
-            // generate the meyers diff of the src key and the candidate dst
-            const myers::patch patch = myers::diff(cur_pair.src, dst_keys[i]);
-            std::size_t cur_match = score(patch);
+            // generate the diff score of the src key and the candidate dst
+            std::size_t cur_match = diff_score(cur_pair.src, dst_keys[i]);
 
             if (cur_match > best_match) {
                 continue;
@@ -1226,6 +1209,24 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
         failure |=
             check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");
         failure |= check_scalar_array(filepath, have_hyde, expected_hyde, "", merged_hyde, "tags");
+
+        // We don't want to use `check_scalar` on the version key. If the versions mismatch its not
+        // necessarily a validation error (as the docs may match OK), but something we want to warn
+        // about. Then in transcription/update we want to hard-set the value to the version of this
+        // tool.
+
+        switch (_mode) {
+            case yaml_mode::validate: {
+                if (!have_hyde.count("version") ||
+                    static_cast<const std::string&>(have_hyde["version"]) != hyde_version()) {
+                    std::cerr << "INFO: Validation phase with a mismatched version of hyde. Consider updating then/or transcribing.\n";
+                }
+            } break;
+            case yaml_mode::update:
+            case yaml_mode::transcribe: {
+                merged_hyde["version"] = hyde_version();
+            } break;
+        }
 
         failure |= do_merge(filepath, have_hyde, expected_hyde, merged_hyde);
     }
@@ -1619,6 +1620,26 @@ std::string yaml_base_emitter::filename_filter(std::string f) {
                   [&](const auto& c) { result += uri_equivalent[static_cast<int>(c)]; });
 
     return result;
+}
+
+/**************************************************************************************************/
+
+std::size_t diff_score(std::string_view src, std::string_view dst) {
+    const myers::patch patch = myers::diff(src, dst);
+    std::size_t score = 0;
+
+    for (const auto& c : patch) {
+        switch (c.operation) {
+            case myers::operation::cpy:
+                break;
+            case myers::operation::del:
+            case myers::operation::ins: {
+                score += c.text.size();
+            } break;
+        }
+    }
+
+    return score;
 }
 
 /**************************************************************************************************/
