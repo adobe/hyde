@@ -19,9 +19,6 @@ written permission of Adobe.
 // yaml-cpp
 #include "yaml-cpp/yaml.h"
 
-// diff
-#include "diff/myers.hpp"
-
 // application
 #include "emitters/yaml_base_emitter_fwd.hpp"
 #include "json.hpp"
@@ -1620,26 +1617,6 @@ std::string yaml_base_emitter::filename_filter(std::string f) {
                   [&](const auto& c) { result += uri_equivalent[static_cast<int>(c)]; });
 
     return result;
-}
-
-/**************************************************************************************************/
-
-std::size_t diff_score(std::string_view src, std::string_view dst) {
-    const myers::patch patch = myers::diff(src, dst);
-    std::size_t score = 0;
-
-    for (const auto& c : patch) {
-        switch (c.operation) {
-            case myers::operation::cpy:
-                break;
-            case myers::operation::del:
-            case myers::operation::ins: {
-                score += c.text.size();
-            } break;
-        }
-    }
-
-    return score;
 }
 
 /**************************************************************************************************/

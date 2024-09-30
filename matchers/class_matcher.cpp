@@ -96,6 +96,39 @@ namespace hyde {
 
 /**************************************************************************************************/
 
+json fixup_short_name(json&& method) {
+    // We have encountered cases with the latest clang drivers where the short_name field for some
+    // methods is missing. In such case we try to cobble up a solution by finding the
+    // first sequence of alphanumeric characters after the return type. If _that_ doesn't work,
+    // then we fall back on the signature name.
+    if (method.count("short_name") &&
+        method.at("short_name").is_string() &&
+        !static_cast<const std::string&>(method.at("short_name")).empty()) {
+        return std::move(method);
+    }
+
+    std::string short_name = method["signature"];
+
+    if (method.count("return_type") && method["return_type"].is_string() &&
+        method.count("signature") && method["signature"].is_string()) {
+        const std::string& return_type = method["return_type"];
+        const std::string& signature = method["signature"];
+        const auto offset = signature.find(return_type);
+        if (offset != std::string::npos) {
+            const auto start = offset + return_type.size() + 1;
+            const auto end = signature.find_first_of("(", start);
+            short_name = signature.substr(start, end - start);
+            
+        }
+    }
+
+    method["short_name"] = std::move(short_name);
+
+    return std::move(method);
+}
+
+/**************************************************************************************************/
+
 void ClassInfo::run(const MatchFinder::MatchResult& Result) {
     auto clas = Result.Nodes.getNodeAs<CXXRecordDecl>("class");
 
@@ -138,8 +171,9 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
         auto methodInfo_opt = DetailFunctionDecl(_options, method);
         if (!methodInfo_opt) continue;
         auto methodInfo = std::move(*methodInfo_opt);
-        info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
-            std::move(methodInfo));
+        methodInfo = fixup_short_name(std::move(methodInfo));
+        const auto& short_name = static_cast<const std::string&>(methodInfo["short_name"]);
+        info["methods"][short_name].push_back(std::move(methodInfo));
     }
 
     for (const auto& decl : clas->decls()) {
@@ -149,8 +183,9 @@ void ClassInfo::run(const MatchFinder::MatchResult& Result) {
             DetailFunctionDecl(_options, function_template_decl->getTemplatedDecl());
         if (!methodInfo_opt) continue;
         auto methodInfo = std::move(*methodInfo_opt);
-        info["methods"][static_cast<const std::string&>(methodInfo["short_name"])].push_back(
-            std::move(methodInfo));
+        methodInfo = fixup_short_name(std::move(methodInfo));
+        const auto& short_name = static_cast<const std::string&>(methodInfo["short_name"]);
+        info["methods"][short_name].push_back(std::move(methodInfo));
     }
 
     for (const auto& field : clas->fields()) {

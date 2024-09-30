@@ -11,6 +11,9 @@ written permission of Adobe.
 
 #pragma once
 
+// stdc++
+#include <filesystem>
+
 // clang/llvm
 // clang-format off
 #include "_clang_include_prefix.hpp" // must be first to disable warnings for clang headers
@@ -60,7 +63,20 @@ std::string PostProcessType(const clang::Decl* decl, std::string type);
 // Doxygen-style comments.
 optional_json ProcessComments(const clang::Decl* d);
 
+/**************************************************************************************************/
+
 const std::string& hyde_version();
+
+/**************************************************************************************************/
+
+/// compute a value (based on a diff algorithm) to determine roughly how much two strings are like
+/// each other. The lower the value the better, with 0 meaning the two strings are identical.
+std::size_t diff_score(std::string_view src, std::string_view dst);
+
+// Iterate the list of `dst` subfolders, find their `index.md` files, load the `title` of each, and
+// find the best-fit against the given `title`. This facilitates the transcription behavior.
+std::filesystem::path derive_transcription_src_path(const std::filesystem::path& dst,
+                                                    const std::string& title);
 
 /**************************************************************************************************/
 

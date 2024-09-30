@@ -245,11 +245,6 @@ std::filesystem::path yaml_base_emitter::dst_path_append(std::filesystem::path p
 }
 
 /**************************************************************************************************/
-/// compute a value (based on a diff algorithm) to determine roughly how much two strings are like
-/// each other. The lower the value the better, with 0 meaning the two strings are identical.
-std::size_t diff_score(std::string_view src, std::string_view dst);
-
-/**************************************************************************************************/
 
 } // namespace hyde
 
