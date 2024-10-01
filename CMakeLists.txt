@@ -36,11 +36,21 @@ FetchContent_Declare(
     SOURCE_SUBDIR llvm
 )
 
+FetchContent_Declare(
+    diff
+    GIT_REPOSITORY https://github.com/fosterbrereton/diff.git
+    GIT_TAG 2ba1687a30de266416caa141f8be408e72843be0
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+    SOURCE_SUBDIR diff
+)
+
 set(LLVM_ENABLE_PROJECTS "clang")
 set(LLVM_TARGETS_TO_BUILD "X86;AArch64")
 set(LLVM_ENABLE_ZSTD OFF)
 
 FetchContent_MakeAvailable(llvm)
+FetchContent_MakeAvailable(diff)
 
 message(STATUS "INFO: LLVM source dir: ${llvm_SOURCE_DIR}")
 message(STATUS "INFO: LLVM binary dir: ${llvm_BINARY_DIR}")
@@ -127,6 +137,7 @@ target_include_directories(hyde
         ${llvm_BINARY_DIR}/tools/clang/include
         ${llvm_SOURCE_DIR}/llvm/include
         ${llvm_BINARY_DIR}/include
+        ${diff_SOURCE_DIR}/include
 )
 
 target_compile_options(hyde

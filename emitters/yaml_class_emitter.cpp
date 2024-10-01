@@ -17,6 +17,7 @@ written permission of Adobe.
 
 // application
 #include "emitters/yaml_function_emitter.hpp"
+#include "matchers/utilities.hpp"
 
 /**************************************************************************************************/
 
@@ -108,18 +109,31 @@ bool yaml_class_emitter::emit(const json& j, json& out_emitted, const json& inhe
 
     auto dst = dst_path(j, static_cast<const std::string&>(j["name"]));
 
+    if (_mode == yaml_mode::transcribe && !exists(dst)) {
+        // In this case the symbol name has changed, which has caused a change to the directory name
+        // we are now trying to load and reconcile with what we've created. In this case, we can
+        // assume the "shape" of the documentation is the same, which means that within the parent
+        // folder of `dst` is the actual source folder that holds the old documentation, just under
+        // a different name. Find that folder and rename it.
+
+        std::filesystem::rename(derive_transcription_src_path(dst, node["title"]), dst);
+    }
+
     bool failure =
         reconcile(std::move(node), _dst_root, std::move(dst) / index_filename_k, out_emitted);
 
-    const auto& methods = j["methods"];
     yaml_function_emitter function_emitter(_src_root, _dst_root, _mode, _options, true);
+    auto emitted_methods = hyde::json::array();
+    const auto& methods = j["methods"];
 
     for (auto it = methods.begin(); it != methods.end(); ++it) {
         function_emitter.set_key(it.key());
         auto function_emitted = hyde::json::object();
         failure |= function_emitter.emit(it.value(), function_emitted, out_emitted.at("hyde"));
-        out_emitted["methods"].push_back(std::move(function_emitted));
+        emitted_methods.push_back(std::move(function_emitted));
     }
+
+    out_emitted["methods"] = std::move(emitted_methods);
 
     return failure;
 }

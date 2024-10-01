@@ -31,7 +31,11 @@ written permission of Adobe.
 #include "_clang_include_suffix.hpp" // must be last to re-enable warnings
 // clang-format on
 
+// diff
+#include "diff/myers.hpp"
+
 // application
+#include "emitters/yaml_base_emitter_fwd.hpp"
 #include "json.hpp"
 
 using namespace clang;
@@ -969,6 +973,104 @@ hyde::optional_json ProcessComments(const Decl* d) {
     }
 
     return std::nullopt;
+}
+
+/**************************************************************************************************/
+
+constexpr auto hyde_version_major_k = 2;
+constexpr auto hyde_version_minor_k = 1;
+constexpr auto hyde_version_patch_k = 0;
+
+const std::string& hyde_version() {
+    static const std::string result = std::to_string(hyde_version_major_k) +
+                                      "." + std::to_string(hyde_version_minor_k) +
+                                      "." + std::to_string(hyde_version_patch_k);
+    return result;
+}
+
+/**************************************************************************************************/
+
+std::filesystem::path derive_transcription_src_path(const std::filesystem::path& dst,
+                                                    const std::string& title) {
+    // std::cout << "deriving transcription src for \"" << title << "\", dst: " << dst.string() << '\n';
+
+    const auto parent = dst.parent_path();
+    std::size_t best_match = std::numeric_limits<std::size_t>::max();
+    std::filesystem::path result;
+    const std::string& current_version = hyde_version();
+
+    for (const auto& entry : std::filesystem::directory_iterator(dst.parent_path())) {
+        const auto sibling = entry.path();
+        if (!is_directory(sibling)) continue;
+        const auto index_path = sibling / index_filename_k;
+
+        if (!exists(index_path)) {
+            std::cerr << "WARN: expected " << index_path.string() << " but did not find one\n";
+            continue;
+        }
+
+        const auto have_docs = parse_documentation(index_path, true);
+
+        if (have_docs._error) {
+            std::cerr << "WARN: expected " << index_path.string() << " to have docs\n";
+            continue;
+        }
+
+        const auto& have = have_docs._json;
+
+        if (have.count("hyde")) {
+            const auto& have_hyde = have.at("hyde");
+            if (have_hyde.count("version")) {
+                // Transcription is when we're going from a previous version of hyde to this one.
+                // So if the versions match, this is a directory that has already been transcribed.
+                // (Transcribing from a newer version of hyde docs to older ones isn't supported.)
+                if (static_cast<const std::string&>(have_hyde.at("version")) == current_version) {
+                    // std::cout << "    candidate (VSKIP) src: " << sibling.string() << '\n';
+                    continue;
+                }
+            }
+        }
+
+        // REVISIT (fosterbrereton): Are these titles editable? Would
+        // users muck with them and thus break this algorithm?
+        const std::string& have_title = static_cast<const std::string&>(have["title"]);
+
+        // score going from what we have to what this version computed.
+        const auto match = diff_score(have_title, title);
+
+        // std::cout << "    candidate (" << match << "): \"" << have_title << "\", src: " << sibling.string() << '\n';
+
+        if (match > best_match) {
+            continue;
+        }
+
+        best_match = match;
+        result = sibling;
+    }
+
+    // std::cout << "    result is: " << result.string() << " (" << best_match << ")\n";
+
+    return result;
+}
+
+/**************************************************************************************************/
+
+std::size_t diff_score(std::string_view src, std::string_view dst) {
+    const myers::patch patch = myers::diff(src, dst);
+    std::size_t score = 0;
+
+    for (const auto& c : patch) {
+        switch (c.operation) {
+            case myers::operation::cpy:
+                break;
+            case myers::operation::del:
+            case myers::operation::ins: {
+                score += c.text.size();
+            } break;
+        }
+    }
+
+    return score;
 }
 
 /**************************************************************************************************/

@@ -15,6 +15,9 @@ written permission of Adobe.
 // stdc++
 #include <iostream>
 
+// application
+#include "matchers/utilities.hpp"
+
 /**************************************************************************************************/
 
 namespace hyde {
@@ -255,6 +258,16 @@ bool yaml_function_emitter::emit(const json& jsn, json& out_emitted, const json&
     node["hyde"]["overloads"] = std::move(overloads);
     if (is_ctor) node["hyde"]["is_ctor"] = true;
     if (is_dtor) node["hyde"]["is_dtor"] = true;
+
+    if (_mode == yaml_mode::transcribe && !exists(dst)) {
+        // In this case the symbol name has changed, which has caused a change to the directory name
+        // we are now trying to load and reconcile with what we've created. In this case, we can
+        // assume the "shape" of the documentation is the same, which means that within the parent
+        // folder of `dst` is the actual source folder that holds the old documentation, just under
+        // a different name. Find that folder and rename it.
+
+        std::filesystem::rename(derive_transcription_src_path(dst, node["title"]), dst);
+    }
 
     return reconcile(std::move(node), _dst_root, dst / (filename + ".md"), out_emitted);
 }

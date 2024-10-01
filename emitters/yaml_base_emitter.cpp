@@ -260,6 +260,7 @@ json yaml_base_emitter::base_emitter_node(std::string layout,
     node["hyde"]["owner"] = default_tag_value;
     node["hyde"]["tags"].emplace_back(std::move(tag));
     node["hyde"]["brief"] = default_tag_value;
+    node["hyde"]["version"] = hyde_version();
 
     return node;
 }
@@ -392,6 +393,7 @@ void yaml_base_emitter::check_notify(const std::string& filepath,
             std::cerr << filepath << "@" << escaped_nodepath << "['" << escaped_key
                       << "']: " << validate_message << "\n";
         } break;
+        case yaml_mode::transcribe:
         case yaml_mode::update: {
             std::cout << filepath << "@" << escaped_nodepath << "['" << escaped_key
                       << "']: " << update_message << "\n";
@@ -980,6 +982,78 @@ bool yaml_base_emitter::check_object_array(const std::string& filepath,
 
 /**************************************************************************************************/
 
+std::vector<std::string> object_keys(const json& j) {
+    std::vector<std::string> result;
+
+    for (auto iter{j.begin()}, last{j.end()}; iter != last; ++iter) {
+        result.push_back(static_cast<const std::string&>(iter.key()));
+    }
+
+    return result;
+}
+
+template <class T>
+inline void move_append(T& dst, T&& src) {
+    dst.insert(dst.end(), std::make_move_iterator(src.begin()), std::make_move_iterator(src.end()));
+}
+
+struct transcribe_pair {
+    std::string src;
+    std::string dst;
+};
+
+using transcribe_pairs = std::vector<transcribe_pair>;
+
+// This is O(N^2), where N is the size of both `src` and `dst`. Therefore transcription
+// should only be run when it is shown to be necessary. At the same time, if your code base
+// has enough overrides to really slow this algorithm down, hyde's performance is the least
+// of your concerns.
+transcribe_pairs derive_transcribe_pairs(const json& src, const json& dst) {
+    std::vector<std::string> src_keys = object_keys(src);
+    std::vector<std::string> dst_keys = object_keys(dst);
+
+    if (src_keys.size() != dst_keys.size()) {
+        std::cerr << "WARNING: transcription key count mismatch\n";
+    }
+
+    transcribe_pairs result;
+
+    while (!src_keys.empty()) {
+        transcribe_pair cur_pair;
+
+        // pop a key off the old name set
+        cur_pair.src = std::move(src_keys.back());
+        src_keys.pop_back();
+
+        // find the best match of the dst keys to the src key
+        std::size_t best_match = std::numeric_limits<std::size_t>::max();
+        std::size_t best_index = 0;
+        for (std::size_t i = 0; i < dst_keys.size(); ++i) {
+            // generate the diff score of the src key and the candidate dst
+            std::size_t cur_match = diff_score(cur_pair.src, dst_keys[i]);
+
+            if (cur_match > best_match) {
+                continue;
+            }
+
+            // if this dst candidate is better than what we've seen, remember that.
+            best_match = cur_match;
+            best_index = i;
+        }
+
+        // pair the best match dst and src keys and remove dst
+        cur_pair.dst = std::move(dst_keys[best_index]);
+        dst_keys.erase(dst_keys.begin() + best_index);
+
+        // save off the pair and repeat
+        result.emplace_back(std::move(cur_pair));
+    }
+
+    return result;
+}
+
+/**************************************************************************************************/
+
 bool yaml_base_emitter::check_map(const std::string& filepath,
                                   const json& have_node,
                                   const json& expected_node,
@@ -1013,38 +1087,68 @@ bool yaml_base_emitter::check_map(const std::string& filepath,
     }
 
     const json& have = have_node[key];
-
-    std::vector<std::string> keys;
-
-    for (auto iter{have.begin()}, last{have.end()}; iter != last; ++iter) {
-        keys.push_back(static_cast<const std::string&>(iter.key()));
-    }
-    for (auto iter{expected.begin()}, last{expected.end()}; iter != last; ++iter) {
-        keys.push_back(static_cast<const std::string&>(iter.key()));
-    }
-
-    std::sort(keys.begin(), keys.end());
-    keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
-
     bool failure{false};
-
     json result_map;
-    for (const auto& subkey : keys) {
-        std::string curnodepath = nodepath + "['" + subkey + "']";
 
-        if (!expected.count(subkey)) {
-            // Issue #75: only remove non-root keys to allow non-hyde YAML into the file.
-            if (!at_root) {
-                notify("extraneous map key: `" + subkey + "`", "map key removed: `" + subkey + "`");
+    if (key == "overloads" && _mode == yaml_mode::transcribe) {
+        /*
+        It is common during the upgrade from one version of hyde to another that the underlying
+        clang tooling will output different symbol names for a given symbol (e.g., a namespace
+        may get removed or added.) Although the symbol is unchanged, because its `expected` name
+        differs from the `have` name, hyde will consider the symbols different, remove the old name
+        and insert the new one. This wipes out any previous documentation under the old name that
+        should have been migrated to the new name.
+
+        The solution here is very specialized. For the "overloads" key only, we gather the name
+        of each overload in both the `have` and `expected` set. We then pair them up according
+        to how well they match to one another (using the Meyers' string diff algorithm; two strings
+        with less "patchwork" between them are considered a better match). Ideally this results in
+        key pairs that represent the same symbol, just with different names. Then we call the
+        `proc` with `have[old_name]` and `expected[new_name]` which will migrate any documentation
+        from the old name to the new.
+
+        This capability assumes the overload count of both `have` and `expected` are the same.
+        If any new functions are created or removed between upgrades in the clang driver (e.g.,
+        a new compiler-generated routine is created and documented) that will have to be managed
+        manually. Assuming the count is the same, it also assumes there is a 1:1 mapping from the
+        set of old names to the set of new names. This implies the transcription mode should be
+        done as a separate step from an update. In other words, a transcription assumes the
+        documentation is actually the same between the `have` and `expected` sets, it is _just the
+        overload names_ that have changed, so map the old-named documentation to the new-named
+        documentation as reasonably as possible.
+        */
+        for (const auto& pair : derive_transcribe_pairs(have, expected)) {
+            const std::string curnodepath = nodepath + "['" + pair.dst + "']";
+            failure |= proc(filepath, have[pair.src], expected[pair.dst], curnodepath,
+                            result_map[pair.dst]);
+        }
+    } else {
+        std::vector<std::string> keys;
+
+        move_append(keys, object_keys(have));
+        move_append(keys, object_keys(expected));
+
+        std::sort(keys.begin(), keys.end());
+        keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
+
+        for (const auto& subkey : keys) {
+            const std::string curnodepath = nodepath + "['" + subkey + "']";
+
+            if (!expected.count(subkey)) {
+                // Issue #75: only remove non-root keys to allow non-hyde YAML into the file.
+                if (!at_root) {
+                    notify("extraneous map key: `" + subkey + "`",
+                           "map key removed: `" + subkey + "`");
+                    failure = true;
+                }
+            } else if (!have.count(subkey)) {
+                notify("map key missing: `" + subkey + "`", "map key inserted: `" + subkey + "`");
+                result_map[subkey] = expected[subkey];
                 failure = true;
+            } else {
+                failure |=
+                    proc(filepath, have[subkey], expected[subkey], curnodepath, result_map[subkey]);
             }
-        } else if (!have.count(subkey)) {
-            notify("map key missing: `" + subkey + "`", "map key inserted: `" + subkey + "`");
-            result_map[subkey] = expected[subkey];
-            failure = true;
-        } else {
-            failure |=
-                proc(filepath, have[subkey], expected[subkey], curnodepath, result_map[subkey]);
         }
     }
 
@@ -1102,6 +1206,24 @@ std::pair<bool, json> yaml_base_emitter::merge(const std::string& filepath,
         failure |=
             check_editable_scalar(filepath, have_hyde, expected_hyde, "", merged_hyde, "brief");
         failure |= check_scalar_array(filepath, have_hyde, expected_hyde, "", merged_hyde, "tags");
+
+        // We don't want to use `check_scalar` on the version key. If the versions mismatch its not
+        // necessarily a validation error (as the docs may match OK), but something we want to warn
+        // about. Then in transcription/update we want to hard-set the value to the version of this
+        // tool.
+
+        switch (_mode) {
+            case yaml_mode::validate: {
+                if (!have_hyde.count("version") ||
+                    static_cast<const std::string&>(have_hyde["version"]) != hyde_version()) {
+                    std::cerr << "INFO: Validation phase with a mismatched version of hyde. Consider updating then/or transcribing.\n";
+                }
+            } break;
+            case yaml_mode::update:
+            case yaml_mode::transcribe: {
+                merged_hyde["version"] = hyde_version();
+            } break;
+        }
 
         failure |= do_merge(filepath, have_hyde, expected_hyde, merged_hyde);
     }
@@ -1264,7 +1386,7 @@ documentation parse_documentation(const std::filesystem::path& path, bool fixup_
     const auto front_matter_end = contents_end + front_matter_end_k.size();
     std::string yaml_src = have_contents.substr(0, front_matter_end);
     have_contents.erase(0, front_matter_end);
-    
+
     result._remainder = std::move(have_contents);
     result._json = yaml_to_json(load_yaml(path));
 
@@ -1342,6 +1464,7 @@ bool yaml_base_emitter::reconcile(json expected,
             case hyde::yaml_mode::validate: {
                 // do nothing
             } break;
+            case hyde::yaml_mode::transcribe:
             case hyde::yaml_mode::update: {
                 failure = write_documentation({std::move(merged), std::move(remainder)}, path);
             } break;
@@ -1354,6 +1477,7 @@ bool yaml_base_emitter::reconcile(json expected,
                 std::cerr << relative_path << ": required file does not exist\n";
                 failure = true;
             } break;
+            case hyde::yaml_mode::transcribe:
             case hyde::yaml_mode::update: {
                 // Add update. No remainder yet, as above.
                 // REVISIT: Refactor all this into a call to write_documentation,
