@@ -17,15 +17,15 @@
 ## macOS
 
 - Homebrew
-    - `brew install cmake`
-    - `brew install ninja` (optional)
+  - `brew install cmake`
+  - `brew install ninja` (optional)
 
 ## Linux
 
 (Note: only tested on ubuntu bionic so far)
 
 - Apt
-    - `sudo apt-get install libyaml-cpp-dev`
+  - `sudo apt-get install libyaml-cpp-dev`
 
 # How to Build
 
@@ -41,6 +41,10 @@ LLVM/Clang are declared as a dependency in the project's `CMakeLists.txt` file, 
 
 # How to run from Docker
 
+Login to [GitHub Packages registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-with-a-personal-access-token-classic)
+
+Fetch the latest image and run it:
+
 ```sh
 docker pull ghcr.io/adobe/hyde:latest
 
@@ -53,10 +57,10 @@ You can then run the examples as below, except don't prefix `hyde` with `./`.
 
 # Building the Docker image
 
-You may need to increase your docker resources to build the image. (2.0.1 successfully built with 16GB RAM and 4GB swap)
+You may need to increase your docker resources to build the image. On machines with limited RAM you may be able to get away with less, and a swap file.
 
 ```sh
-docker build --tag hyde .
+docker build --memory="16g" --memory-swap="32g" --build-arg LLVM_VERSION=18 --tag hyde .
 
 docker run --platform linux/x86_64 --mount type=bind,source="$(pwd)",target=/mnt/host \
     --tty --interactive \
@@ -75,7 +79,6 @@ docker tag hyde ghcr.io/adobe/hyde:latest
 docker push ghcr.io/adobe/hyde:$VERSION
 docker push ghcr.io/adobe/hyde:latest
 ```
-
 
 # Parameters and Flags
 
@@ -103,13 +106,13 @@ While compiling the source file, the non-function macro `ADOBE_TOOL_HYDE` is def
 # Examples:
 
 To output JSON:
-```./hyde -use-system-clang ../test_files/classes.cpp --```
+`./hyde -use-system-clang ../test_files/classes.cpp --`
 
 To validate pre-existing YAML:
-```./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-validate ../test_files/classes.cpp```
+`./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-validate ../test_files/classes.cpp`
 
 To output updated YAML:
-```./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-update ../test_files/classes.cpp```
+`./hyde -use-system-clang -hyde-yaml-dir=/path/to/output -hyde-update ../test_files/classes.cpp`
 
 # Hyde 1 to Hyde 2 Format Conversion
 
