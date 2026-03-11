@@ -26,7 +26,7 @@ RUN apt-get -y install build-essential
 
 # FROM base AS full
 
-ENV LLVM_VERSION=15
+ARG LLVM_VERSION=15
 
 RUN apt-get -y install clang-${LLVM_VERSION}
 RUN apt-get -y install libc++-${LLVM_VERSION}-dev
